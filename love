@@ -1,0 +1,72 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+function canDealDamage(player)
+    local char = player.Character
+    if not char then return false end
+    
+    for name, value in pairs(player:GetAttributes()) do
+        local lname = name:lower()
+        if lname:find("damage") or lname:find("attack") or lname:find("killer") or lname:find("power") or lname:find("hit") then
+            if value == true or tostring(value) == "true" or tonumber(value) == 1 then
+                return true
+            end
+        end
+    end
+    
+    for _,obj in pairs(char:GetDescendants()) do
+        local lname = obj.Name:lower()
+        if lname:find("damage") or lname:find("attack") or lname:find("killer") or lname:find("power") or lname:find("hit") then
+            if (obj:IsA("BoolValue") and obj.Value == true) 
+            or (obj:IsA("StringValue") and tostring(obj.Value):lower():find("true"))
+            or (obj:IsA("NumberValue") and obj.Value > 0) then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+function createESP(character, color)
+    if character:FindFirstChild("ESP") then 
+        character.ESP.FillColor = color
+        character.ESP.OutlineColor = color
+        return 
+    end
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESP"
+    highlight.FillColor = color
+    highlight.OutlineColor = color
+    highlight.FillTransparency = 0.7
+    highlight.OutlineTransparency = 0
+    highlight.Parent = character
+end
+
+function updateESP(player)
+    player.CharacterAdded:Connect(function(char)
+        task.wait(1)
+        while char.Parent do
+            local color = canDealDamage(player) and Color3.fromRGB(255,0,50) or Color3.fromRGB(0,255,0)
+            createESP(char, color)
+            task.wait(0.5)
+        end
+    end)
+    if player.Character then
+        local char = player.Character
+        local color = canDealDamage(player) and Color3.fromRGB(255,0,50) or Color3.fromRGB(0,255,0)
+        createESP(char, color)
+    end
+end
+
+for _,plr in pairs(Players:GetPlayers()) do
+    if plr ~= LocalPlayer then
+        updateESP(plr)
+    end
+end
+
+Players.PlayerAdded:Connect(function(plr)
+    if plr ~= LocalPlayer then
+        updateESP(plr)
+    end
+end)
