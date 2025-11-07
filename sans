@@ -1277,6 +1277,60 @@ local allLoopSummonChars = {
     "cream", "boris", "shadow"
 }
 
+-- 角色切换下拉框
+local charDropdown = CharacterTab:CreateDropdown({
+    Name = "选择角色（切换用）",
+    Options = {
+        "bendy", "sonic", "eggman", "sans", "monika",
+        "mugman", "sayori", "vanilla", "cuphead", "cream",
+        "frisk", "boris", "vortex"
+    },
+    CurrentOption = "bendy",
+    MultipleOptions = false,
+    Flag = "CharacterSelectDropdown",
+    Callback = function(Options)
+        selectedCharacter = Options[1]
+        print("[维度融合] 已选择切换角色：" .. selectedCharacter)
+    end
+})
+
+-- 确认切换按钮
+CharacterTab:CreateButton({
+    Name = "确认切换角色",
+    Callback = function()
+        if not selectedCharacter then
+            warn("[维度融合] 请先从下拉框选择切换角色！")
+            return
+        end
+
+        local success, err = pcall(function()
+            local args = {[1] = selectedCharacter}
+            ReplicatedStorage:WaitForChild("Remotes", 9e9)
+                :WaitForChild("inSelection", 9e9)
+                :WaitForChild("characterSelectionControlEvent", 9e9)
+                :FireServer(unpack(args))
+        end)
+
+        if success then
+            print("[维度融合] 已成功切换至角色：" .. selectedCharacter)
+        else
+            warn("[维度融合] 角色切换失败：" .. err)
+        end
+    end
+})
+
+--视觉模型
+local selectedCharacter = nil
+local selectedMinion = nil
+local isLoopSummonActive = false
+local loopSummonTask = nil
+
+local allLoopSummonChars = {
+    "sans", "sonic", "eggman", "bendy", "monika", 
+    "mugman", "sayori", "vanilla", "cuphead", "frisk", 
+    "cream", "boris", "shadow"
+}
+
 -- ========== 新增：Morph 角色切换（替代原角色切换下拉框） ==========
 local morphCharactersList = {
     "Sonic","Shadow","Vanilla","Cream",
@@ -1289,7 +1343,7 @@ local morphCharactersList = {
 
 -- Morph 角色选择下拉框
 local morphDropdown = CharacterTab:CreateDropdown({
-    Name = "选择 Morph 角色",
+    Name = "选择 视觉模型 ",
     Options = morphCharactersList,
     CurrentOption = morphCharactersList[1],
     MultipleOptions = false,
@@ -1405,7 +1459,7 @@ end
 
 -- Morph 角色确认切换按钮
 CharacterTab:CreateButton({
-    Name = "确认 Morph 切换角色",
+    Name = "确认 视觉模型 ",
     Callback = function()
         if not selectedCharacter then
             warn("[维度融合] 请先从下拉框选择 Morph 角色！")
