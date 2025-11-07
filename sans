@@ -1263,7 +1263,6 @@ BuffTab:CreateButton({
         end
     end
 })
-
 -- ==================== 5. 角色选择标签页 ====================
 local CharacterTab = Window:CreateTab("角色选择", 4483362458)
 
@@ -1278,48 +1277,166 @@ local allLoopSummonChars = {
     "cream", "boris", "shadow"
 }
 
--- 角色切换下拉框
-local charDropdown = CharacterTab:CreateDropdown({
-    Name = "选择角色（切换用）",
-    Options = {
-        "bendy", "sonic", "eggman", "sans", "monika",
-        "mugman", "sayori", "vanilla", "cuphead", "cream",
-        "frisk", "boris", "vortex"
-    },
-    CurrentOption = "bendy",
+-- ========== 新增：Morph 角色切换（替代原角色切换下拉框） ==========
+local morphCharactersList = {
+    "Sonic","Shadow","Vanilla","Cream",
+    "Bendy","Boris",
+    "Cuphead","Mugman",
+    "Sayori","Monika","Yuri",
+    "Sans","Frisk","Chara",
+    "Sonic.exe"
+}
+
+-- Morph 角色选择下拉框
+local morphDropdown = CharacterTab:CreateDropdown({
+    Name = "选择 Morph 角色",
+    Options = morphCharactersList,
+    CurrentOption = morphCharactersList[1],
     MultipleOptions = false,
-    Flag = "CharacterSelectDropdown",
+    Flag = "MorphCharacterDropdown",
     Callback = function(Options)
         selectedCharacter = Options[1]
-        print("[维度融合] 已选择切换角色：" .. selectedCharacter)
+        print("[维度融合] 已选择 Morph 角色：" .. selectedCharacter)
     end
 })
 
--- 确认切换按钮
-CharacterTab:CreateButton({
-    Name = "确认切换角色",
-    Callback = function()
-        if not selectedCharacter then
-            warn("[维度融合] 请先从下拉框选择切换角色！")
+-- Morph 核心功能函数（整合原脚本逻辑）
+local dummysFolder = ReplicatedStorage:FindFirstChild("Dummys")
+local function safeFindDummy(name)
+    if not dummysFolder then return nil end
+    return dummysFolder:FindFirstChild(name) or dummysFolder:FindFirstChild(name:lower()) or dummysFolder:FindFirstChild(name:upper())
+end
+
+local function copySpecialFoldersAndAnimations(sourceModel, targetCharacter)
+    if not sourceModel or not targetCharacter then return end
+    local specialFolders = {"CharacterFolder", "HitFolder"}
+    for _, folderName in ipairs(specialFolders) do
+        local sourceFolder = sourceModel:FindFirstChild(folderName)
+        local targetFolder = targetCharacter:FindFirstChild(folderName)
+        if sourceFolder then
+            if targetFolder then targetFolder:Destroy() end
+            sourceFolder:Clone().Parent = targetCharacter
+        end
+    end
+    local sourceAnimate = sourceModel:FindFirstChild("Animate")
+    local targetAnimate = targetCharacter:FindFirstChild("Animate")
+    if sourceAnimate then
+        if targetAnimate then targetAnimate:Destroy() end
+        sourceAnimate:Clone().Parent = targetCharacter
+    end
+end
+
+local function setupHeadFollow(headPart)
+    if not headPart then return end
+    local camera = workspace.CurrentCamera
+    local conn
+    conn = RunService.RenderStepped:Connect(function()
+        if not headPart or not headPart.Parent then
+            if conn then conn:Disconnect() end
             return
         end
+        headPart.CFrame = CFrame.new(headPart.Position, camera.CFrame.Position)
+    end)
+end
 
-        local success, err = pcall(function()
-            local args = {[1] = selectedCharacter}
-            ReplicatedStorage:WaitForChild("Remotes", 9e9)
-                :WaitForChild("inSelection", 9e9)
-                :WaitForChild("characterSelectionControlEvent", 9e9)
-                :FireServer(unpack(args))
-        end)
+local function weldToRoot(rootPart, modelRoot)
+    if not (rootPart and modelRoot) then return end
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = rootPart
+    weld.Part1 = modelRoot
+    weld.Parent = modelRoot
+end
 
-        if success then
-            print("[维度融合] 已成功切换至角色：" .. selectedCharacter)
-        else
-            warn("[维度融合] 角色切换失败：" .. err)
+local function morphTo(characterName)
+    local dummyTemplate = safeFindDummy(characterName)
+    if not dummyTemplate then
+        warn("[维度融合] 未找到 Morph 模型："..tostring(characterName))
+        return
+    end
+
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart")
+    if not rootPart then return end
+
+    -- 销毁旧 Morph 模型
+    for _, c in ipairs(char:GetChildren()) do
+        if c.Name == "CharacterModel" then c:Destroy() end
+    end
+
+    -- 隐藏原角色模型（仅视觉）
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            part.Transparency = 1
         end
+    end
+
+    -- 复制动画和特殊文件夹
+    copySpecialFoldersAndAnimations(dummyTemplate, char)
+
+    -- 克隆 Morph 模型
+    local clone = dummyTemplate:Clone()
+    clone.Name = "CharacterModel"
+    local dummyHum = clone:FindFirstChildOfClass("Humanoid")
+    if dummyHum then dummyHum:Destroy() end
+
+    local dummyRoot = clone:FindFirstChild("HumanoidRootPart") or clone.PrimaryPart
+    if not dummyRoot then
+        for _, p in ipairs(clone:GetDescendants()) do
+            if p:IsA("BasePart") then dummyRoot = p break end
+        end
+    end
+
+    -- 焊接到角色根部件
+    if dummyRoot then
+        clone.Parent = char
+        clone.PrimaryPart = dummyRoot
+        clone:SetPrimaryPartCFrame(rootPart.CFrame)
+        weldToRoot(rootPart, dummyRoot)
+    else clone.Parent = char end
+
+    -- 头部跟随相机
+    for _, name in ipairs({"Head","head"}) do
+        local headPart = clone:FindFirstChild(name, true)
+        if headPart and headPart:IsA("BasePart") then setupHeadFollow(headPart) break end
+    end
+
+    print("[维度融合] 成功 Morph 为：" .. characterName)
+end
+
+-- Morph 角色确认切换按钮
+CharacterTab:CreateButton({
+    Name = "确认 Morph 切换角色",
+    Callback = function()
+        if not selectedCharacter then
+            warn("[维度融合] 请先从下拉框选择 Morph 角色！")
+            return
+        end
+        morphTo(selectedCharacter)
     end
 })
 
+-- 角色死亡后恢复原模型
+local function onCharacterAdded(char)
+    local humanoid = char:WaitForChild("Humanoid", 10)
+    if humanoid then
+        humanoid.Died:Connect(function()
+            task.wait(0.8)
+            -- 销毁 Morph 模型
+            for _, child in ipairs(char:GetChildren()) do
+                if child.Name == "CharacterModel" then child:Destroy() end
+            end
+            -- 恢复原模型可见性
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then part.Transparency = 0 end
+            end
+        end)
+    end
+end
+
+if LocalPlayer.Character then onCharacterAdded(LocalPlayer.Character) end
+LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
+
+-- ========== 保留原 Minion 召唤功能（不变） ==========
 -- Minion召唤下拉框
 local minionDropdown = CharacterTab:CreateDropdown({
     Name = "选择Minion角色（单个召唤）",
@@ -1352,7 +1469,7 @@ CharacterTab:CreateButton({
         if success then
             print("[维度融合] 已成功召唤Minion角色：" .. selectedMinion)
         else
-            warn("[维度融合] Minion角色召唤失败：" .. err)
+            warn("[维度融合] Minion角色召唤失败：" .. selectedMinion .. "，错误：" .. err)
         end
     end
 })
@@ -1379,9 +1496,8 @@ CharacterTab:CreateToggle({
                         else
                             warn("[维度融合] 循环召唤Minion失败：" .. charName .. "，错误：" .. err)
                         end
-                        task.wait(0.1) -- 轻微延迟，避免请求拥堵
+                        task.wait(0.1)
                     end
-                    -- 一轮召唤结束后，不延迟开始下一轮
                     if isLoopSummonActive then task.wait() end
                 end
             end)
@@ -1395,67 +1511,7 @@ CharacterTab:CreateToggle({
     end
 })
 
--- ==================== 新增：Morph角色切换功能（下拉框版） ====================
-CharacterTab:CreateSection("Morph角色切换（视觉变形）")
 
--- Morph核心功能变量（复用之前的，无需重复定义）
-local selectedMorphChar = nil
-local buttons = {} -- 用于按钮禁用/启用控制
-
--- （此处保留之前的 Morph 辅助函数：disableAllButtons、enableAllButtons、safeFindDummy、copySpecialFoldersAndAnimations、setupHeadFollow、weldToRoot、morphTo、onCharacterAdded，无需修改）
-
--- Morph角色下拉框
-local morphDropdown = CharacterTab:CreateDropdown({
-    Name = "选择Morph角色",
-    Options = {
-        "Sonic","Shadow","Vanilla","Cream",
-        "Bendy","Boris","Cuphead","Mugman",
-        "Sayori","Monika","Yuri","Sans",
-        "Frisk","Chara","Sonic.exe"
-    },
-    CurrentOption = "Sonic",
-    MultipleOptions = false,
-    Flag = "MorphCharacterDropdown",
-    Callback = function(Options)
-        selectedMorphChar = Options[1]
-        print("[维度融合-Morph] 已选择角色：" .. selectedMorphChar)
-    end
-})
-
--- 确认Morph按钮
-CharacterTab:CreateButton({
-    Name = "确认切换Morph角色",
-    Callback = function()
-        if not selectedMorphChar then
-            warn("[维度融合-Morph] 请先从下拉框选择角色！")
-            return
-        end
-        morphTo(selectedMorphChar)
-    end
-})
-
--- Morph重置按钮（保留）
-CharacterTab:CreateButton({
-    Name = "重置Morph（恢复原角色）",
-    Callback = function()
-        local char = LocalPlayer.Character
-        if not char then return end
-        -- 销毁Morph模型
-        for _, c in ipairs(char:GetChildren()) do
-            if c.Name == "CharacterModel" then c:Destroy() end
-        end
-        -- 恢复原角色可见性
-        for _, part in ipairs(char:GetDescendants()) do
-            if part:IsA("BasePart") then part.Transparency = 0 end
-        end
-        enableAllButtons()
-        print("[维度融合-Morph] 已重置为原角色")
-    end
-})
-
--- 初始化角色死亡监听（保留）
-if LocalPlayer.Character then onCharacterAdded(LocalPlayer.Character) end
-LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
 
 -- ==================== 7. 角色技能标签页 ====================
 local AbilityTab = Window:CreateTab("角色技能", 4483362458)
