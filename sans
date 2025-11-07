@@ -1,5 +1,1402 @@
+-- 加载 Rayfield 库
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+-- 创建主窗口
+local Window = Rayfield:CreateWindow({
+    Name = "维度融合 1.0 (原型)",
+    LoadingTitle = "维度融合",
+    LoadingSubtitle = "加载中...",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "Aimbotgui",
+        FileName = "DimensionFusion"
+    },
+    Discord = {
+        Enabled = false,
+        Invite = "noinvite",
+        RememberJoins = true
+    },
+    KeySystem = false,
+    KeySettings = {
+        Title = "Key System",
+        Subtitle = "Input your key here",
+        Note = "Join the discord for a key!",
+        FileName = "Key",
+        SaveKey = true,
+        GrabKeyFromSite = false,
+        Key = "hello"
+    }
+})
+
+-- 获取服务
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local function getPlayerNames()
+    local names = {}
+    for _, player in ipairs(Players:GetPlayers()) do
+        table.insert(names, player.Name)
+    end
+    return names
+end
+-- ==================== 1. 基础功能标签页 ====================
+local BasicTab = Window:CreateTab("基础功能", 4483362458)
+
+-- 飞行控制
+BasicTab:CreateSection("团队控制")
+BasicTab:CreateButton({
+    Name = "飞行控制",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/mciklw/mciklwscript/refs/heads/main/flyvthree"))()
+        print("[维度融合] 触发飞行控制功能")
+    end
+})
+
+-- 透视
+BasicTab:CreateButton({
+    Name = "透视",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/hfhfsfx/cream/main/love"))()
+        print("[维度融合] 触发透视功能")
+    end
+})
+
+-- 技能无冷却
+BasicTab:CreateButton({
+    Name = "技能无冷却(no cd)",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/hfhfsfx/cream/main/no%20cd"))()
+        print("[维度融合] 触发技能无冷却功能")
+    end
+})
+
+-- 传送全部人
+BasicTab:CreateButton({
+    Name = "传送全部人",
+    Callback = function()
+        for _, Plr in pairs(Players:GetPlayers()) do
+            if Plr.Character then
+                local args = {Plr.Character, "grab"}
+                ReplicatedStorage:WaitForChild("PlayerRemoteEvents"):WaitForChild("Vanilla"):WaitForChild("Grab_Teamtes"):FireServer(unpack(args))
+            end
+        end
+        print("[维度融合] 触发传送全部人功能")
+    end
+})
+-- ==================== 选人传送 ====================
+local targetTeleportPlayer = nil
+
+-- 创建选人传送下拉框
+local teleportDropdown = BasicTab:CreateDropdown({
+    Name = "选择传送目标玩家",
+    Options = getPlayerNames(),
+    CurrentOption = getPlayerNames()[1] or "无",
+    MultipleOptions = false,
+    Flag = "TeleportTargetDropdown",
+    Callback = function(Options)
+        local name = Options[1]
+        targetTeleportPlayer = Players:FindFirstChild(name)
+        local targetName = targetTeleportPlayer and targetTeleportPlayer.Name or "无"
+        print("[维度融合] 传送目标已选中：" .. targetName)
+    end
+})
+
+-- 刷新下拉框（玩家进出时自动更新）
+local function refreshTeleportDropdown()
+    teleportDropdown:Refresh(getPlayerNames())
+    if targetTeleportPlayer and not targetTeleportPlayer:IsDescendantOf(Players) then
+        targetTeleportPlayer = nil
+        print("[维度融合] 选中的传送目标已离开，已重置目标")
+    end
+end
+
+-- 监听玩家变动
+Players.PlayerAdded:Connect(refreshTeleportDropdown)
+Players.PlayerRemoving:Connect(refreshTeleportDropdown)
+
+-- 选人传送按钮
+BasicTab:CreateButton({
+    Name = "传送至选中玩家",
+    Callback = function()
+        if not targetTeleportPlayer then
+            warn("[维度融合] 请先从下拉框选择传送目标！")
+            return
+        end
+
+        if targetTeleportPlayer == LocalPlayer then
+            warn("[维度融合] 不能传送到自己！")
+            return
+        end
+
+        if targetTeleportPlayer.Character then
+            local args = {targetTeleportPlayer.Character, "grab"}
+            ReplicatedStorage:WaitForChild("PlayerRemoteEvents"):WaitForChild("Vanilla"):WaitForChild("Grab_Teamtes"):FireServer(unpack(args))
+            print("[维度融合] 已传送至玩家：" .. targetTeleportPlayer.Name)
+        else
+            warn("[维度融合] 目标玩家 " .. targetTeleportPlayer.Name .. " 无角色，无法传送")
+        end
+    end
+})
+
+-- 复活所有人
+BasicTab:CreateButton({
+    Name = "复活所有人",
+    Callback = function()
+        for _, Plr in pairs(Players:GetPlayers()) do
+            if Plr and Plr:IsDescendantOf(Players) then
+                local args = {Plr}
+                local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
+                local CharacterFolder = Remotes and Remotes:FindFirstChild("Character")
+                local reviveEvent = CharacterFolder and CharacterFolder:FindFirstChild("reviveEvent")
+                
+                if reviveEvent then
+                    reviveEvent:FireServer(unpack(args))
+                    print("[维度融合] 已尝试复活玩家：" .. Plr.Name)
+                else
+                    warn("[维度融合] 未找到复活事件，终止复活！")
+                    break
+                end
+            end
+        end
+        print("[维度融合] 复活所有人功能执行完成")
+    end
+})
+
+-- 逃脱功能
+BasicTab:CreateButton({
+    Name = "逃脱",
+    Callback = function()
+        LocalPlayer.PlayerGui.maingui.ModuleStarter.Player.EscapeControl.EscapeEvent:FireServer()
+        print("[维度融合] 触发逃脱功能")
+    end
+})
+
+-- ==================== 2. 战斗功能标签页 ====================
+local CombatTab = Window:CreateTab("战斗/干扰", 4483362458)
+
+-- 伤害能力判断函数
+function canDealDamage(player)
+    local char = player.Character
+    if not char then return false end
+    
+    for name, value in pairs(player:GetAttributes()) do
+        local lname = name:lower()
+        if lname:find("damage") or lname:find("attack") or lname:find("killer") or lname:find("power") or lname:find("hit") then
+            if value == true or tostring(value) == "true" or tonumber(value) == 1 then
+                return true
+            end
+        end
+    end
+    
+    for _, obj in pairs(char:GetDescendants()) do
+        local lname = obj.Name:lower()
+        if lname:find("damage") or lname:find("attack") or lname:find("killer") or lname:find("power") or lname:find("hit") then
+            if (obj:IsA("BoolValue") and obj.Value == true) 
+            or (obj:IsA("StringValue") and tostring(obj.Value):lower():find("true"))
+            or (obj:IsA("NumberValue") and obj.Value > 0) then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- 全体伤害(35hp)
+CombatTab:CreateSection("伤害")
+CombatTab:CreateButton({
+    Name = "全体伤害(35hp)",
+    Callback = function()
+        print("[维度融合] 开始执行全体伤害(35hp)功能")
+        for _, Plr in pairs(Players:GetPlayers()) do
+            if Plr ~= LocalPlayer and Plr.Character and not canDealDamage(Plr) then
+                local args = {Plr.Character}
+                local success, err = pcall(function()
+                    ReplicatedStorage:WaitForChild("PlayerRemoteEvents")
+                        :WaitForChild("ExeRemote"):WaitForChild("Damage"):FireServer(unpack(args))
+                end)
+                if success then
+                    print("[维度融合] 已对无伤害玩家 " .. Plr.Name .. " 造成35hp伤害")
+                else
+                    warn("[维度融合] 对玩家 " .. Plr.Name .. " 造成伤害失败：" .. err)
+                end
+            end
+        end
+        print("[维度融合] 全体伤害(35hp)功能执行完成")
+    end
+})
+-- ==================== 新增：选人伤害35hp ====================
+local targetSingleDamagePlayer = nil
+
+-- 创建选人伤害下拉框
+local singleDamageDropdown = CombatTab:CreateDropdown({
+    Name = "选择单个伤害目标",
+    Options = getPlayerNames(),
+    CurrentOption = getPlayerNames()[1] or "无",
+    MultipleOptions = false,
+    Flag = "SingleDamageTargetDropdown",
+    Callback = function(Options)
+        local name = Options[1]
+        targetSingleDamagePlayer = Players:FindFirstChild(name)
+        local targetName = targetSingleDamagePlayer and targetSingleDamagePlayer.Name or "无"
+        print("[维度融合] 单人伤害目标已选中：" .. targetName)
+    end
+})
+
+-- 刷新下拉框（玩家进出时自动更新）
+local function refreshSingleDamageDropdown()
+    singleDamageDropdown:Refresh(getPlayerNames())
+    if targetSingleDamagePlayer and not targetSingleDamagePlayer:IsDescendantOf(Players) then
+        targetSingleDamagePlayer = nil
+        print("[维度融合] 选中的单人伤害目标已离开，已重置目标")
+    end
+end
+
+-- 监听玩家变动
+Players.PlayerAdded:Connect(refreshSingleDamageDropdown)
+Players.PlayerRemoving:Connect(refreshSingleDamageDropdown)
+
+-- 选人伤害35hp按钮
+CombatTab:CreateButton({
+    Name = "选人伤害35hp(只能对幸存者造成伤害)",
+    Callback = function()
+        if not targetSingleDamagePlayer then
+            warn("[维度融合] 请先从下拉框选择伤害目标！")
+            return
+        end
+
+        if targetSingleDamagePlayer == LocalPlayer then
+            warn("[维度融合] 不能对自己造成伤害！")
+            return
+        end
+
+        if targetSingleDamagePlayer.Character then
+            if canDealDamage(targetSingleDamagePlayer) then
+                warn("[维度融合] 玩家 " .. targetSingleDamagePlayer.Name .. " 具有伤害能力，跳过伤害（根据原有逻辑）。")
+                return
+            end
+
+            local success, err = pcall(function()
+                local args = {targetSingleDamagePlayer.Character}
+                ReplicatedStorage:WaitForChild("PlayerRemoteEvents")
+                    :WaitForChild("ExeRemote"):WaitForChild("Damage"):FireServer(unpack(args))
+            end)
+            if success then
+                print("[维度融合] 已对玩家 " .. targetSingleDamagePlayer.Name .. " 造成35hp伤害")
+            else
+                warn("[维度融合] 对玩家 " .. targetSingleDamagePlayer.Name .. " 造成伤害失败：" .. err)
+            end
+        else
+            warn("[维度融合] 目标玩家 " .. targetSingleDamagePlayer.Name .. " 无角色，无法造成伤害")
+        end
+    end
+})
+
+-- 秒杀 Toggle
+local isKillActive = false
+local killLoop = nil
+
+CombatTab:CreateToggle({
+    Name = "『开启/关闭秒杀』",
+    CurrentValue = false,
+    Flag = "KillToggle",
+    Callback = function(Value)
+        isKillActive = Value
+        if isKillActive then
+            killLoop = task.spawn(function()
+                while isKillActive do
+                    task.wait()
+                    for _, Plr in pairs(Players:GetPlayers()) do
+                        if Plr ~= LocalPlayer and Plr.Character then
+                            local args = {Plr.Character}
+                            ReplicatedStorage:WaitForChild("PlayerRemoteEvents"):WaitForChild("Frenzy"):FireServer(unpack(args))
+                        end
+                    end
+                end
+            end)
+            print("[维度融合] 秒杀功能已开启（仅对其他玩家生效）")
+        else
+            if killLoop then task.cancel(killLoop) end
+            print("[维度融合] 秒杀功能已关闭")
+        end
+    end
+})
+
+-- ==================== 新增：定人功能 ====================
+local isHomingActive = false
+local homingLoop = nil
+
+CombatTab:CreateSection("定人")
+CombatTab:CreateToggle({
+    Name = "『开启/关闭定人(全部人，不包括自己)』",
+    CurrentValue = false,
+    Flag = "HomingAttackToggle",
+    Callback = function(Value)
+        isHomingActive = Value
+        if isHomingActive then
+            getgenv().farm = true
+            homingLoop = task.spawn(function()
+                while getgenv().farm do
+                    task.wait()
+                    local Players = game:GetService("Players")
+                    local LocalPlayer = Players.LocalPlayer
+                    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+                    for _, Plr in pairs(Players:GetPlayers()) do
+                        if Plr ~= LocalPlayer and Plr.Character then
+                            local args = {Plr.Character}
+                            ReplicatedStorage:WaitForChild("PlayerRemoteEvents"):WaitForChild("HomingAttack"):FireServer(unpack(args))
+                        end
+                    end
+                end
+                -- 循环结束时自动重置状态（可选）
+                isHomingActive = false
+            end)
+            print("[维度融合] 定人功能已开启")
+        else
+            getgenv().farm = false
+            if homingLoop then
+                task.cancel(homingLoop)
+                homingLoop = nil
+            end
+            print("[维度融合] 定人功能已关闭")
+        end
+    end
+})
+
+-- ==================== 选人定人功能 ====================
+local targetHomingPlayer = nil
+local isTargetHomingActive = false
+local targetHomingLoop = nil
+
+-- 辅助函数：获取所有在线玩家名称（提前定义，避免未定义错误）
+local function getPlayerNames()
+    local names = {}
+    for _, Plr in pairs(Players:GetPlayers()) do
+        table.insert(names, Plr.Name)
+    end
+    return names
+end
+
+-- 创建选人定人下拉框
+local homingDropdown = CombatTab:CreateDropdown({
+    Name = "选择定人目标玩家",
+    Options = getPlayerNames(),
+    CurrentOption = getPlayerNames()[1] or "无",
+    MultipleOptions = false,
+    Flag = "HomingTargetDropdown",
+    Callback = function(Options)
+        local name = Options[1]
+        targetHomingPlayer = Players:FindFirstChild(name)
+        local targetName = targetHomingPlayer and targetHomingPlayer.Name or "无"
+        print("[维度融合] 定人目标已选中：" .. targetName)
+    end
+})
+
+-- 刷新下拉框（玩家进出时自动更新）
+local function refreshHomingDropdown()
+    homingDropdown:Refresh(getPlayerNames())
+    if targetHomingPlayer and not targetHomingPlayer:IsDescendantOf(Players) then
+        targetHomingPlayer = nil
+        print("[维度融合] 选中的定人目标已离开，已重置目标")
+    end
+end
+
+-- 监听玩家变动
+Players.PlayerAdded:Connect(refreshHomingDropdown)
+Players.PlayerRemoving:Connect(refreshHomingDropdown)
+
+-- 选择定人开关
+CombatTab:CreateToggle({
+    Name = "『开启/关闭选择定人』",
+    CurrentValue = false,
+    Flag = "TargetHomingToggle",
+    Callback = function(Value)
+        isTargetHomingActive = Value
+        if isTargetHomingActive then
+            if not targetHomingPlayer then
+                warn("[维度融合] 请先从下拉框选择定人目标！")
+                isTargetHomingActive = false
+                return
+            end
+            targetHomingLoop = task.spawn(function()
+                while isTargetHomingActive and targetHomingPlayer and targetHomingPlayer:IsDescendantOf(Players) do
+                    task.wait()
+                    if targetHomingPlayer.Character then
+                        local success, err = pcall(function()
+                            local args = {targetHomingPlayer.Character}
+                            ReplicatedStorage:WaitForChild("PlayerRemoteEvents", 9e9)
+                                :WaitForChild("HomingAttack", 9e9):FireServer(unpack(args))
+                        end)
+                        if not success then
+                            warn("[维度融合] 对 " .. targetHomingPlayer.Name .. " 定人攻击失败：" .. err)
+                        end
+                    end
+                end
+                isTargetHomingActive = false
+                print("[维度融合] 选人定人已自动关闭（目标离开或开关关闭）")
+            end)
+            print("[维度融合] 对 " .. targetHomingPlayer.Name .. " 的选人定人已开启")
+        else
+            if targetHomingLoop then
+                task.cancel(targetHomingLoop)
+                targetHomingLoop = nil
+            end
+            print("[维度融合] 选人定人已关闭")
+        end
+    end
+})
+
+-- 跳杀（全玩家）
+CombatTab:CreateSection("跳杀和病毒")
+CombatTab:CreateButton({
+    Name = "跳杀（全玩家）",
+    Callback = function()
+        for _, Plr in pairs(Players:GetPlayers()) do
+            local args = {Plr}
+            ReplicatedStorage:WaitForChild("PlayerRemoteEvents"):WaitForChild("Bendy"):WaitForChild("BendyAbility"):FireServer(unpack(args))
+        end
+        print("[维度融合] 触发跳杀功能")
+    end
+})
+
+-- 莫妮卡病毒
+CombatTab:CreateButton({
+    Name = "莫妮卡病毒(注意:必须先获取福buff)",
+    Callback = function()
+        for _, Plr in pairs(Players:GetPlayers()) do
+            if Plr.Character then
+                local args = {Plr.Character}
+                ReplicatedStorage:WaitForChild("PlayerRemoteEvents"):WaitForChild("VirusEvent"):FireServer(unpack(args))
+            end
+        end
+        print("[维度融合] 触发莫妮卡病毒功能")
+    end
+})
+
+-- ==================== 循环跳杀（全部玩家） ====================
+local isLoopBendyActive = false
+local loopBendyTask = nil
+
+CombatTab:CreateToggle({
+    Name = "『开启/关闭循环跳杀(全部玩家)』",
+    CurrentValue = false,
+    Flag = "LoopBendyKillToggle",
+    Callback = function(Value)
+        isLoopBendyActive = Value
+        if isLoopBendyActive then
+            getgenv().farm = true
+            loopBendyTask = task.spawn(function()
+                print("[维度融合] 循环跳杀(全部玩家)已开启")
+                while getgenv().farm do
+                    task.wait()
+                    for _, Plr in pairs(game.Players:GetPlayers()) do
+                        local args = {Plr}
+                        game:GetService("ReplicatedStorage"):WaitForChild("PlayerRemoteEvents")
+                            :WaitForChild("Bendy"):WaitForChild("BendyAbility"):FireServer(unpack(args))
+                    end
+                end
+                print("[维度融合] 循环跳杀(全部玩家)已自动关闭")
+            end)
+        else
+            getgenv().farm = false
+            if loopBendyTask then
+                task.cancel(loopBendyTask)
+                loopBendyTask = nil
+            end
+            print("[维度融合] 循环跳杀(全部玩家)已关闭")
+        end
+    end
+})
+
+-- ==================== 选人跳杀功能 ====================
+local targetBendyPlayer = nil
+local isTargetBendyActive = false
+local targetBendyLoop = nil
+
+-- 创建选人跳杀下拉框
+local bendyDropdown = CombatTab:CreateDropdown({
+    Name = "选择跳杀目标玩家",
+    Options = getPlayerNames(),
+    CurrentOption = getPlayerNames()[1] or "无",
+    MultipleOptions = false,
+    Flag = "BendyTargetDropdown",
+    Callback = function(Options)
+        local name = Options[1]
+        targetBendyPlayer = Players:FindFirstChild(name)
+        local targetName = targetBendyPlayer and targetBendyPlayer.Name or "无"
+        print("[维度融合] 跳杀目标已选中：" .. targetName)
+    end
+})
+
+-- 刷新下拉框（玩家进出时自动更新）
+local function refreshBendyDropdown()
+    bendyDropdown:Refresh(getPlayerNames())
+    if targetBendyPlayer and not targetBendyPlayer:IsDescendantOf(Players) then
+        targetBendyPlayer = nil
+        print("[维度融合] 跳杀目标已离开，已重置目标")
+    end
+end
+
+-- 监听玩家变动
+Players.PlayerAdded:Connect(refreshBendyDropdown)
+Players.PlayerRemoving:Connect(refreshBendyDropdown)
+
+-- 选人跳杀 Toggle（循环）
+CombatTab:CreateToggle({
+    Name = "『开启/关闭选人跳杀（循环）』",
+    CurrentValue = false,
+    Flag = "TargetBendyKillToggle",
+    Callback = function(Value)
+        isTargetBendyActive = Value
+        if isTargetBendyActive then
+            if not targetBendyPlayer then
+                warn("[维度融合] 请先从下拉框选择跳杀目标！")
+                isTargetBendyActive = false
+                return
+            end
+            targetBendyLoop = task.spawn(function()
+                while isTargetBendyActive and targetBendyPlayer and targetBendyPlayer:IsDescendantOf(Players) do
+                    task.wait()
+                    if targetBendyPlayer.Character then
+                        local success, err = pcall(function()
+                            local args = {targetBendyPlayer}
+                            ReplicatedStorage:WaitForChild("PlayerRemoteEvents", 9e9)
+                                :WaitForChild("Bendy", 9e9):WaitForChild("BendyAbility", 9e9):FireServer(unpack(args))
+                        end)
+                        if not success then
+                            warn("[维度融合] 对 " .. targetBendyPlayer.Name .. " 跳杀失败：" .. err)
+                        end
+                    end
+                end
+                isTargetBendyActive = false
+                print("[维度融合] 选人跳杀已自动关闭（目标离开或开关关闭）")
+            end)
+            print("[维度融合] 对 " .. targetBendyPlayer.Name .. " 的选人跳杀已开启")
+        else
+            if targetBendyLoop then
+                task.cancel(targetBendyLoop)
+                targetBendyLoop = nil
+            end
+            print("[维度融合] 选人跳杀已关闭")
+        end
+    end
+})
+
+-- 选人跳杀（单次）按钮
+CombatTab:CreateButton({
+    Name = "选人跳杀（单次）",
+    Callback = function()
+        if not targetBendyPlayer then
+            warn("[维度融合] 请先从下拉框选择跳杀目标！")
+            return
+        end
+
+        if targetBendyPlayer.Character then
+            local success, err = pcall(function()
+                local args = {targetBendyPlayer}
+                ReplicatedStorage:WaitForChild("PlayerRemoteEvents")
+                    :WaitForChild("Bendy"):WaitForChild("BendyAbility"):FireServer(unpack(args))
+            end)
+            if success then
+                print("[维度融合] 已对 " .. targetBendyPlayer.Name .. " 执行单次跳杀")
+            else
+                warn("[维度融合] 对 " .. targetBendyPlayer.Name .. " 跳杀失败：" .. err)
+            end
+        else
+            warn("[维度融合] 目标玩家 " .. targetBendyPlayer.Name .. " 无角色，无法跳杀")
+        end
+    end
+})
+
+-- 全体重置
+CombatTab:CreateSection("重置")
+CombatTab:CreateButton({
+    Name = "全体重置",
+    Callback = function()
+        for _, Plr in pairs(Players:GetPlayers()) do
+            if Plr.Character then
+                local args = {Plr.Character}
+                ReplicatedStorage:WaitForChild("PlayerRemoteEvents"):WaitForChild("HomingAttack"):FireServer(unpack(args))
+            end
+        end
+        print("[维度融合] 触发全体重置功能")
+    end
+})
+
+-- ==================== 选人重置（自己 + 目标） ====================
+local resetTargetPlayer = nil
+local isResetActive = false
+local resetLoop = nil
+
+-- 创建下拉框
+local resetDropdown = CombatTab:CreateDropdown({
+    Name = "选择重置目标玩家",
+    Options = getPlayerNames(),
+    CurrentOption = getPlayerNames()[1] or "无",
+    MultipleOptions = false,
+    Flag = "ResetTargetDropdown",
+    Callback = function(Options)
+        local name = Options[1]
+        resetTargetPlayer = Players:FindFirstChild(name)
+        local targetName = resetTargetPlayer and resetTargetPlayer.Name or "无"
+        print("[维度融合] 重置目标已选中：" .. targetName)
+    end
+})
+
+-- 刷新下拉框
+local function refreshResetDropdown()
+    resetDropdown:Refresh(getPlayerNames())
+    if resetTargetPlayer and not resetTargetPlayer:IsDescendantOf(Players) then
+        resetTargetPlayer = nil
+        print("[维度融合] 重置目标已离开，已重置")
+    end
+end
+
+Players.PlayerAdded:Connect(refreshResetDropdown)
+Players.PlayerRemoving:Connect(refreshResetDropdown)
+
+-- 选人重置按钮（单次触发）
+CombatTab:CreateButton({
+    Name = "选中玩家重置(自己也会被重置因为只有这样才能使对方重置)",
+    Callback = function()
+        if not resetTargetPlayer then
+            warn("[维度融合] 请先从下拉框选择重置目标！")
+            return
+        end
+
+        local playersToReset = {LocalPlayer, resetTargetPlayer}
+
+        for _, Plr in pairs(playersToReset) do
+            if Plr and Plr.Character then
+                local success, err = pcall(function()
+                    local args = {Plr.Character}
+                    ReplicatedStorage:WaitForChild("PlayerRemoteEvents", 9e9)
+                        :WaitForChild("HomingAttack", 9e9):FireServer(unpack(args))
+                end)
+                if success then
+                    print("[维度融合] 已重置玩家：" .. Plr.Name)
+                else
+                    warn("[维度融合] 对 " .. Plr.Name .. " 重置失败：" .. err)
+                end
+            else
+                warn("[维度融合] 玩家 " .. (Plr and Plr.Name or "未知") .. " 无角色，跳过重置")
+            end
+        end
+    end
+})
+
+-- ==================== 3. 生存功能标签页 ====================
+local SurvivalTab = Window:CreateTab("生存/自杀", 4483362458)
+
+-- 无敌 Toggle
+local isInvincibleActive = false
+local invincibleLoop = nil
+
+SurvivalTab:CreateSection("自保")
+SurvivalTab:CreateToggle({
+    Name = "『开启/关闭无敌』",
+    CurrentValue = false,
+    Flag = "InvincibleToggle",
+    Callback = function(Value)
+        isInvincibleActive = Value
+        if isInvincibleActive then
+            invincibleLoop = task.spawn(function()
+                while isInvincibleActive do
+                    task.wait(0.9)
+                    local args = {1}
+                    ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Iframe"):FireServer(unpack(args))
+                end
+            end)
+            print("[维度融合] 无敌功能已开启")
+        else
+            if invincibleLoop then 
+                task.cancel(invincibleLoop) 
+                invincibleLoop = nil
+            end
+            print("[维度融合] 无敌功能已关闭")
+        end
+    end
+})
+-- ==================== 无限抵挡普通攻击 ====================
+local isShutdownLoopRunning = false
+
+SurvivalTab:CreateToggle({
+    Name = "『开启/关闭抵挡exe阵营普通攻击(技能不能抵挡)』",
+    CurrentValue = false,
+    Flag = "InfiniteBlockToggle",
+    Callback = function(Value)
+        if Value then
+            -- 开启：启动 true 循环
+            getgenv().farm = true
+            task.spawn(function()
+                while getgenv().farm do
+                    task.wait()
+                    ReplicatedStorage.PlayerRemoteEvents.Vanilla.Counter:FireServer(true, 100)
+                end
+            end)
+            print("[维度融合] 无限抵挡普通攻击已开启")
+        else
+            -- 关闭：设置 farm = false，并启动“无限 false 循环”
+            getgenv().farm = false
+
+            -- 防止重复启动关闭循环
+            if not isShutdownLoopRunning then
+                isShutdownLoopRunning = true
+                task.spawn(function()
+                    for i = 1, 99999999999999 do
+                        ReplicatedStorage.PlayerRemoteEvents.Vanilla.Counter:FireServer(false, 100)
+                        task.wait()
+                    end
+                    -- 理论上永远不会执行到这里
+                    isShutdownLoopRunning = false
+                end)
+            end
+
+            print("[维度融合] 无限抵挡普通攻击已关闭（进入无限 false 发送模式）")
+        end
+    end
+})
+
+-- ==================== Cuphead 大招控制 ====================
+local isCupheadSuperActive = false
+
+SurvivalTab:CreateToggle({
+    Name = "『开启/关闭茶杯头大招(无限时间)』",
+    CurrentValue = false,
+    Flag = "CupheadSuperArtToggle",
+    Callback = function(Value)
+        local superArtEvent = ReplicatedStorage:FindFirstChild("PlayerRemoteEvents")
+            and ReplicatedStorage.PlayerRemoteEvents:FindFirstChild("Cuphead")
+            and ReplicatedStorage.PlayerRemoteEvents.Cuphead:FindFirstChild("CupheadSuperArt")
+
+        if not superArtEvent then
+            warn("[维度融合] 未找到 CupheadSuperArt 事件！")
+            return
+        end
+
+        if Value then
+            -- 开启：执行一次 true
+            superArtEvent:FireServer(true)
+            isCupheadSuperActive = true
+            print("[维度融合] 茶杯头大招已开启")
+        else
+            -- 关闭：执行一次 false
+            superArtEvent:FireServer(false)
+            isCupheadSuperActive = false
+            print("[维度融合] 茶杯头大招已关闭")
+        end
+    end
+})
+
+-- 全体无限治疗 Toggle
+local isHealActive = false
+local healLoop = nil
+
+SurvivalTab:CreateSection("福治疗")
+SurvivalTab:CreateToggle({
+    Name = "『开启/关闭无限治疗（全体）』",
+    CurrentValue = false,
+    Flag = "HealAllToggle",
+    Callback = function(Value)
+        isHealActive = Value
+        if isHealActive then
+            healLoop = task.spawn(function()
+                while isHealActive do
+                    task.wait()
+                    for _, Plr in pairs(Players:GetPlayers()) do
+                        if Plr.Character then
+                            local args = {Plr.Character}
+                            ReplicatedStorage:WaitForChild("PlayerRemoteEvents", 9e9):WaitForChild("Frisk", 9e9):WaitForChild("seaTea", 9e9):FireServer(unpack(args))
+                        end
+                    end
+                end
+            end)
+            print("[维度融合] 全体无限治疗已开启")
+        else
+            if healLoop then task.cancel(healLoop) end
+            print("[维度融合] 全体无限治疗已关闭")
+        end
+    end
+})
+
+-- ==================== 选人无限治疗 ====================
+local targetHealPlayer = nil
+local isTargetHealActive = false
+local targetHealLoop = nil
+
+-- 创建下拉框
+local healDropdown = SurvivalTab:CreateDropdown({
+    Name = "选择治疗目标玩家",
+    Options = getPlayerNames(),
+    CurrentOption = getPlayerNames()[1] or "无",
+    MultipleOptions = false,
+    Flag = "HealTargetDropdown",
+    Callback = function(Options)
+        local name = Options[1]
+        targetHealPlayer = Players:FindFirstChild(name)
+        local targetName = targetHealPlayer and targetHealPlayer.Name or "无"
+        print("[维度融合] 治疗目标已选中：" .. targetName)
+    end
+})
+
+-- 刷新下拉框
+local function refreshHealDropdown()
+    healDropdown:Refresh(getPlayerNames())
+    if targetHealPlayer and not targetHealPlayer:IsDescendantOf(Players) then
+        targetHealPlayer = nil
+        print("[维度融合] 选中的治疗目标已离开，已重置目标")
+    end
+end
+
+-- 监听玩家变动
+Players.PlayerAdded:Connect(refreshHealDropdown)
+Players.PlayerRemoving:Connect(refreshHealDropdown)
+
+-- 选人治疗 Toggle
+SurvivalTab:CreateToggle({
+    Name = "『开启/关闭选人无限治疗』",
+    CurrentValue = false,
+    Flag = "TargetHealToggle",
+    Callback = function(Value)
+        isTargetHealActive = Value
+        if isTargetHealActive then
+            if not targetHealPlayer then
+                warn("[维度融合] 请先从下拉框选择治疗目标！")
+                isTargetHealActive = false
+                return
+            end
+            targetHealLoop = task.spawn(function()
+                while isTargetHealActive and targetHealPlayer and targetHealPlayer:IsDescendantOf(Players) do
+                    task.wait()
+                    if targetHealPlayer.Character then
+                        local success, err = pcall(function()
+                            local args = {targetHealPlayer.Character}
+                            ReplicatedStorage:WaitForChild("PlayerRemoteEvents", 9e9)
+                                :WaitForChild("Frisk", 9e9):WaitForChild("seaTea", 9e9):FireServer(unpack(args))
+                        end)
+                        if not success then
+                            warn("[维度融合] 对 " .. targetHealPlayer.Name .. " 治疗失败：" .. err)
+                        end
+                    end
+                end
+                isTargetHealActive = false
+                print("[维度融合] 选人治疗已自动关闭（目标离开或开关关闭）")
+            end)
+            print("[维度融合] 对 " .. targetHealPlayer.Name .. " 的选人无限治疗已开启")
+        else
+            if targetHealLoop then
+                task.cancel(targetHealLoop)
+                targetHealLoop = nil
+            end
+            print("[维度融合] 选人无限治疗已关闭")
+        end
+    end
+})
+
+-- ==================== Sayori 治疗（全体） ====================
+local isSayoriHealActive = false
+local sayoriHealLoop = nil
+
+SurvivalTab:CreateSection("Sayori治疗")
+SurvivalTab:CreateToggle({
+    Name = "『开启/关闭Sayori治疗(全体)』",
+    CurrentValue = false,
+    Flag = "SayoriHealAllToggle",
+    Callback = function(Value)
+        isSayoriHealActive = Value
+        if isSayoriHealActive then
+            sayoriHealLoop = task.spawn(function()
+                while isSayoriHealActive do
+                    task.wait()
+                    for _, Plr in pairs(Players:GetPlayers()) do
+                        if Plr.Character then
+                            local args = {Plr.Character}
+                            ReplicatedStorage:WaitForChild("PlayerRemoteEvents"):WaitForChild("Sayori"):WaitForChild("Heal"):FireServer(unpack(args))
+                        end
+                    end
+                end
+            end)
+            print("[维度融合] Sayori治疗已开启")
+        else
+            if sayoriHealLoop then task.cancel(sayoriHealLoop) end
+            print("[维度融合] Sayori治疗已关闭")
+        end
+    end
+})
+
+-- ==================== 选人 Sayori 治疗 ====================
+local targetSayoriHealPlayer = nil
+local isTargetSayoriHealActive = false
+local targetSayoriHealLoop = nil
+
+local sayoriHealDropdown = SurvivalTab:CreateDropdown({
+    Name = "选择Sayori治疗目标",
+    Options = getPlayerNames(),
+    CurrentOption = getPlayerNames()[1] or "无",
+    MultipleOptions = false,
+    Flag = "SayoriHealTargetDropdown",
+    Callback = function(Options)
+        local name = Options[1]
+        targetSayoriHealPlayer = Players:FindFirstChild(name)
+        local targetName = targetSayoriHealPlayer and targetSayoriHealPlayer.Name or "无"
+        print("[维度融合] Sayori治疗目标已选中：" .. targetName)
+    end
+})
+
+local function refreshSayoriHealDropdown()
+    sayoriHealDropdown:Refresh(getPlayerNames())
+    if targetSayoriHealPlayer and not targetSayoriHealPlayer:IsDescendantOf(Players) then
+        targetSayoriHealPlayer = nil
+        print("[维度融合] Sayori治疗目标已离开，已重置")
+    end
+end
+
+Players.PlayerAdded:Connect(refreshSayoriHealDropdown)
+Players.PlayerRemoving:Connect(refreshSayoriHealDropdown)
+
+SurvivalTab:CreateToggle({
+    Name = "『开启/关闭选人Sayori治疗』",
+    CurrentValue = false,
+    Flag = "TargetSayoriHealToggle",
+    Callback = function(Value)
+        isTargetSayoriHealActive = Value
+        if isTargetSayoriHealActive then
+            if not targetSayoriHealPlayer then
+                warn("[维度融合] 请先从下拉框选择Sayori治疗目标！")
+                isTargetSayoriHealActive = false
+                return
+            end
+            targetSayoriHealLoop = task.spawn(function()
+                while isTargetSayoriHealActive and targetSayoriHealPlayer and targetSayoriHealPlayer:IsDescendantOf(Players) do
+                    task.wait()
+                    if targetSayoriHealPlayer.Character then
+                        local success, err = pcall(function()
+                            local args = {targetSayoriHealPlayer.Character}
+                            ReplicatedStorage:WaitForChild("PlayerRemoteEvents")
+                                :WaitForChild("Sayori"):WaitForChild("Heal"):FireServer(unpack(args))
+                        end)
+                        if not success then
+                            warn("[维度融合] 对 " .. targetSayoriHealPlayer.Name .. " 的Sayori治疗失败：" .. err)
+                        end
+                    end
+                end
+                -- 自动关闭
+                isTargetSayoriHealActive = false
+                print("[维度融合] 选人Sayori治疗已自动关闭（目标离开或开关关闭）")
+            end)
+            print("[维度融合] 对 " .. targetSayoriHealPlayer.Name .. " 的选人Sayori治疗已开启")
+        else
+            -- 手动关闭时发送关闭信号（如果需要）
+            if targetSayoriHealPlayer and targetSayoriHealPlayer:IsDescendantOf(Players) and targetSayoriHealPlayer.Character then
+                local args = {targetSayoriHealPlayer.Character}
+                ReplicatedStorage:WaitForChild("PlayerRemoteEvents")
+                    :WaitForChild("Sayori"):WaitForChild("Heal"):FireServer(unpack(args)) -- 可选：最后一次治疗
+            end
+
+            if targetSayoriHealLoop then
+                task.cancel(targetSayoriHealLoop)
+                targetSayoriHealLoop = nil
+            end
+            print("[维度融合] 选人Sayori治疗已关闭")
+        end
+    end
+})
+
+-- 淹死（新增）
+SurvivalTab:CreateSection("请输入文本")
+SurvivalTab:CreateButton({
+    Name = "淹死",
+    Callback = function()
+        ReplicatedStorage.PlayerRemoteEvents.Drowning:FireServer()
+        print("[维度融合] 触发淹死功能")
+    end
+})
+
+-- ==================== 4. 增益功能标签页 ====================
+local BuffTab = Window:CreateTab("增益重置", 4483362458)
+
+-- 福buff（选择玩家）- Toggle
+local targetPlayer = nil
+local isBuffActive = false
+local buffLoop = nil
+
+-- 创建福buff目标下拉框
+BuffTab:CreateSection("福")
+local buffDropdown = BuffTab:CreateDropdown({
+    Name = "选择福buff目标玩家",
+    Options = getPlayerNames(),
+    CurrentOption = getPlayerNames()[1] or "无",
+    MultipleOptions = false,
+    Flag = "BlessTargetDropdown",
+    Callback = function(Options)
+        local name = Options[1]
+        targetPlayer = Players:FindFirstChild(name)
+        print("[维度融合] 福buff目标已选择：" .. (targetPlayer and targetPlayer.Name or "无"))
+    end
+})
+
+-- 刷新福buff下拉框
+local function refreshBuffDropdown()
+    buffDropdown:Refresh(getPlayerNames())
+    if targetPlayer and not targetPlayer:IsDescendantOf(Players) then
+        targetPlayer = nil
+        print("[维度融合] 福buff目标已离开，已重置")
+    end
+end
+
+Players.PlayerAdded:Connect(refreshBuffDropdown)
+Players.PlayerRemoving:Connect(refreshBuffDropdown)
+
+-- 福buff（目标玩家）Toggle
+BuffTab:CreateToggle({
+    Name = "『开启/关闭循环给予福buff（目标玩家）』",
+    CurrentValue = false,
+    Flag = "TargetBlessToggle",
+    Callback = function(Value)
+        isBuffActive = Value
+        if isBuffActive then
+            if not targetPlayer then
+                warn("[维度融合] 未选择目标玩家，无法开启福buff！")
+                isBuffActive = false
+                return
+            end
+            buffLoop = task.spawn(function()
+                while isBuffActive and targetPlayer and targetPlayer:IsDescendantOf(Players) do
+                    task.wait(1)
+                    if targetPlayer.Character then
+                        local args = {targetPlayer.Character}
+                        ReplicatedStorage:WaitForChild("PlayerRemoteEvents"):WaitForChild("Frisk"):WaitForChild("giveBuff"):FireServer(unpack(args))
+                    end
+                end
+                isBuffActive = false
+            end)
+            print("[维度融合] 福buff已开启，目标：" .. targetPlayer.Name)
+        else
+            if buffLoop then task.cancel(buffLoop) end
+            print("[维度融合] 福buff已关闭")
+        end
+    end
+})
+
+-- 福buff（全体）
+BuffTab:CreateButton({
+    Name = "福buff（全体）",
+    Callback = function()
+        for _, Plr in pairs(Players:GetPlayers()) do
+            if Plr.Character then
+                local args = {Plr.Character}
+                ReplicatedStorage:WaitForChild("PlayerRemoteEvents"):WaitForChild("Frisk"):WaitForChild("giveBuff"):FireServer(unpack(args))
+                print("[维度融合] 已给玩家 " .. Plr.Name .. " 发放福buff")
+            end
+        end
+        print("[维度融合] 全体福buff发放完成")
+    end
+})
+
+-- 跳跃buff（全玩家）Toggle
+local isJumpBoostActive = false
+local jumpBoostLoop = nil
+
+BuffTab:CreateSection("克里姆")
+BuffTab:CreateToggle({
+    Name = "『开启/关闭跳跃buff（全玩家）』",
+    CurrentValue = false,
+    Flag = "JumpBoostAllToggle",
+    Callback = function(Value)
+        isJumpBoostActive = Value
+        if isJumpBoostActive then
+            jumpBoostLoop = task.spawn(function()
+                while isJumpBoostActive do
+                    task.wait(1)
+                    for _, Plr in pairs(Players:GetPlayers()) do
+                        if Plr.Character then
+                            local args = {
+                                true,
+                                {LocalPlayer.Character, Plr.Character}
+                            }
+                            ReplicatedStorage:WaitForChild("PlayerRemoteEvents"):WaitForChild("jumpBoost"):FireServer(unpack(args))
+                        end
+                    end
+                end
+            end)
+            print("[维度融合] 跳跃buff（全玩家）已开启")
+        else
+            -- 关闭时发送 false
+            for _, Plr in pairs(Players:GetPlayers()) do
+                if Plr.Character then
+                    local args = {
+                        false,
+                        {LocalPlayer.Character, Plr.Character}
+                    }
+                    ReplicatedStorage:WaitForChild("PlayerRemoteEvents"):WaitForChild("jumpBoost"):FireServer(unpack(args))
+                end
+            end
+            if jumpBoostLoop then task.cancel(jumpBoostLoop) end
+            print("[维度融合] 跳跃buff（全玩家）已关闭")
+        end
+    end
+})
+
+-- ==================== 选人跳跃buff ====================
+local targetJumpBoostPlayer = nil
+local isTargetJumpBoostActive = false
+local targetJumpBoostLoop = nil
+
+local jumpBoostDropdown = BuffTab:CreateDropdown({
+    Name = "选择跳跃buff目标玩家",
+    Options = getPlayerNames(),
+    CurrentOption = getPlayerNames()[1] or "无",
+    MultipleOptions = false,
+    Flag = "JumpBoostTargetDropdown",
+    Callback = function(Options)
+        local name = Options[1]
+        targetJumpBoostPlayer = Players:FindFirstChild(name)
+        local targetName = targetJumpBoostPlayer and targetJumpBoostPlayer.Name or "无"
+        print("[维度融合] 跳跃buff目标已选中：" .. targetName)
+    end
+})
+
+local function refreshJumpBoostDropdown()
+    jumpBoostDropdown:Refresh(getPlayerNames())
+    if targetJumpBoostPlayer and not targetJumpBoostPlayer:IsDescendantOf(Players) then
+        targetJumpBoostPlayer = nil
+        print("[维度融合] 跳跃buff目标已离开，已重置")
+    end
+end
+
+Players.PlayerAdded:Connect(refreshJumpBoostDropdown)
+Players.PlayerRemoving:Connect(refreshJumpBoostDropdown)
+
+BuffTab:CreateToggle({
+    Name = "『开启/关闭选人跳跃buff』",
+    CurrentValue = false,
+    Flag = "TargetJumpBoostToggle",
+    Callback = function(Value)
+        isTargetJumpBoostActive = Value
+        if isTargetJumpBoostActive then
+            if not targetJumpBoostPlayer then
+                warn("[维度融合] 请先从下拉框选择跳跃buff目标！")
+                isTargetJumpBoostActive = false
+                return
+            end
+
+            targetJumpBoostLoop = task.spawn(function()
+                while isTargetJumpBoostActive and targetJumpBoostPlayer and targetJumpBoostPlayer:IsDescendantOf(Players) do
+                    task.wait(1)
+                    if targetJumpBoostPlayer.Character and LocalPlayer.Character then
+                        local success, err = pcall(function()
+                            local args = {
+                                true,
+                                {LocalPlayer.Character, targetJumpBoostPlayer.Character}
+                            }
+                            ReplicatedStorage:WaitForChild("PlayerRemoteEvents")
+                                :WaitForChild("jumpBoost"):FireServer(unpack(args))
+                        end)
+                        if not success then
+                            warn("[维度融合] 对 " .. targetJumpBoostPlayer.Name .. " 施加跳跃buff失败：" .. err)
+                        end
+                    end
+                end
+
+                -- 自动关闭时发送 false
+                if targetJumpBoostPlayer and targetJumpBoostPlayer:IsDescendantOf(Players) and targetJumpBoostPlayer.Character and LocalPlayer.Character then
+                    local args = {
+                        false,
+                        {LocalPlayer.Character, targetJumpBoostPlayer.Character}
+                    }
+                    ReplicatedStorage:WaitForChild("PlayerRemoteEvents")
+                        :WaitForChild("jumpBoost"):FireServer(unpack(args))
+                end
+
+                isTargetJumpBoostActive = false
+                print("[维度融合] 选人跳跃buff已自动关闭（目标离开或开关关闭）")
+            end)
+            print("[维度融合] 对 " .. targetJumpBoostPlayer.Name .. " 的选人跳跃buff已开启")
+        else
+            -- 手动关闭
+            if targetJumpBoostPlayer and targetJumpBoostPlayer:IsDescendantOf(Players) and targetJumpBoostPlayer.Character and LocalPlayer.Character then
+                local args = {
+                    false,
+                    {LocalPlayer.Character, targetJumpBoostPlayer.Character}
+                }
+                ReplicatedStorage:WaitForChild("PlayerRemoteEvents")
+                    :WaitForChild("jumpBoost"):FireServer(unpack(args))
+            end
+
+            if targetJumpBoostLoop then
+                task.cancel(targetJumpBoostLoop)
+                targetJumpBoostLoop = nil
+            end
+            print("[维度融合] 选人跳跃buff已关闭")
+        end
+    end
+})
+
+-- 莫妮卡增益(全体)
+BuffTab:CreateSection("莫妮卡")
+BuffTab:CreateButton({
+    Name = "莫妮卡增益(全体)",
+    Callback = function()
+        for _, Plr in pairs(Players:GetPlayers()) do
+            if Plr.Character then
+                local args = {Plr.Character}
+                ReplicatedStorage:WaitForChild("PlayerRemoteEvents"):WaitForChild("PoemEvent"):FireServer(unpack(args))
+                print("[维度融合] 已给玩家 " .. Plr.Name .. " 发放莫妮卡增益")
+            end
+        end
+        print("[维度融合] 全体莫妮卡增益发放完成")
+    end
+})
+
+-- exe狂暴
+BuffTab:CreateSection("漩涡")
+BuffTab:CreateButton({
+    Name = "exe狂暴",
+    Callback = function()
+        local rageEvent = ReplicatedStorage:FindFirstChild("PlayerRemoteEvents"):FindFirstChild("RageEvent")
+        if rageEvent then
+            rageEvent:FireServer()
+            print("[维度融合] 已触发exe狂暴功能")
+        else
+            warn("[维度融合] 未找到RageEvent，功能执行失败！")
+        end
+    end
+})
+
+-- ==================== 5. 角色选择标签页 ====================
+local CharacterTab = Window:CreateTab("角色选择", 4483362458)
+
+local selectedCharacter = nil
+local selectedMinion = nil
+local isLoopSummonActive = false
+local loopSummonTask = nil
+
+local allLoopSummonChars = {
+    "sans", "sonic", "eggman", "bendy", "monika", 
+    "mugman", "sayori", "vanilla", "cuphead", "frisk", 
+    "cream", "boris", "shadow"
+}
+
+-- 角色切换下拉框
+local charDropdown = CharacterTab:CreateDropdown({
+    Name = "选择角色（切换用）",
+    Options = {
+        "bendy", "sonic", "eggman", "sans", "monika",
+        "mugman", "sayori", "vanilla", "cuphead", "cream",
+        "frisk", "boris", "vortex"
+    },
+    CurrentOption = "bendy",
+    MultipleOptions = false,
+    Flag = "CharacterSelectDropdown",
+    Callback = function(Options)
+        selectedCharacter = Options[1]
+        print("[维度融合] 已选择切换角色：" .. selectedCharacter)
+    end
+})
+
+-- 确认切换按钮
+CharacterTab:CreateButton({
+    Name = "确认切换角色",
+    Callback = function()
+        if not selectedCharacter then
+            warn("[维度融合] 请先从下拉框选择切换角色！")
+            return
+        end
+
+        local success, err = pcall(function()
+            local args = {[1] = selectedCharacter}
+            ReplicatedStorage:WaitForChild("Remotes", 9e9)
+                :WaitForChild("inSelection", 9e9)
+                :WaitForChild("characterSelectionControlEvent", 9e9)
+                :FireServer(unpack(args))
+        end)
+
+        if success then
+            print("[维度融合] 已成功切换至角色：" .. selectedCharacter)
+        else
+            warn("[维度融合] 角色切换失败：" .. err)
+        end
+    end
+})
+
+-- Minion召唤下拉框
+local minionDropdown = CharacterTab:CreateDropdown({
+    Name = "选择Minion角色（单个召唤）",
+    Options = allLoopSummonChars,
+    CurrentOption = "sans",
+    MultipleOptions = false,
+    Flag = "MinionSelectDropdown",
+    Callback = function(Options)
+        selectedMinion = Options[1]
+        print("[维度融合] 已选择单个Minion角色：" .. selectedMinion)
+    end
+})
+
+-- 确认召唤Minion按钮
+CharacterTab:CreateButton({
+    Name = "确认召唤单个Minion",
+    Callback = function()
+        if not selectedMinion then
+            warn("[维度融合] 请先从下拉框选择单个Minion角色！")
+            return
+        end
+
+        local success, err = pcall(function()
+            local args = {selectedMinion}
+            ReplicatedStorage:WaitForChild("PlayerRemoteEvents", 9e9)
+                :WaitForChild("Minion", 9e9)
+                :FireServer(unpack(args))
+        end)
+
+        if success then
+            print("[维度融合] 已成功召唤Minion角色：" .. selectedMinion)
+        else
+            warn("[维度融合] Minion角色召唤失败：" .. err)
+        end
+    end
+})
+
+-- 循环召唤Minion Toggle
+CharacterTab:CreateToggle({
+    Name = "『开启/关闭循环召唤所有Minion』",
+    CurrentValue = false,
+    Flag = "LoopSummonToggle",
+    Callback = function(Value)
+        isLoopSummonActive = Value
+        if isLoopSummonActive then
+            print("[维度融合] 循环召唤所有Minion已开启，开始循环...")
+            loopSummonTask = task.spawn(function()
+                while isLoopSummonActive do
+                    for _, charName in pairs(allLoopSummonChars) do
+                        if not isLoopSummonActive then break end
+                        local success, err = pcall(function()
+                            local args = {charName}
+                            ReplicatedStorage:WaitForChild("PlayerRemoteEvents"):WaitForChild("Minion"):FireServer(unpack(args))
+                        end)
+                        if success then
+                            print("[维度融合] 循环召唤Minion成功：" .. charName)
+                        else
+                            warn("[维度融合] 循环召唤Minion失败：" .. charName .. "，错误：" .. err)
+                        end
+                        task.wait(0.1) -- 轻微延迟，避免请求拥堵
+                    end
+                    -- 一轮召唤结束后，不延迟开始下一轮
+                    if isLoopSummonActive then task.wait() end
+                end
+            end)
+        else
+            if loopSummonTask then
+                task.cancel(loopSummonTask)
+                loopSummonTask = nil
+            end
+            print("[维度融合] 循环召唤所有Minion已关闭")
+        end
+    end
+})
+
 -- ==================== 新增：Morph角色切换功能（整合外部脚本） ====================
-CharacterTab:CreateSection("Morph角色切换（视觉变形）")
+CharacterTab:CreateSection("模型角色切换（视觉变形）")
 
 -- Morph核心功能变量
 local Players = game:GetService("Players")
@@ -196,3 +1593,408 @@ CharacterTab:CreateButton({
         print("[维度融合-Morph] 已重置为原角色")
     end
 })
+
+-- ==================== 7. 角色技能标签页 ====================
+local AbilityTab = Window:CreateTab("角色技能", 4483362458)
+
+local isBraverySoulActive = false
+local braverySoulLoop = nil
+
+AbilityTab:CreateSection("特效")
+AbilityTab:CreateToggle({
+    Name = "『开启/关闭勇气灵魂特效』",
+    CurrentValue = false,
+    Flag = "BraverySoulToggle",
+    Callback = function(Value)
+        isBraverySoulActive = Value
+        if isBraverySoulActive then
+            getgenv().farm = true
+            braverySoulLoop = task.spawn(function()
+                print("[维度融合] 勇气灵魂特效已开启")
+                while getgenv().farm do
+                    task.wait(0.5)
+                    game.ReplicatedStorage.PlayerRemoteEvents.abilityEffect:FireServer()
+                end
+                print("[维度融合] 勇气灵魂特效已自动关闭")
+            end)
+        else
+            getgenv().farm = false
+            if braverySoulLoop then
+                task.cancel(braverySoulLoop)
+                braverySoulLoop = nil
+            end
+            print("[维度融合] 勇气灵魂特效已关闭")
+        end
+    end
+})
+-- ==================== Sonic 旋转冲刺特效开关 ====================
+local isSpindashActive = false
+
+AbilityTab:CreateToggle({
+    Name = "『开启/关闭 Sonic 旋转冲刺特效』",
+    CurrentValue = false,
+    Flag = "SonicSpindashToggle",
+    Callback = function(Value)
+        isSpindashActive = Value
+        local spindashEvent = game:GetService("ReplicatedStorage")
+            :FindFirstChild("PlayerRemoteEvents")
+            and game:GetService("ReplicatedStorage").PlayerRemoteEvents:FindFirstChild("Sonic")
+            and game:GetService("ReplicatedStorage").PlayerRemoteEvents.Sonic:FindFirstChild("Spindash")
+
+        if not spindashEvent then
+            warn("[维度融合] 未找到 Sonic.Spindash 远程事件！")
+            return
+        end
+
+        if isSpindashActive then
+            spindashEvent:FireServer(true)
+            print("[维度融合] Sonic 旋转冲刺特效已开启")
+        else
+            spindashEvent:FireServer(false)
+            print("[维度融合] Sonic 旋转冲刺特效已关闭")
+        end
+    end
+})
+
+-- ==================== 班迪墨水波浪（inkWave）功能 ====================
+local isInkWaveActive = false
+local inkWaveLoop = nil
+
+AbilityTab:CreateSection("班迪")
+AbilityTab:CreateToggle({
+    Name = "『开启/关闭无限班迪墨水波浪』",
+    CurrentValue = false,
+    Flag = "InkWaveToggle",
+    Callback = function(Value)
+        isInkWaveActive = Value
+        if isInkWaveActive then
+            getgenv().farm = true
+            inkWaveLoop = task.spawn(function()
+                print("[维度融合] 无限班迪墨水波浪已开启")
+                while getgenv().farm do
+                    task.wait()
+                    game:GetService("ReplicatedStorage").PlayerRemoteEvents.Bendy.inkWave:FireServer()
+                end
+                print("[维度融合] 无限班迪墨水波浪已自动关闭")
+            end)
+        else
+            getgenv().farm = false
+            if inkWaveLoop then
+                task.cancel(inkWaveLoop)
+                inkWaveLoop = nil
+            end
+            print("[维度融合] 无限班迪墨水波浪已关闭")
+        end
+    end
+})
+
+-- ==================== Shadow 混沌矛（ChaosSpear）功能 ====================
+local isChaosSpearActive = false
+local chaosSpearLoop = nil
+
+AbilityTab:CreateSection("混沌矛") -- 新增Shadow专属章节（与班迪章节区分）
+AbilityTab:CreateToggle({
+    Name = "『开启/关闭无限混沌矛（全体玩家）』",
+    CurrentValue = false,
+    Flag = "ChaosSpearToggle",
+    Callback = function(Value)
+        isChaosSpearActive = Value
+        if isChaosSpearActive then
+            getgenv().farm = true
+            chaosSpearLoop = task.spawn(function()
+                print("[维度融合] 无限混沌矛功能已开启")
+                local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                local ChaosSpearEvent = ReplicatedStorage:FindFirstChild("PlayerRemoteEvents")
+                    and ReplicatedStorage.PlayerRemoteEvents:FindFirstChild("Shadow")
+                    and ReplicatedStorage.PlayerRemoteEvents.Shadow:FindFirstChild("ChaosSpear")
+                
+                if not ChaosSpearEvent then
+                    warn("[维度融合] 未找到 Shadow.ChaosSpear 远程事件！")
+                    getgenv().farm = false
+                    isChaosSpearActive = false
+                    return
+                end
+
+                local Players = game:GetService("Players")
+                local LocalPlayer = Players.LocalPlayer
+
+                while getgenv().farm do
+                    task.wait(0.1)
+                    -- 筛选除自己外的所有有效玩家
+                    local targetPlayers = {}
+                    for _, player in ipairs(Players:GetPlayers()) do
+                        if player ~= LocalPlayer and player.Character then
+                            table.insert(targetPlayers, player)
+                        end
+                    end
+                    -- 向每个目标发送混沌矛事件
+                    for _, targetPlayer in ipairs(targetPlayers) do
+                        local rootPart = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if rootPart then
+                            local targetCFrame = CFrame.new(rootPart.Position)
+                            ChaosSpearEvent:FireServer(targetCFrame)
+                        end
+                    end
+                end
+                print("[维度融合] 无限混沌矛功能已自动关闭")
+            end)
+        else
+            getgenv().farm = false
+            if chaosSpearLoop then
+                task.cancel(chaosSpearLoop)
+                chaosSpearLoop = nil
+            end
+            print("[维度融合] 无限混沌矛功能已关闭")
+        end
+    end
+})
+
+-- ==================== 循环对有伤害能力玩家释放混沌矛 ====================
+local isChaosSpearDamageActive = false
+local chaosSpearDamageLoop = nil
+
+AbilityTab:CreateToggle({
+    Name = "『开启/关闭循环混沌矛（锁定exe队伍）』",
+    CurrentValue = false,
+    Flag = "ChaosSpearDamageToggle",
+    Callback = function(Value)
+        isChaosSpearDamageActive = Value
+        if isChaosSpearDamageActive then
+            chaosSpearDamageLoop = task.spawn(function()
+                print("[维度融合] 循环混沌矛（仅伤害能力玩家）已开启")
+                local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                local ChaosSpearEvent = ReplicatedStorage:FindFirstChild("PlayerRemoteEvents")
+                    and ReplicatedStorage.PlayerRemoteEvents:FindFirstChild("Shadow")
+                    and ReplicatedStorage.PlayerRemoteEvents.Shadow:FindFirstChild("ChaosSpear")
+                
+                if not ChaosSpearEvent then
+                    warn("[维度融合] 未找到 Shadow.ChaosSpear 远程事件！")
+                    isChaosSpearDamageActive = false
+                    return
+                end
+
+                local Players = game:GetService("Players")
+                local LocalPlayer = Players.LocalPlayer
+
+                while isChaosSpearDamageActive do
+                    task.wait(0.1)
+                    -- 筛选：除自己外 + 有伤害能力 + 有角色 + 有根部件
+                    for _, player in ipairs(Players:GetPlayers()) do
+                        if player ~= LocalPlayer and canDealDamage(player) and player.Character then
+                            local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
+                            if rootPart then
+                                local targetCFrame = CFrame.new(rootPart.Position)
+                                ChaosSpearEvent:FireServer(targetCFrame)
+                            end
+                        end
+                    end
+                end
+                print("[维度融合] 循环混沌矛（仅伤害能力玩家）已自动关闭")
+            end)
+        else
+            if chaosSpearDamageLoop then
+                task.cancel(chaosSpearDamageLoop)
+                chaosSpearDamageLoop = nil
+            end
+            print("[维度融合] 循环混沌矛（仅伤害能力玩家）已关闭")
+        end
+    end
+})
+
+-- ==================== 对称双线旋转混沌矛（自身为中心） ====================
+local isDualLineRotatingChaosSpearActive = false
+local dualLineRotatingChaosSpearLoop = nil
+
+AbilityTab:CreateToggle({
+    Name = "『开启/关闭对称双线旋转混沌矛』",
+    CurrentValue = false,
+    Flag = "DualLineRotatingChaosSpearToggle",
+    Callback = function(Value)
+        isDualLineRotatingChaosSpearActive = Value
+        if isDualLineRotatingChaosSpearActive then
+            getgenv().farm = true
+            dualLineRotatingChaosSpearLoop = task.spawn(function()
+                print("[维度融合] 对称双线旋转混沌矛已开启（双线路同步旋转）")
+                local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                local ChaosSpearEvent = ReplicatedStorage:FindFirstChild("PlayerRemoteEvents")
+                    and ReplicatedStorage.PlayerRemoteEvents:FindFirstChild("Shadow")
+                    and ReplicatedStorage.PlayerRemoteEvents.Shadow:FindFirstChild("ChaosSpear")
+                
+                if not ChaosSpearEvent then
+                    warn("[维度融合] 未找到 Shadow.ChaosSpear 远程事件！")
+                    getgenv().farm = false
+                    isDualLineRotatingChaosSpearActive = false
+                    return
+                end
+
+                local Players = game:GetService("Players")
+                local LocalPlayer = Players.LocalPlayer
+                local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+                local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+                -- 配置参数（可调整）
+                local spearCountPerLine = 40 -- 每条线的矛数量（双线共40矛，保持原密度）
+                local radius = 5 -- 环绕半径
+                local fireDelay = 0 -- 发射间隔
+                local rotateSpeed = 0 -- 旋转速度（值越大转得越快）
+
+                local currentAngle = 0 -- 初始旋转角度
+
+                while getgenv().farm and isDualLineRotatingChaosSpearActive do
+                    task.wait()
+                    currentAngle = currentAngle + rotateSpeed -- 每帧更新旋转角度
+                    if currentAngle >= 2 * math.pi then currentAngle = 0 end -- 循环重置角度
+
+                    -- 循环生成两条对称线的发射位置（线1和线2夹角180度，同步旋转）
+                    for i = 1, spearCountPerLine do
+                        if not getgenv().farm or not isDualLineRotatingChaosSpearActive then break end
+                        
+                        -- 线1：基础角度 + 旋转偏移
+                        local angle1 = (i - 1) * (2 * math.pi / spearCountPerLine) + currentAngle
+                        local offsetX1 = math.cos(angle1) * radius
+                        local offsetZ1 = math.sin(angle1) * radius
+                        local targetPos1 = humanoidRootPart.Position + Vector3.new(offsetX1, 0, offsetZ1)
+                        local targetCFrame1 = CFrame.lookAt(targetPos1, humanoidRootPart.Position)
+
+                        -- 线2：与线1对称（夹角180度）+ 旋转偏移
+                        local angle2 = angle1 + math.pi -- 对称核心：加π弧度（180度）
+                        local offsetX2 = math.cos(angle2) * radius
+                        local offsetZ2 = math.sin(angle2) * radius
+                        local targetPos2 = humanoidRootPart.Position + Vector3.new(offsetX2, 0, offsetZ2)
+                        local targetCFrame2 = CFrame.lookAt(targetPos2, humanoidRootPart.Position)
+
+                        -- 同步发射两条线的对应矛（对称位置同时触发）
+                        ChaosSpearEvent:FireServer(targetCFrame1)
+                        ChaosSpearEvent:FireServer(targetCFrame2)
+                        task.wait(fireDelay)
+                    end
+                end
+                print("[维度融合] 对称双线旋转混沌矛已关闭")
+            end)
+        else
+            getgenv().farm = false
+            if dualLineRotatingChaosSpearLoop then
+                task.cancel(dualLineRotatingChaosSpearLoop)
+                dualLineRotatingChaosSpearLoop = nil
+            end
+            print("[维度融合] 对称双线旋转混沌矛已手动关闭")
+        end
+    end
+})
+
+-- ==================== 选人无限混沌矛功能 ====================
+local targetChaosSpearPlayer = nil
+local isTargetChaosSpearActive = false
+local targetChaosSpearLoop = nil
+
+-- 创建选人下拉框
+local chaosSpearDropdown = AbilityTab:CreateDropdown({
+    Name = "选择混沌矛目标玩家",
+    Options = getPlayerNames(),
+    CurrentOption = getPlayerNames()[1] or "无",
+    MultipleOptions = false,
+    Flag = "ChaosSpearTargetDropdown",
+    Callback = function(Options)
+        local name = Options[1]
+        targetChaosSpearPlayer = Players:FindFirstChild(name)
+        local targetName = targetChaosSpearPlayer and targetChaosSpearPlayer.Name or "无"
+        print("[维度融合] 混沌矛目标已选中：" .. targetName)
+    end
+})
+
+-- 刷新下拉框（玩家进出自动更新）
+local function refreshChaosSpearDropdown()
+    chaosSpearDropdown:Refresh(getPlayerNames())
+    if targetChaosSpearPlayer and not targetChaosSpearPlayer:IsDescendantOf(Players) then
+        targetChaosSpearPlayer = nil
+        print("[维度融合] 混沌矛目标已离开，已重置")
+    end
+end
+
+-- 监听玩家变动
+Players.PlayerAdded:Connect(refreshChaosSpearDropdown)
+Players.PlayerRemoving:Connect(refreshChaosSpearDropdown)
+
+-- 选人混沌矛 Toggle（循环）
+AbilityTab:CreateToggle({
+    Name = "『开启/关闭选人无限混沌矛』",
+    CurrentValue = false,
+    Flag = "TargetChaosSpearToggle",
+    Callback = function(Value)
+        isTargetChaosSpearActive = Value
+        if isTargetChaosSpearActive then
+            if not targetChaosSpearPlayer then
+                warn("[维度融合] 请先从下拉框选择混沌矛目标！")
+                isTargetChaosSpearActive = false
+                return
+            end
+
+            targetChaosSpearLoop = task.spawn(function()
+                print("[维度融合] 选人无限混沌矛已开启，目标：" .. targetChaosSpearPlayer.Name)
+                local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                local ChaosSpearEvent = ReplicatedStorage:FindFirstChild("PlayerRemoteEvents")
+                    and ReplicatedStorage.PlayerRemoteEvents:FindFirstChild("Shadow")
+                    and ReplicatedStorage.PlayerRemoteEvents.Shadow:FindFirstChild("ChaosSpear")
+                
+                if not ChaosSpearEvent then
+                    warn("[维度融合] 未找到 Shadow.ChaosSpear 远程事件！")
+                    getgenv().farm = false
+                    isTargetChaosSpearActive = false
+                    return
+                end
+
+                local LocalPlayer = game:GetService("Players").LocalPlayer
+
+                while isTargetChaosSpearActive and targetChaosSpearPlayer and targetChaosSpearPlayer:IsDescendantOf(Players) do
+                    task.wait(0.1)
+                    -- 排除自己 + 确保目标有角色和根部件
+                    if targetChaosSpearPlayer ~= LocalPlayer and targetChaosSpearPlayer.Character then
+                        local rootPart = targetChaosSpearPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if rootPart then
+                            local targetCFrame = CFrame.new(rootPart.Position)
+                            ChaosSpearEvent:FireServer(targetCFrame)
+                        end
+                    end
+                end
+
+                isTargetChaosSpearActive = false
+                print("[维度融合] 选人无限混沌矛已自动关闭（目标离开或开关关闭）")
+            end)
+        else
+            getgenv().farm = false
+            if targetChaosSpearLoop then
+                task.cancel(targetChaosSpearLoop)
+                targetChaosSpearLoop = nil
+            end
+            print("[维度融合] 选人无限混沌矛已关闭")
+        end
+    end
+})
+
+-- ==================== 6. 面板控制标签页 ====================
+local ControlTab = Window:CreateTab("面板控制", 4483362458)
+
+-- 关闭面板（清理所有功能循环）
+ControlTab:CreateButton({
+    Name = "关闭面板（清理残留）",
+    Callback = function()
+        print("[维度融合] 面板已关闭")
+        -- 关闭所有循环，避免功能残留
+        if killLoop then task.cancel(killLoop) end
+        if invincibleLoop then task.cancel(invincibleLoop) end
+        if healLoop then task.cancel(healLoop) end
+        if sayoriHealLoop then task.cancel(sayoriHealLoop) end
+        if buffLoop then task.cancel(buffLoop) end
+        if jumpBoostLoop then task.cancel(jumpBoostLoop) end
+        if loopSummonTask then task.cancel(loopSummonTask) end
+        if targetHealLoop then task.cancel(targetHealLoop) end
+        if targetJumpBoostLoop then task.cancel(targetJumpBoostLoop) end
+        if targetSayoriHealLoop then task.cancel(targetSayoriHealLoop) end
+
+        -- 销毁 Rayfield 窗口
+        Rayfield:Destroy()
+    end
+})
+
+-- 显示欢迎信息（可选）
+print("✅ 维度融合 1.0 (Rayfield 版) 加载完成！")
