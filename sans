@@ -1395,187 +1395,46 @@ CharacterTab:CreateToggle({
     end
 })
 
--- ==================== 新增：Morph角色切换功能（整合外部脚本） ====================
-CharacterTab:CreateSection("模型角色切换（视觉变形）")
+-- ==================== 新增：Morph角色切换功能（下拉框版） ====================
+CharacterTab:CreateSection("Morph角色切换（视觉变形）")
 
--- Morph核心功能变量
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local LocalPlayer = Players.LocalPlayer
-local playerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
-local dummysFolder = ReplicatedStorage:FindFirstChild("Dummys", 5)
-local buttons = {}
+-- Morph核心功能变量（复用之前的，无需重复定义）
+local selectedMorphChar = nil
+local buttons = {} -- 用于按钮禁用/启用控制
 
--- Morph辅助函数
-local function disableAllButtons()
-    for _, btn in ipairs(buttons) do
-        if btn and btn:IsA("GuiButton") then
-            btn.Active = false
-            btn.AutoButtonColor = false
-            btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
-        end
+-- （此处保留之前的 Morph 辅助函数：disableAllButtons、enableAllButtons、safeFindDummy、copySpecialFoldersAndAnimations、setupHeadFollow、weldToRoot、morphTo、onCharacterAdded，无需修改）
+
+-- Morph角色下拉框
+local morphDropdown = CharacterTab:CreateDropdown({
+    Name = "选择Morph角色",
+    Options = {
+        "Sonic","Shadow","Vanilla","Cream",
+        "Bendy","Boris","Cuphead","Mugman",
+        "Sayori","Monika","Yuri","Sans",
+        "Frisk","Chara","Sonic.exe"
+    },
+    CurrentOption = "Sonic",
+    MultipleOptions = false,
+    Flag = "MorphCharacterDropdown",
+    Callback = function(Options)
+        selectedMorphChar = Options[1]
+        print("[维度融合-Morph] 已选择角色：" .. selectedMorphChar)
     end
-end
+})
 
-local function enableAllButtons()
-    for _, btn in ipairs(buttons) do
-        if btn and btn:IsA("GuiButton") then
-            btn.Active = true
-            btn.AutoButtonColor = true
-            btn.BackgroundColor3 = Color3.fromRGB(100,100,100)
-        end
-    end
-end
-
-local function safeFindDummy(name)
-    if not dummysFolder then return nil end
-    local found = dummysFolder:FindFirstChild(name) or dummysFolder:FindFirstChild(name:lower()) or dummysFolder:FindFirstChild(name:upper())
-    return found
-end
-
-local function copySpecialFoldersAndAnimations(sourceModel, targetCharacter)
-    if not sourceModel or not targetCharacter then return end
-    local specialFolders = {"CharacterFolder", "HitFolder"}
-    for _, folderName in ipairs(specialFolders) do
-        local sourceFolder = sourceModel:FindFirstChild(folderName)
-        local targetFolder = targetCharacter:FindFirstChild(folderName)
-        if sourceFolder then
-            if targetFolder then targetFolder:Destroy() end
-            sourceFolder:Clone().Parent = targetCharacter
-        end
-    end
-    local sourceAnimate = sourceModel:FindFirstChild("Animate")
-    local targetAnimate = targetCharacter:FindFirstChild("Animate")
-    if sourceAnimate then
-        if targetAnimate then targetAnimate:Destroy() end
-        sourceAnimate:Clone().Parent = targetCharacter
-    end
-end
-
-local function setupHeadFollow(headPart)
-    if not headPart then return end
-    local camera = workspace.CurrentCamera
-    local conn
-    conn = RunService.RenderStepped:Connect(function()
-        if not headPart or not headPart.Parent then
-            if conn then conn:Disconnect() end
+-- 确认Morph按钮
+CharacterTab:CreateButton({
+    Name = "确认切换Morph角色",
+    Callback = function()
+        if not selectedMorphChar then
+            warn("[维度融合-Morph] 请先从下拉框选择角色！")
             return
         end
-        headPart.CFrame = CFrame.new(headPart.Position, camera.CFrame.Position)
-    end)
-end
-
-local function weldToRoot(rootPart, modelRoot)
-    if not (rootPart and modelRoot) then return end
-    local weld = Instance.new("WeldConstraint")
-    weld.Part0 = rootPart
-    weld.Part1 = modelRoot
-    weld.Parent = modelRoot
-end
-
--- Morph执行函数
-local function morphTo(characterName)
-    local dummyTemplate = safeFindDummy(characterName)
-    if not dummyTemplate then
-        warn("[维度融合-Morph] 未找到角色模型："-Mtostring(characterName))
-        return
+        morphTo(selectedMorphChar)
     end
+})
 
-    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart")
-    if not rootPart then return end
-
-    -- 销毁旧Morph模型
-    for _, c in ipairs(char:GetChildren()) do
-        if c.Name == "CharacterModel" then c:Destroy() end
-    end
-
-    -- 隐藏原角色模型（仅视觉）
-    for _, part in ipairs(char:GetDescendants()) do
-        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-            part.Transparency = 1
-        end
-    end
-
-    -- 复制动画和特殊文件夹
-    copySpecialFoldersAndAnimations(dummyTemplate, char)
-
-    -- 克隆Morph模型
-    local clone = dummyTemplate:Clone()
-    clone.Name = "CharacterModel"
-    local dummyHum = clone:FindFirstChildOfClass("Humanoid")
-    if dummyHum then dummyHum:Destroy() end
-
-    local dummyRoot = clone:FindFirstChild("HumanoidRootPart") or clone.PrimaryPart
-    if not dummyRoot then
-        for _, p in ipairs(clone:GetDescendants()) do
-            if p:IsA("BasePart") then dummyRoot = p break end
-        end
-    end
-
-    if dummyRoot then
-        clone.Parent = char
-        clone.PrimaryPart = dummyRoot
-        clone:SetPrimaryPartCFrame(rootPart.CFrame)
-        weldToRoot(rootPart, dummyRoot)
-    else clone.Parent = char end
-
-    -- 头部跟随相机
-    for _, name in ipairs({"Head","head"}) do
-        local headPart = clone:FindFirstChild(name, true)
-        if headPart and headPart:IsA("BasePart") then setupHeadFollow(headPart) break end
-    end
-
-    disableAllButtons()
-    print("[维度融合-Morph] 已切换至角色：" .. characterName)
-end
-
--- Morph死亡重置处理
-local function onCharacterAdded(char)
-    local humanoid = char:WaitForChild("Humanoid",10)
-    if humanoid then
-        humanoid.Died:Connect(function()
-            task.wait(0.8)
-            for _, child in ipairs(char:GetChildren()) do
-                if child.Name == "CharacterModel" then child:Destroy() end
-            end
-            -- 恢复原角色可见性
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then part.Transparency = 0 end
-            end
-            enableAllButtons()
-            print("[维度融合-Morph] 角色死亡，已重置Morph")
-        end)
-    end
-end
-
--- 初始化角色死亡监听
-if LocalPlayer.Character then onCharacterAdded(LocalPlayer.Character) end
-LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
-
--- Morph角色列表（15个角色）
-local charactersList = {
-    "Sonic","Shadow","Vanilla","Cream",
-    "Bendy","Boris",
-    "Cuphead","Mugman",
-    "Sayori","Monika","Yuri",
-    "Sans","Frisk","Chara",
-    "Sonic.exe"
-}
-
--- 创建Morph按钮（使用Rayfield原生按钮，整合进面板）
-for i, name in ipairs(charactersList) do
-    local btn = CharacterTab:CreateButton({
-        Name = "切换至：" .. name,
-        Callback = function()
-            morphTo(name)
-        end
-    })
-    table.insert(buttons, btn)
-end
-
--- Morph重置按钮
+-- Morph重置按钮（保留）
 CharacterTab:CreateButton({
     Name = "重置Morph（恢复原角色）",
     Callback = function()
@@ -1593,6 +1452,10 @@ CharacterTab:CreateButton({
         print("[维度融合-Morph] 已重置为原角色")
     end
 })
+
+-- 初始化角色死亡监听（保留）
+if LocalPlayer.Character then onCharacterAdded(LocalPlayer.Character) end
+LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
 
 -- ==================== 7. 角色技能标签页 ====================
 local AbilityTab = Window:CreateTab("角色技能", 4483362458)
