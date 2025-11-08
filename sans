@@ -330,7 +330,7 @@ local targetKillLoop = nil
 
 -- 创建选人秒杀下拉框
 local killDropdown = CombatTab:CreateDropdown({
-    Name = "选择秒杀目标玩家",
+    Name = "选择秒杀玩家",
     Options = getPlayerNames(),
     CurrentOption = getPlayerNames()[1] or "无",
     MultipleOptions = false,
@@ -398,7 +398,7 @@ local isKillDamageActive = false
 local killDamageLoop = nil
 
 CombatTab:CreateToggle({
-    Name = "『开启/关闭秒杀(仅有伤害能力玩家)』",
+    Name = "『开启/关闭秒杀(仅对杀手)』",
     CurrentValue = false,
     Flag = "KillDamageOnlyToggle",
     Callback = function(Value)
@@ -428,7 +428,7 @@ local isKillNoDamageActive = false
 local killNoDamageLoop = nil
 
 CombatTab:CreateToggle({
-    Name = "『开启/关闭秒杀(仅无伤害能力玩家)』",
+    Name = "『开启/关闭秒杀(仅对幸存者)』",
     CurrentValue = false,
     Flag = "KillNoDamageOnlyToggle",
     Callback = function(Value)
