@@ -296,6 +296,7 @@ CombatTab:CreateButton({
 local isKillActive = false
 local killLoop = nil
 
+CombatTab:CreateSection("秒杀")
 CombatTab:CreateToggle({
     Name = "『开启/关闭秒杀』",
     CurrentValue = false,
@@ -318,6 +319,136 @@ CombatTab:CreateToggle({
         else
             if killLoop then task.cancel(killLoop) end
             print("[维度融合] 秒杀功能已关闭")
+        end
+    end
+})
+
+-- ==================== 新增：选人秒杀 ====================
+local targetKillPlayer = nil
+local isTargetKillActive = false
+local targetKillLoop = nil
+
+-- 创建选人秒杀下拉框
+local killDropdown = CombatTab:CreateDropdown({
+    Name = "选择秒杀目标玩家",
+    Options = getPlayerNames(),
+    CurrentOption = getPlayerNames()[1] or "无",
+    MultipleOptions = false,
+    Flag = "TargetKillDropdown",
+    Callback = function(Options)
+        local name = Options[1]
+        targetKillPlayer = Players:FindFirstChild(name)
+        local targetName = targetKillPlayer and targetKillPlayer.Name or "无"
+        print("[维度融合] 选人秒杀目标已选中：" .. targetName)
+    end
+})
+
+-- 刷新选人秒杀下拉框
+local function refreshKillDropdown()
+    killDropdown:Refresh(getPlayerNames())
+    if targetKillPlayer and not targetKillPlayer:IsDescendantOf(Players) then
+        targetKillPlayer = nil
+        print("[维度融合] 选中的秒杀目标已离开，已重置")
+    end
+end
+
+-- 监听玩家变动
+Players.PlayerAdded:Connect(refreshKillDropdown)
+Players.PlayerRemoving:Connect(refreshKillDropdown)
+
+-- 选人秒杀 Toggle
+CombatTab:CreateToggle({
+    Name = "『开启/关闭选人秒杀』",
+    CurrentValue = false,
+    Flag = "TargetKillToggle",
+    Callback = function(Value)
+        isTargetKillActive = Value
+        if isTargetKillActive then
+            if not targetKillPlayer then
+                warn("[维度融合] 请先从下拉框选择秒杀目标！")
+                isTargetKillActive = false
+                return
+            end
+            if targetKillPlayer == LocalPlayer then
+                warn("[维度融合] 不能秒杀自己！")
+                isTargetKillActive = false
+                return
+            end
+            targetKillLoop = task.spawn(function()
+                while isTargetKillActive and targetKillPlayer and targetKillPlayer:IsDescendantOf(Players) do
+                    task.wait()
+                    if targetKillPlayer.Character then
+                        local args = {targetKillPlayer.Character}
+                        ReplicatedStorage:WaitForChild("PlayerRemoteEvents"):WaitForChild("Frenzy"):FireServer(unpack(args))
+                    end
+                end
+                isTargetKillActive = false
+                print("[维度融合] 选人秒杀已自动关闭")
+            end)
+            print("[维度融合] 对 " .. targetKillPlayer.Name .. " 的选人秒杀已开启")
+        else
+            if targetKillLoop then task.cancel(targetKillLoop) end
+            print("[维度融合] 选人秒杀已关闭")
+        end
+    end
+})
+
+-- ==================== 新增：秒杀仅有伤害能力玩家 ====================
+local isKillDamageActive = false
+local killDamageLoop = nil
+
+CombatTab:CreateToggle({
+    Name = "『开启/关闭秒杀(仅有伤害能力玩家)』",
+    CurrentValue = false,
+    Flag = "KillDamageOnlyToggle",
+    Callback = function(Value)
+        isKillDamageActive = Value
+        if isKillDamageActive then
+            killDamageLoop = task.spawn(function()
+                while isKillDamageActive do
+                    task.wait()
+                    for _, Plr in pairs(Players:GetPlayers()) do
+                        if Plr ~= LocalPlayer and Plr.Character and canDealDamage(Plr) then
+                            local args = {Plr.Character}
+                            ReplicatedStorage:WaitForChild("PlayerRemoteEvents"):WaitForChild("Frenzy"):FireServer(unpack(args))
+                        end
+                    end
+                end
+            end)
+            print("[维度融合] 秒杀(仅伤害能力玩家)已开启")
+        else
+            if killDamageLoop then task.cancel(killDamageLoop) end
+            print("[维度融合] 秒杀(仅伤害能力玩家)已关闭")
+        end
+    end
+})
+
+-- ==================== 新增：秒杀仅无伤害能力玩家 ====================
+local isKillNoDamageActive = false
+local killNoDamageLoop = nil
+
+CombatTab:CreateToggle({
+    Name = "『开启/关闭秒杀(仅无伤害能力玩家)』",
+    CurrentValue = false,
+    Flag = "KillNoDamageOnlyToggle",
+    Callback = function(Value)
+        isKillNoDamageActive = Value
+        if isKillNoDamageActive then
+            killNoDamageLoop = task.spawn(function()
+                while isKillNoDamageActive do
+                    task.wait()
+                    for _, Plr in pairs(Players:GetPlayers()) do
+                        if Plr ~= LocalPlayer and Plr.Character and not canDealDamage(Plr) then
+                            local args = {Plr.Character}
+                            ReplicatedStorage:WaitForChild("PlayerRemoteEvents"):WaitForChild("Frenzy"):FireServer(unpack(args))
+                        end
+                    end
+                end
+            end)
+            print("[维度融合] 秒杀(仅无伤害能力玩家)已开启")
+        else
+            if killNoDamageLoop then task.cancel(killNoDamageLoop) end
+            print("[维度融合] 秒杀(仅无伤害能力玩家)已关闭")
         end
     end
 })
