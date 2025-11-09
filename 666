@@ -1,0 +1,65 @@
+-- 何意味
+getgenv().Config = {
+    SPEARS_COUNT = 20, 
+    RADIUS = 20,  
+    FIRE_DELAY = 0,  
+    BUTTON_POS = UDim2.new(0.02, 0, 0.5, 0)
+}
+
+getgenv().farm = false
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ChaosSpearsFarm"
+ScreenGui.Parent = game:GetService("Players").LocalPlayer.PlayerGui
+
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Name = "ToggleButton"
+ToggleButton.Size = UDim2.new(0, 120, 0, 40)
+ToggleButton.Position = getgenv().Config.BUTTON_POS
+ToggleButton.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
+ToggleButton.Text = "点击开启混沌矛"
+ToggleButton.TextColor3 = Color3.new(1, 1, 1)
+ToggleButton.TextScaled = true
+ToggleButton.Font = Enum.Font.SourceSansBold
+ToggleButton.Parent = ScreenGui
+
+local function startFarming()
+    local Players = game:GetService("Players")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local localPlayer = Players.LocalPlayer
+    local abilitiesEvent = ReplicatedStorage:WaitForChild("remotes"):WaitForChild("abilities", 10)
+    
+    while getgenv().farm do
+        task.wait()
+        
+        local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        if not rootPart then continue end
+
+        for i = 0, getgenv().Config.SPEARS_COUNT - 1 do
+            local angle = (2 * math.pi * i) / getgenv().Config.SPEARS_COUNT
+            local dirX = math.cos(angle)
+            local dirZ = math.sin(angle)
+            local targetPos = rootPart.Position + Vector3.new(dirX, 0, dirZ) * getgenv().Config.RADIUS
+
+            pcall(function()
+                abilitiesEvent:FireServer("throwChaosSpears", targetPos)
+            end)
+            task.wait(getgenv().Config.FIRE_DELAY)
+        end
+    end
+end
+
+ToggleButton.MouseButton1Click:Connect(function()
+    getgenv().farm = not getgenv().farm
+    if getgenv().farm then
+
+        ToggleButton.BackgroundColor3 = Color3.new(0.2, 0.8, 0.2)
+        ToggleButton.Text = "点击关闭混沌矛"
+        task.spawn(startFarming)
+    else
+        ToggleButton.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
+        ToggleButton.Text = "点击开启混沌矛"
+    end
+end)
+
