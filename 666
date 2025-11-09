@@ -13,7 +13,7 @@ ScreenGui.Name = "混沌矛"
 ScreenGui.Parent = game:GetService("Players").LocalPlayer.PlayerGui
 
 local ToggleButton = Instance.new("TextButton")
-ToggleButton.Name = "ToggleButton"
+ToggleButton.Name = "切换按钮"
 ToggleButton.Size = UDim2.new(0, 120, 0, 40)
 ToggleButton.Position = getgenv().Config.BUTTON_POS
 ToggleButton.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
