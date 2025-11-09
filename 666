@@ -9,7 +9,7 @@ getgenv().Config = {
 getgenv().farm = false
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ChaosSpearsFarm"
+ScreenGui.Name = "混沌矛"
 ScreenGui.Parent = game:GetService("Players").LocalPlayer.PlayerGui
 
 local ToggleButton = Instance.new("TextButton")
