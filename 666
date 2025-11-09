@@ -1,4 +1,4 @@
--- 何意味
+-- 何意味?
 getgenv().Config = {
     SPEARS_COUNT = 20, 
     RADIUS = 20,  
