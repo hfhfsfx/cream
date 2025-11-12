@@ -1452,7 +1452,7 @@ CharacterTab:CreateButton({
 
 CharacterTab:CreateParagraph({
     Title = "注:",
-    Content = "选择界面选完角色之后再用这个，等开始了就会基于你选的这个模型的技能"
+    Content = "选择界面选完角色之后再用视觉模型，等开始了就会给予你选的这个模型角色的技能"
 })
 --视觉模型
 local selectedCharacter = nil
