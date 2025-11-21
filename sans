@@ -1380,20 +1380,6 @@ BuffTab:CreateButton({
     end
 })
 
--- exe狂暴
-BuffTab:CreateSection("漩涡")
-BuffTab:CreateButton({
-    Name = "exe狂暴",
-    Callback = function()
-        local rageEvent = ReplicatedStorage:FindFirstChild("PlayerRemoteEvents"):FindFirstChild("RageEvent")
-        if rageEvent then
-            rageEvent:FireServer()
-            print("[维度融合] 已触发exe狂暴功能")
-        else
-            warn("[维度融合] 未找到RageEvent，功能执行失败！")
-        end
-    end
-})
 -- ==================== 莫妮卡干扰开关 ====================
 local isMonikaDisturbActive = false
 local monikaDisturbLoop = nil
@@ -1416,7 +1402,7 @@ BuffTab:CreateToggle({
                     return
                 end
                 while getgenv().farm do
-                    task.wait()
+                    task.wait(1)
                     event:FireServer()
                 end
             end)
@@ -1424,6 +1410,21 @@ BuffTab:CreateToggle({
             getgenv().farm = false
             if monikaDisturbLoop then task.cancel(monikaDisturbLoop) end
             print("[维度融合] 莫妮卡干扰已关闭")
+        end
+    end
+})
+
+-- exe狂暴
+BuffTab:CreateSection("漩涡")
+BuffTab:CreateButton({
+    Name = "exe狂暴",
+    Callback = function()
+        local rageEvent = ReplicatedStorage:FindFirstChild("PlayerRemoteEvents"):FindFirstChild("RageEvent")
+        if rageEvent then
+            rageEvent:FireServer()
+            print("[维度融合] 已触发exe狂暴功能")
+        else
+            warn("[维度融合] 未找到RageEvent，功能执行失败！")
         end
     end
 })
