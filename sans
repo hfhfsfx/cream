@@ -1466,7 +1466,7 @@ local charDropdown = CharacterTab:CreateDropdown({
 
 -- 确认切换按钮
 CharacterTab:CreateButton({
-    Name = "确认切换角色",
+    Name = "确认切换模型",
     Callback = function()
         if not selectedCharacter then
             warn("[维度融合] 请先从下拉框选择切换角色！")
@@ -1485,6 +1485,89 @@ CharacterTab:CreateButton({
             print("[维度融合] 已成功切换至角色：" .. selectedCharacter)
         else
             warn("[维度融合] 角色切换失败：" .. err)
+        end
+    end
+})
+
+-- ==================== 自动角色选择（检测 Selection 队伍） ====================
+CharacterTab:CreateSection("自动角色选择")
+
+-- 自动切换角色预设下拉框（与手动切换共用角色列表）
+local autoSelectChar = nil
+local autoCharDropdown = CharacterTab:CreateDropdown({
+    Name = "选择自动切换目标角色",
+    Options = {
+        "bendy", "sonic", "eggman", "sans", "monika",
+        "mugman", "sayori", "vanilla", "cuphead", "cream",
+        "frisk", "boris", "vortex"
+    },
+    CurrentOption = "bendy",
+    MultipleOptions = false,
+    Flag = "AutoCharacterSelectDropdown",
+    Callback = function(Options)
+        autoSelectChar = Options[1]
+        print("[维度融合] 自动切换目标角色已设置为：" .. autoSelectChar)
+    end
+})
+
+-- 自动角色选择开关（控制功能启停）
+local isAutoCharSelectActive = false
+local autoCharCheckConnection = nil
+
+CharacterTab:CreateToggle({
+    Name = "『开启/关闭自动选择角色』",
+    CurrentValue = false,
+    Flag = "AutoCharacterSelectToggle",
+    Callback = function(Value)
+        isAutoCharSelectActive = Value
+        if isAutoCharSelectActive then
+            if not autoSelectChar then
+                warn("[维度融合] 请先选择自动切换目标角色！")
+                isAutoCharSelectActive = false
+                return
+            end
+            -- 监听队伍变化，检测是否进入 Selection 队伍
+            autoCharCheckConnection = LocalPlayer:GetPropertyChangedSignal("Team"):Connect(function()
+                local currentTeam = LocalPlayer.Team
+                if currentTeam and currentTeam.Name == "Selection" then
+                    -- 执行角色切换逻辑
+                    local success, err = pcall(function()
+                        local args = {[1] = autoSelectChar}
+                        ReplicatedStorage:WaitForChild("Remotes", 5)
+                            :WaitForChild("inSelection", 5)
+                            :WaitForChild("characterSelectionControlEvent", 5)
+                            :FireServer(unpack(args))
+                    end)
+                    if success then
+                        print("[维度融合] 检测到 Selection 队伍，自动切换至角色：" .. autoSelectChar)
+                    else
+                        warn("[维度融合] 自动角色切换失败：" .. err)
+                    end
+                end
+            end)
+            -- 初始检测（已在 Selection 队伍时立即执行）
+            if LocalPlayer.Team and LocalPlayer.Team.Name == "Selection" then
+                local success, err = pcall(function()
+                    local args = {[1] = autoSelectChar}
+                    ReplicatedStorage:WaitForChild("Remotes", 5)
+                        :WaitForChild("inSelection", 5)
+                        :WaitForChild("characterSelectionControlEvent", 5)
+                        :FireServer(unpack(args))
+                end)
+                if success then
+                    print("[维度融合] 已处于 Selection 队伍，自动切换至角色：" .. autoSelectChar)
+                else
+                    warn("[维度融合] 初始自动角色切换失败：" .. err)
+                end
+            end
+            print("[维度融合] 自动角色选择功能已开启")
+        else
+            -- 关闭功能时断开监听
+            if autoCharCheckConnection then
+                autoCharCheckConnection:Disconnect()
+                autoCharCheckConnection = nil
+            end
+            print("[维度融合] 自动角色选择功能已关闭")
         end
     end
 })
