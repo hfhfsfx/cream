@@ -1531,7 +1531,7 @@ CharacterTab:CreateToggle({
                     isWaiting = true -- 标记进入等待状态
                     print("[维度融合] 检测到 Selection 队伍，等待8秒后执行切换...")
                     -- 8秒延迟执行角色切换
-                    task.wait(8)
+                    task.wait(9.1)
                     local success, err = pcall(function()
                         local args = {[1] = autoSelectChar}
                         ReplicatedStorage:WaitForChild("Remotes", 5)
