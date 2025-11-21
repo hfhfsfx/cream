@@ -1394,6 +1394,41 @@ BuffTab:CreateButton({
         end
     end
 })
+-- ==================== 莫妮卡干扰开关 ====================
+local isMonikaDisturbActive = false
+local monikaDisturbLoop = nil
+
+BuffTab:CreateToggle({
+    Name = "『开启/关闭莫妮卡干扰』",
+    CurrentValue = false,
+    Flag = "MonikaDisturbToggle",
+    Callback = function(Value)
+        isMonikaDisturbActive = Value
+        if isMonikaDisturbActive then
+            getgenv().farm = true
+            monikaDisturbLoop = task.spawn(function()
+                print("[维度融合] 莫妮卡干扰已开启")
+                local event = game:GetService("ReplicatedStorage").PlayerRemoteEvents:FindFirstChild("MonikaSpringEffect")
+                if not event then
+                    warn("[维度融合] 未找到莫妮卡干扰事件，功能关闭")
+                    getgenv().farm = false
+                    isMonikaDisturbActive = false
+                    return
+                end
+                while getgenv().farm do
+                    task.wait()
+                    event:FireServer()
+                end
+            end)
+        else
+            getgenv().farm = false
+            if monikaDisturbLoop then task.cancel(monikaDisturbLoop) end
+            print("[维度融合] 莫妮卡干扰已关闭")
+        end
+    end
+})
+
+
 -- ==================== 5. 角色选择标签页 ====================
 local CharacterTab = Window:CreateTab("角色选择", 4483362458)
 
