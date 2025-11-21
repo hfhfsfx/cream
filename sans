@@ -1401,8 +1401,10 @@ BuffTab:CreateToggle({
                     isMonikaDisturbActive = false
                     return
                 end
+                -- 开启时立即触发一次，无1秒等待
+                event:FireServer()
                 while getgenv().farm do
-                    task.wait(1)
+                    task.wait(1) -- 循环间隔保持1秒
                     event:FireServer()
                 end
             end)
@@ -1413,6 +1415,7 @@ BuffTab:CreateToggle({
         end
     end
 })
+
 
 -- exe狂暴
 BuffTab:CreateSection("漩涡")
