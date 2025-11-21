@@ -1489,7 +1489,7 @@ CharacterTab:CreateButton({
     end
 })
 
--- ==================== 自动角色选择（检测 Selection 队伍+8秒延迟） ====================
+-- ==================== 自动角色选择（检测 Selection 队伍+9.1秒延迟） ====================
 CharacterTab:CreateSection("自动角色选择")
 
 local autoSelectChar = nil
@@ -1550,8 +1550,8 @@ CharacterTab:CreateToggle({
             -- 初始检测（已在 Selection 队伍时延迟8秒执行）
             if LocalPlayer.Team and LocalPlayer.Team.Name == "Selection" and not isWaiting then
                 isWaiting = true
-                print("[维度融合] 已处于 Selection 队伍，等待8秒后执行切换...")
-                task.wait(8.5)
+                print("[维度融合] 已处于 Selection 队伍，等待9.1秒后执行切换...")
+                task.wait(9.1)
                 local success, err = pcall(function()
                     local args = {[1] = autoSelectChar}
                     ReplicatedStorage:WaitForChild("Remotes", 5)
