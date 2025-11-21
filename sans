@@ -1489,10 +1489,9 @@ CharacterTab:CreateButton({
     end
 })
 
--- ==================== 自动角色选择（检测 Selection 队伍） ====================
+-- ==================== 自动角色选择（检测 Selection 队伍+8秒延迟） ====================
 CharacterTab:CreateSection("自动角色选择")
 
--- 自动切换角色预设下拉框（与手动切换共用角色列表）
 local autoSelectChar = nil
 local autoCharDropdown = CharacterTab:CreateDropdown({
     Name = "选择自动切换目标角色",
@@ -1510,12 +1509,12 @@ local autoCharDropdown = CharacterTab:CreateDropdown({
     end
 })
 
--- 自动角色选择开关（控制功能启停）
 local isAutoCharSelectActive = false
 local autoCharCheckConnection = nil
+local isWaiting = false -- 延迟状态标记，避免重复触发
 
 CharacterTab:CreateToggle({
-    Name = "『开启/关闭自动选择角色』",
+    Name = "『开启/关闭自动角色选择』",
     CurrentValue = false,
     Flag = "AutoCharacterSelectToggle",
     Callback = function(Value)
@@ -1526,11 +1525,13 @@ CharacterTab:CreateToggle({
                 isAutoCharSelectActive = false
                 return
             end
-            -- 监听队伍变化，检测是否进入 Selection 队伍
             autoCharCheckConnection = LocalPlayer:GetPropertyChangedSignal("Team"):Connect(function()
                 local currentTeam = LocalPlayer.Team
-                if currentTeam and currentTeam.Name == "Selection" then
-                    -- 执行角色切换逻辑
+                if currentTeam and currentTeam.Name == "Selection" and not isWaiting then
+                    isWaiting = true -- 标记进入等待状态
+                    print("[维度融合] 检测到 Selection 队伍，等待8秒后执行切换...")
+                    -- 8秒延迟执行角色切换
+                    task.wait(8)
                     local success, err = pcall(function()
                         local args = {[1] = autoSelectChar}
                         ReplicatedStorage:WaitForChild("Remotes", 5)
@@ -1539,14 +1540,18 @@ CharacterTab:CreateToggle({
                             :FireServer(unpack(args))
                     end)
                     if success then
-                        print("[维度融合] 检测到 Selection 队伍，自动切换至角色：" .. autoSelectChar)
+                        print("[维度融合] 延迟8秒执行成功，切换至角色：" .. autoSelectChar)
                     else
-                        warn("[维度融合] 自动角色切换失败：" .. err)
+                        warn("[维度融合] 延迟切换失败：" .. err)
                     end
+                    isWaiting = false -- 重置等待状态
                 end
             end)
-            -- 初始检测（已在 Selection 队伍时立即执行）
-            if LocalPlayer.Team and LocalPlayer.Team.Name == "Selection" then
+            -- 初始检测（已在 Selection 队伍时延迟8秒执行）
+            if LocalPlayer.Team and LocalPlayer.Team.Name == "Selection" and not isWaiting then
+                isWaiting = true
+                print("[维度融合] 已处于 Selection 队伍，等待8秒后执行切换...")
+                task.wait(8)
                 local success, err = pcall(function()
                     local args = {[1] = autoSelectChar}
                     ReplicatedStorage:WaitForChild("Remotes", 5)
@@ -1555,22 +1560,24 @@ CharacterTab:CreateToggle({
                         :FireServer(unpack(args))
                 end)
                 if success then
-                    print("[维度融合] 已处于 Selection 队伍，自动切换至角色：" .. autoSelectChar)
+                    print("[维度融合] 延迟8秒执行成功，切换至角色：" .. autoSelectChar)
                 else
-                    warn("[维度融合] 初始自动角色切换失败：" .. err)
+                    warn("[维度融合] 初始延迟切换失败：" .. err)
                 end
+                isWaiting = false
             end
-            print("[维度融合] 自动角色选择功能已开启")
+            print("[维度融合] 自动角色选择功能已开启（含8秒延迟）")
         else
-            -- 关闭功能时断开监听
             if autoCharCheckConnection then
                 autoCharCheckConnection:Disconnect()
                 autoCharCheckConnection = nil
             end
+            isWaiting = false -- 关闭功能时重置等待状态
             print("[维度融合] 自动角色选择功能已关闭")
         end
     end
 })
+
 
 CharacterTab:CreateParagraph({
     Title = "注:",
