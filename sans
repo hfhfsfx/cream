@@ -33,6 +33,15 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+-- 莫妮卡减伤核心检测函数
+local function checkAndFireGlitchRemote()
+    local playerObj = workspace:FindFirstChild(LocalPlayer.Name)
+    if playerObj and not playerObj:FindFirstChild("Glitch") then
+        ReplicatedStorage.PlayerRemoteEvents.GlitchRemote:FireServer()
+        print("[维度融合] 玩家无Glitch对象，触发莫妮卡减伤")
+    end
+end
+
 local function getPlayerNames()
     local names = {}
     for _, player in ipairs(Players:GetPlayers()) do
@@ -1415,38 +1424,37 @@ BuffTab:CreateToggle({
         end
     end
 })
--- ==================== 莫妮卡减伤开关 ====================
+-- ==================== 莫妮卡减伤开关（幸存者通用） ====================
 local isMonikaDamageReductionActive = false
-local monikaDamageReductionLoop = nil
+local damageReductionLoop = nil
 
+BuffTab:CreateSection("莫妮卡减伤")
 BuffTab:CreateToggle({
-    Name = "『开启/关闭莫妮卡减伤』",
+    Name = "『开启/关闭莫妮卡减伤(幸存者通用)』",
     CurrentValue = false,
     Flag = "MonikaDamageReductionToggle",
     Callback = function(Value)
         isMonikaDamageReductionActive = Value
         if isMonikaDamageReductionActive then
-            getgenv().farm = true
-            -- 开启时立即执行一次减伤事件
-            game.ReplicatedStorage.PlayerRemoteEvents.GlitchRemote:FireServer()
-            print("[维度融合] 莫妮卡减伤已开启（立即执行一次）")
-            -- 启动循环，每15秒触发一次
-            monikaDamageReductionLoop = task.spawn(function()
-                while getgenv().farm do
-                    task.wait(16)
-                    game.ReplicatedStorage.PlayerRemoteEvents.GlitchRemote:FireServer()
+            -- 启动检测循环，持续确保Glitch对象缺失时触发减伤
+            damageReductionLoop = task.spawn(function()
+                print("[维度融合] 莫妮卡减伤已开启，持续检测Glitch对象...")
+                while isMonikaDamageReductionActive do
+                    checkAndFireGlitchRemote() -- 调用Glitch检测函数
+                    task.wait(0.5) -- 检测间隔，可调整
                 end
             end)
         else
-            getgenv().farm = false
-            if monikaDamageReductionLoop then
-                task.cancel(monikaDamageReductionLoop)
-                monikaDamageReductionLoop = nil
+            -- 关闭时停止循环
+            if damageReductionLoop then
+                task.cancel(damageReductionLoop)
+                damageReductionLoop = nil
             end
             print("[维度融合] 莫妮卡减伤已关闭")
         end
     end
 })
+
 
 
 -- exe狂暴
