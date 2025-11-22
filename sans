@@ -180,14 +180,12 @@ BasicTab:CreateButton({
         print("[维度融合] 触发逃脱功能")
     end
 })
-
--- 自动逃脱功能（修复传送失效版）
+-- 自动逃脱功能（指定ExitRing传送版）
 local isAutoEscapeActive = false
 local autoEscapeConnection = nil
 local escapeRingCheckLoop = nil
 local teamCheckLoop = nil
 
-BasicTab:CreateSection("自动防护")
 BasicTab:CreateToggle({
     Name = "『开启/关闭自动逃脱』",
     CurrentValue = false,
@@ -202,7 +200,7 @@ BasicTab:CreateToggle({
                 return
             end
 
-            -- 队伍实时验证（增加状态日志）
+            -- 队伍实时验证
             teamCheckLoop = task.spawn(function()
                 while isAutoEscapeActive do
                     local currentTeam = LocalPlayer.Team
@@ -228,33 +226,42 @@ BasicTab:CreateToggle({
                 end
             end)
 
-            -- EscapeRing检测（优化重试逻辑）
+            -- EscapeRing及ExitRing联合检测
             escapeRingCheckLoop = task.spawn(function()
                 while isAutoEscapeActive do
                     local SurvivorTeam = game:GetService("Teams"):FindFirstChild("Survivor")
                     if SurvivorTeam and LocalPlayer.Team == SurvivorTeam then
                         local EscapeRing = workspace:FindFirstChild("EscapeRing")
                         if not EscapeRing then
-                            warn("[维度融合] 未找到EscapeRing，2秒后重试")
+                            warn("[维度融合] 未找到workspace.EscapeRing，2秒后重试")
                             if autoEscapeConnection then
                                 autoEscapeConnection:Disconnect()
                                 autoEscapeConnection = nil
                             end
                         else
-                            if not autoEscapeConnection then
-                                setupSoundListener(EscapeRing)
+                            -- 新增ExitRing存在性校验
+                            local ExitRing = EscapeRing:FindFirstChild("ExitRing")
+                            if not ExitRing then
+                                warn("[维度融合] EscapeRing下未找到ExitRing，无法传送")
+                                if autoEscapeConnection then
+                                    autoEscapeConnection:Disconnect()
+                                    autoEscapeConnection = nil
+                                end
+                            else
+                                if not autoEscapeConnection then
+                                    setupSoundListener(EscapeRing)
+                                end
+                                checkExistingSounds(EscapeRing)
                             end
-                            -- 主动检测现有Sound（防止监听遗漏）
-                            checkExistingSounds(EscapeRing)
                         end
                     end
                     task.wait(2)
                 end
             end)
 
-            print("[维度融合] 自动逃脱功能已开启")
+            print("[维度融合] 自动逃脱功能已开启（目标：ExitRing）")
         else
-            -- 清理资源（补充日志）
+            -- 资源清理
             if autoEscapeConnection then
                 autoEscapeConnection:Disconnect()
                 autoEscapeConnection = nil
@@ -272,33 +279,42 @@ BasicTab:CreateToggle({
     end
 })
 
--- 新增：主动检测现有Sound（独立函数）
+-- 现有Sound检测函数
 local function checkExistingSounds(EscapeRing)
     if not isAutoEscapeActive or not EscapeRing then return end
     for _, descendant in ipairs(EscapeRing:GetDescendants()) do
         if descendant:IsA("Sound") then
-            print("[维度融合] 检测到现有Sound，执行传送")
+            print("[维度融合] 检测到Sound，执行ExitRing传送")
             executeTeleport(EscapeRing)
             break
         end
     end
 end
 
--- 监听初始化（补充日志+Parent变更监听）
+-- 监听初始化函数
 local function setupSoundListener(EscapeRing)
     if not isAutoEscapeActive or not EscapeRing then return end
     print("[维度融合] 开始监听EscapeRing子对象")
-    
-    -- 监听新增+Parent变更（覆盖移动场景）
     autoEscapeConnection = game:GetService("RunService").Heartbeat:Connect(function()
         if not isAutoEscapeActive or not EscapeRing:IsDescendantOf(workspace) then return end
         checkExistingSounds(EscapeRing)
     end)
 end
 
--- 传送执行（增加详细日志+容错）
+-- 传送执行函数（目标改为ExitRing）
 local function executeTeleport(EscapeRing)
-    -- 校验核心条件
+    -- 校验EscapeRing存在性
+    if not EscapeRing then
+        warn("[维度融合] 传送失败：EscapeRing不存在")
+        return
+    end
+    -- 校验ExitRing存在性及有效性
+    local ExitRing = EscapeRing:FindFirstChild("ExitRing")
+    if not ExitRing or not ExitRing:IsA("BasePart") then
+        warn("[维度融合] 传送失败：ExitRing不存在或非基础部件")
+        return
+    end
+    -- 校验角色及根部件
     if not LocalPlayer.Character then
         warn("[维度融合] 传送失败：角色不存在")
         return
@@ -308,27 +324,29 @@ local function executeTeleport(EscapeRing)
         warn("[维度融合] 传送失败：未找到有效HumanoidRootPart")
         return
     end
-    if not EscapeRing.CFrame then
-        warn("[维度融合] 传送失败：EscapeRing无有效位置")
+    -- 校验ExitRing位置有效性
+    if not ExitRing.CFrame then
+        warn("[维度融合] 传送失败：ExitRing无有效位置")
         return
     end
 
-    -- 执行传送（增加重试）
+    -- 执行传送（目标为ExitRing.CFrame）
     local success = pcall(function()
-        rootPart.CFrame = EscapeRing.CFrame
+        rootPart.CFrame = ExitRing.CFrame
     end)
     if success then
-        print("[维度融合] 传送成功：已到达EscapeRing位置")
+        print("[维度融合] 传送成功：已到达ExitRing位置")
     else
         warn("[维度融合] 传送失败：CFrame赋值异常")
-        -- 重试逻辑（1秒后再次尝试）
+        -- 1秒后重试
         task.delay(1, function()
-            if isAutoEscapeActive and rootPart:IsDescendantOf(LocalPlayer.Character) then
-                pcall(function() rootPart.CFrame = EscapeRing.CFrame end)
+            if isAutoEscapeActive and rootPart:IsDescendantOf(LocalPlayer.Character) and ExitRing:IsDescendantOf(EscapeRing) then
+                pcall(function() rootPart.CFrame = ExitRing.CFrame end)
             end
         end)
     end
 end
+
 
 
 -- ==================== 2. 战斗功能标签页 ====================
