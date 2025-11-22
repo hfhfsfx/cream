@@ -908,31 +908,59 @@ SurvivalTab:CreateToggle({
         end
     end
 })
--- ==================== 倒地自救功能（适配换号） ====================
-local isSelfRescueActive = false
-local selfRescueConnection = nil
+-- ==================== 动态倒地自救（适配换号，自动匹配当前角色） ====================
+local isDynamicSelfRescueActive = false
+local downedWatchConnection = nil
+local characterCheckConnection = nil
 
+-- 核心监听函数：动态绑定当前角色
+local function bindToCurrentCharacter()
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+    local targetCharacter = LocalPlayer.Character -- 动态获取本地玩家角色（角色名与用户名一致）
+    
+    -- 若角色未加载，等待加载后绑定
+    if not targetCharacter then
+        targetCharacter = LocalPlayer.CharacterAdded:Wait()
+        print("[维度融合] 本地角色加载完成，开始监听倒地状态")
+    end
+
+    -- 立即检测是否已倒地
+    if targetCharacter:FindFirstChild("Downed") then
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Character"):WaitForChild("reviveEvent"):FireServer(LocalPlayer)
+        print("[维度融合] 检测到当前角色已倒地，触发即时自救")
+    end
+
+    -- 监听角色下Downed对象创建
+    downedWatchConnection = targetCharacter.ChildAdded:Connect(function(child)
+        if child.Name == "Downed" then
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Character"):WaitForChild("reviveEvent"):FireServer(LocalPlayer)
+            print("[维度融合] 检测到当前角色创建Downed，触发自救复活")
+        end
+    end)
+end
+
+-- 添加到自保板块
 SurvivalTab:CreateToggle({
     Name = "『开启/关闭倒地自救』",
     CurrentValue = false,
-    Flag = "SelfRescueToggle",
+    Flag = "DynamicSelfRescueToggle",
     Callback = function(Value)
-        isSelfRescueActive = Value
-        if isSelfRescueActive then
-            -- 动态匹配本地玩家角色，适配换号场景
-            selfRescueConnection = workspace.ChildAdded:Connect(function(child)
-                local LocalPlayer = game:GetService("Players").LocalPlayer
-                if child.Name == "Downed" and LocalPlayer.Character and child.Parent == LocalPlayer.Character then
-                    local args = {LocalPlayer}
-                    game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Character"):WaitForChild("reviveEvent"):FireServer(unpack(args))
-                    print("[维度融合] 检测到本地玩家倒地，触发自救复活")
-                end
-            end)
-            print("[维度融合] 倒地自救功能已开启（支持换号自动适配）")
+        isDynamicSelfRescueActive = Value
+        if isDynamicSelfRescueActive then
+            -- 绑定当前角色，角色重生后自动重新绑定
+            bindToCurrentCharacter()
+            characterCheckConnection = game:GetService("Players").LocalPlayer.CharacterAdded:Connect(bindToCurrentCharacter)
+            print("[维度融合] 倒地自救功能已开启（自动适配当前账号角色）")
         else
-            if selfRescueConnection then
-                selfRescueConnection:Disconnect()
-                selfRescueConnection = nil
+            -- 关闭时断开所有监听
+            if downedWatchConnection then
+                downedWatchConnection:Disconnect()
+                downedWatchConnection = nil
+            end
+            if characterCheckConnection then
+                characterCheckConnection:Disconnect()
+                characterCheckConnection = nil
             end
             print("[维度融合] 倒地自救功能已关闭")
         end
