@@ -185,7 +185,7 @@ BasicTab:CreateButton({
 local isAutoEscapeActive = false
 local autoEscapeConnection = nil
 
-SurvivalTab:CreateToggle({
+BasicTab:CreateToggle({
     Name = "『开启/关闭自动逃脱』",
     CurrentValue = false,
     Flag = "AutoEscapeToggle",
@@ -226,7 +226,6 @@ SurvivalTab:CreateToggle({
         end
     end
 })
-
 
 -- ==================== 2. 战斗功能标签页 ====================
 local CombatTab = Window:CreateTab("战斗/干扰", 4483362458)
