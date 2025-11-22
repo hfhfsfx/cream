@@ -1433,7 +1433,7 @@ BuffTab:CreateToggle({
             -- 启动循环，每15秒触发一次
             monikaDamageReductionLoop = task.spawn(function()
                 while getgenv().farm do
-                    task.wait(15)
+                    task.wait(16)
                     game.ReplicatedStorage.PlayerRemoteEvents.GlitchRemote:FireServer()
                 end
             end)
