@@ -1441,7 +1441,7 @@ BuffTab:CreateToggle({
                 print("[维度融合] 莫妮卡减伤已开启，持续检测Glitch对象...")
                 while isMonikaDamageReductionActive do
                     checkAndFireGlitchRemote() -- 调用Glitch检测函数
-                    task.wait(0.5) -- 检测间隔，可调整
+                    task.wait(0) -- 检测间隔，可调整
                 end
             end)
         else
