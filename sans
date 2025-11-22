@@ -180,10 +180,9 @@ BasicTab:CreateButton({
         print("[维度融合] 触发逃脱功能")
     end
 })
-
--- 自动逃脱功能
+-- ==================== 新增：自动逃脱功能（检测Sound实例版） ====================
 local isAutoEscapeActive = false
-local autoEscapeConnection = nil
+local escapeCheckLoop = nil
 
 BasicTab:CreateToggle({
     Name = "『开启/关闭自动逃脱』",
@@ -192,43 +191,39 @@ BasicTab:CreateToggle({
     Callback = function(Value)
         isAutoEscapeActive = Value
         if isAutoEscapeActive then
-            -- 监听EscapeRing音效触发
-            local escapeRing = workspace:FindFirstChild("EscapeRing")
-            if not escapeRing then
-                warn("[维度融合] 未找到EscapeRing对象，自动逃脱功能开启失败！")
+            -- 验证幸存者身份
+            if LocalPlayer.Team ~= game:GetService("Teams").Survivor then
+                warn("[维度融合] 自动逃脱仅幸存者可开启！")
                 isAutoEscapeActive = false
                 return
             end
-            local escapeSound = escapeRing:FindFirstChild("Sound")
-            if not escapeSound then
-                warn("[维度融合] EscapeRing中未找到Sound对象，自动逃脱功能开启失败！")
-                isAutoEscapeActive = false
-                return
-            end
-            local exitRing = escapeRing:FindFirstChild("ExitRing")
-            if not exitRing then
-                warn("[维度融合] EscapeRing中未找到ExitRing对象，自动逃脱功能开启失败！")
-                isAutoEscapeActive = false
-                return
-            end
-
-            -- 音效触发时执行逃脱
-            autoEscapeConnection = escapeSound.Played:Connect(function()
-                local localPlayer = game:GetService("Players").LocalPlayer
-                if localPlayer.Team == game:GetService("Teams").Survivor and localPlayer.Character then
-                    local rootPart = localPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    if rootPart then
-                        rootPart.CFrame = exitRing.CFrame
-                        print("[维度融合] 检测到逃脱音效，已自动传送至ExitRing位置")
+            -- 循环检测Sound实例与传送条件
+            escapeCheckLoop = game:GetService("RunService").RenderStepped:Connect(function()
+                if not isAutoEscapeActive then return end
+                -- 验证组件存在性
+                local escapeRing = workspace:FindFirstChild("EscapeRing")
+                local exitRing = escapeRing and escapeRing:FindFirstChild("ExitRing")
+                local escapeSound = escapeRing and escapeRing:FindFirstChild("Sound")
+                if escapeRing and exitRing and escapeSound then
+                    -- 满足条件执行传送
+                    if LocalPlayer.Character then
+                        local rootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if rootPart then
+                            rootPart.CFrame = exitRing.CFrame
+                            print("[维度融合] 检测到EscapeRing.Sound，已传送至出口环")
+                            -- 单次检测成功后暂停循环（避免重复传送）
+                            escapeCheckLoop:Disconnect()
+                            escapeCheckLoop = nil
+                        end
                     end
                 end
             end)
-            print("[维度融合] 自动逃脱功能已开启（仅幸存者生效）")
+            print("[维度融合] 自动逃脱功能已开启（检测Sound实例，仅幸存者生效）")
         else
-            -- 关闭时断开监听
-            if autoEscapeConnection then
-                autoEscapeConnection:Disconnect()
-                autoEscapeConnection = nil
+            -- 关闭时终止检测循环
+            if escapeCheckLoop then
+                escapeCheckLoop:Disconnect()
+                escapeCheckLoop = nil
             end
             print("[维度融合] 自动逃脱功能已关闭")
         end
