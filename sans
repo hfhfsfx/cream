@@ -1145,7 +1145,7 @@ SurvivalTab:CreateButton({
 })
 
 -- ==================== 4. 增益功能标签页 ====================
-local BuffTab = Window:CreateTab("增益重置", 4483362458)
+local BuffTab = Window:CreateTab("增益", 4483362458)
 
 -- 福buff（选择玩家）- Toggle
 local targetPlayer = nil
@@ -1412,6 +1412,38 @@ BuffTab:CreateToggle({
             getgenv().farm = false
             if monikaDisturbLoop then task.cancel(monikaDisturbLoop) end
             print("[维度融合] 莫妮卡干扰已关闭")
+        end
+    end
+})
+-- ==================== 莫妮卡减伤开关 ====================
+local isMonikaDamageReductionActive = false
+local monikaDamageReductionLoop = nil
+
+BuffTab:CreateToggle({
+    Name = "『开启/关闭莫妮卡减伤』",
+    CurrentValue = false,
+    Flag = "MonikaDamageReductionToggle",
+    Callback = function(Value)
+        isMonikaDamageReductionActive = Value
+        if isMonikaDamageReductionActive then
+            getgenv().farm = true
+            -- 开启时立即执行一次减伤事件
+            game.ReplicatedStorage.PlayerRemoteEvents.GlitchRemote:FireServer()
+            print("[维度融合] 莫妮卡减伤已开启（立即执行一次）")
+            -- 启动循环，每15秒触发一次
+            monikaDamageReductionLoop = task.spawn(function()
+                while getgenv().farm do
+                    task.wait(15)
+                    game.ReplicatedStorage.PlayerRemoteEvents.GlitchRemote:FireServer()
+                end
+            end)
+        else
+            getgenv().farm = false
+            if monikaDamageReductionLoop then
+                task.cancel(monikaDamageReductionLoop)
+                monikaDamageReductionLoop = nil
+            end
+            print("[维度融合] 莫妮卡减伤已关闭")
         end
     end
 })
