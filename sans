@@ -181,7 +181,7 @@ BasicTab:CreateButton({
     end
 })
 
--- ==================== 自动逃脱功能 ====================
+-- 自动逃脱功能
 local isAutoEscapeActive = false
 local autoEscapeConnection = nil
 
@@ -192,26 +192,34 @@ BasicTab:CreateToggle({
     Callback = function(Value)
         isAutoEscapeActive = Value
         if isAutoEscapeActive then
-            -- 监听EscapeRing音效播放事件
+            -- 监听EscapeRing音效触发
             local escapeRing = workspace:FindFirstChild("EscapeRing")
-            local escapeSound = escapeRing and escapeRing:FindFirstChild("Sound")
-            local exitRing = escapeRing and escapeRing:FindFirstChild("ExitRing")
-            
-            if not escapeSound or not exitRing then
-                warn("[维度融合] 未找到EscapeRing音效或出口部件，自动逃脱功能开启失败！")
+            if not escapeRing then
+                warn("[维度融合] 未找到EscapeRing对象，自动逃脱功能开启失败！")
+                isAutoEscapeActive = false
+                return
+            end
+            local escapeSound = escapeRing:FindFirstChild("Sound")
+            if not escapeSound then
+                warn("[维度融合] EscapeRing中未找到Sound对象，自动逃脱功能开启失败！")
+                isAutoEscapeActive = false
+                return
+            end
+            local exitRing = escapeRing:FindFirstChild("ExitRing")
+            if not exitRing then
+                warn("[维度融合] EscapeRing中未找到ExitRing对象，自动逃脱功能开启失败！")
                 isAutoEscapeActive = false
                 return
             end
 
+            -- 音效触发时执行逃脱
             autoEscapeConnection = escapeSound.Played:Connect(function()
-                -- 验证玩家阵营为幸存者
-                if LocalPlayer.Team == game:GetService("Teams").Survivor then
-                    local char = LocalPlayer.Character
-                    local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+                local localPlayer = game:GetService("Players").LocalPlayer
+                if localPlayer.Team == game:GetService("Teams").Survivor and localPlayer.Character then
+                    local rootPart = localPlayer.Character:FindFirstChild("HumanoidRootPart")
                     if rootPart then
-                        -- 传送至出口位置
                         rootPart.CFrame = exitRing.CFrame
-                        print("[维度融合] 检测到逃脱音效，已自动传送至出口！")
+                        print("[维度融合] 检测到逃脱音效，已自动传送至ExitRing位置")
                     end
                 end
             end)
@@ -226,6 +234,7 @@ BasicTab:CreateToggle({
         end
     end
 })
+
 
 -- ==================== 2. 战斗功能标签页 ====================
 local CombatTab = Window:CreateTab("战斗/干扰", 4483362458)
