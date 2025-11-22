@@ -908,6 +908,38 @@ SurvivalTab:CreateToggle({
         end
     end
 })
+-- ==================== 倒地自救功能（适配换号） ====================
+local isSelfRescueActive = false
+local selfRescueConnection = nil
+
+SurvivalTab:CreateToggle({
+    Name = "『开启/关闭倒地自救』",
+    CurrentValue = false,
+    Flag = "SelfRescueToggle",
+    Callback = function(Value)
+        isSelfRescueActive = Value
+        if isSelfRescueActive then
+            -- 动态匹配本地玩家角色，适配换号场景
+            selfRescueConnection = workspace.ChildAdded:Connect(function(child)
+                local LocalPlayer = game:GetService("Players").LocalPlayer
+                if child.Name == "Downed" and LocalPlayer.Character and child.Parent == LocalPlayer.Character then
+                    local args = {LocalPlayer}
+                    game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Character"):WaitForChild("reviveEvent"):FireServer(unpack(args))
+                    print("[维度融合] 检测到本地玩家倒地，触发自救复活")
+                end
+            end)
+            print("[维度融合] 倒地自救功能已开启（支持换号自动适配）")
+        else
+            if selfRescueConnection then
+                selfRescueConnection:Disconnect()
+                selfRescueConnection = nil
+            end
+            print("[维度融合] 倒地自救功能已关闭")
+        end
+    end
+})
+
+
 -- ==================== 无限抵挡普通攻击 ====================
 local isShutdownLoopRunning = false
 
