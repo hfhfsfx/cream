@@ -1049,7 +1049,7 @@ SurvivalTab:CreateToggle({
                 local character = localPlayer.Character
                 if not character then return end
                 
-                -- 统计Block数量，小于2时才触发格挡
+                -- 统计Block数量，小于1时才触发格挡
                 local blockCount = #character:GetChildren()
                 local actualBlockCount = 0
                 for _, child in ipairs(character:GetChildren()) do
@@ -1058,7 +1058,7 @@ SurvivalTab:CreateToggle({
                     end
                 end
                 
-                if actualBlockCount < 2 then
+                if actualBlockCount < 1 then
                     local args = {character, true}
                     local success, err = pcall(function()
                         game:GetService("ReplicatedStorage")
