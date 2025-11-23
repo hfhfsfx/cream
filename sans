@@ -1033,6 +1033,11 @@ SurvivalTab:CreateToggle({
         end
     end
 })
+
+SurvivalTab:CreateParagraph({
+    Title = "注:",
+    Content = "格挡所有攻击格挡成功之后会有0.5的冷却，因为有反作弊所以不得不加冷却，不然会被踢出去"
+})
 -- 格挡exe阵营攻击（单Block限制+0.2秒冷却+换号适配）
 local isBlockActive = false
 local checkLoop = nil
