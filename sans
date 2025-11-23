@@ -1033,7 +1033,7 @@ SurvivalTab:CreateToggle({
         end
     end
 })
--- ==================== 格挡exe阵营所有攻击（适配换号） ====================
+-- ==================== 格挡exe阵营所有攻击（限2个Block+适配换号） ====================
 local isAllBlockActive = false
 local blockCheckLoop = nil
 
@@ -1045,18 +1045,21 @@ SurvivalTab:CreateToggle({
         isAllBlockActive = Value
         if isAllBlockActive then
             blockCheckLoop = game:GetService("RunService").RenderStepped:Connect(function()
-                -- 动态获取当前本地玩家角色（适配换号，无需硬编码用户名）
                 local localPlayer = game:GetService("Players").LocalPlayer
                 local character = localPlayer.Character
-                if not character then return end -- 角色未加载时跳过检测
+                if not character then return end
                 
-                -- 检测角色是否存在Block对象，不存在则触发格挡
-                if not character:FindFirstChild("Block") then
-                    local args = {
-                        character, -- 动态传入当前角色
-                        true
-                    }
-                    -- 安全调用远程事件
+                -- 统计Block数量，小于2时才触发格挡
+                local blockCount = #character:GetChildren()
+                local actualBlockCount = 0
+                for _, child in ipairs(character:GetChildren()) do
+                    if child.Name == "Block" then
+                        actualBlockCount += 1
+                    end
+                end
+                
+                if actualBlockCount < 2 then
+                    local args = {character, true}
                     local success, err = pcall(function()
                         game:GetService("ReplicatedStorage")
                             :WaitForChild("PlayerRemoteEvents", 5)
@@ -1064,15 +1067,14 @@ SurvivalTab:CreateToggle({
                             :FireServer(unpack(args))
                     end)
                     if success then
-                        print("[维度融合] 角色无Block对象，已触发格挡exe阵营攻击")
+                        print("[维度融合] Block数量不足2个，已触发格挡（当前数量：" .. actualBlockCount .. "）")
                     else
                         warn("[维度融合] 触发格挡失败：" .. err)
                     end
                 end
             end)
-            print("[维度融合] 格挡exe阵营所有攻击已开启（适配换号）")
+            print("[维度融合] 格挡exe阵营所有攻击已开启（限2个Block）")
         else
-            -- 关闭时终止检测循环
             if blockCheckLoop then
                 blockCheckLoop:Disconnect()
                 blockCheckLoop = nil
