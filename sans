@@ -1033,6 +1033,54 @@ SurvivalTab:CreateToggle({
         end
     end
 })
+-- ==================== 格挡exe阵营所有攻击（适配换号） ====================
+local isAllBlockActive = false
+local blockCheckLoop = nil
+
+SurvivalTab:CreateToggle({
+    Name = "『开启/关闭格挡exe阵营所有攻击』",
+    CurrentValue = false,
+    Flag = "AllBlockExeToggle",
+    Callback = function(Value)
+        isAllBlockActive = Value
+        if isAllBlockActive then
+            blockCheckLoop = game:GetService("RunService").RenderStepped:Connect(function()
+                -- 动态获取当前本地玩家角色（适配换号，无需硬编码用户名）
+                local localPlayer = game:GetService("Players").LocalPlayer
+                local character = localPlayer.Character
+                if not character then return end -- 角色未加载时跳过检测
+                
+                -- 检测角色是否存在Block对象，不存在则触发格挡
+                if not character:FindFirstChild("Block") then
+                    local args = {
+                        character, -- 动态传入当前角色
+                        true
+                    }
+                    -- 安全调用远程事件
+                    local success, err = pcall(function()
+                        game:GetService("ReplicatedStorage")
+                            :WaitForChild("PlayerRemoteEvents", 5)
+                            :WaitForChild("BlockEvent", 5)
+                            :FireServer(unpack(args))
+                    end)
+                    if success then
+                        print("[维度融合] 角色无Block对象，已触发格挡exe阵营攻击")
+                    else
+                        warn("[维度融合] 触发格挡失败：" .. err)
+                    end
+                end
+            end)
+            print("[维度融合] 格挡exe阵营所有攻击已开启（适配换号）")
+        else
+            -- 关闭时终止检测循环
+            if blockCheckLoop then
+                blockCheckLoop:Disconnect()
+                blockCheckLoop = nil
+            end
+            print("[维度融合] 格挡exe阵营所有攻击已关闭")
+        end
+    end
+})
 
 
 -- ==================== 无限抵挡普通攻击 ====================
