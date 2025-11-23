@@ -1037,12 +1037,12 @@ SurvivalTab:CreateToggle({
 local isBlockActive = false
 local checkLoop = nil
 local lastExecuteTime = 0
-local COOLDOWN = 0.2 -- 冷却时间
+local COOLDOWN = 0.5 -- 冷却时间
 local MAX_BLOCK_COUNT = 1 -- 最大Block数量
 
 -- 生存/自杀标签页-自保板块添加开关
 SurvivalTab:CreateToggle({
-    Name = "开启/关闭格挡exe阵营所有攻击",
+    Name = "『开启/关闭格挡exe阵营所有攻击』",
     CurrentValue = false,
     Flag = "BlockExeAttackToggle",
     Callback = function(isOn)
