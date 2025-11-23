@@ -1033,23 +1033,28 @@ SurvivalTab:CreateToggle({
         end
     end
 })
--- ==================== 格挡exe阵营所有攻击（限2个Block+适配换号） ====================
-local isAllBlockActive = false
-local blockCheckLoop = nil
+-- 格挡exe阵营攻击（单Block限制+0.2秒冷却+换号适配）
+local isBlockActive = false
+local checkLoop = nil
+local lastExecuteTime = 0
+local COOLDOWN = 0.2 -- 冷却时间
+local MAX_BLOCK_COUNT = 1 -- 最大Block数量
 
+-- 生存/自杀标签页-自保板块添加开关
 SurvivalTab:CreateToggle({
-    Name = "『开启/关闭格挡exe阵营所有攻击』",
+    Name = "开启/关闭格挡exe阵营所有攻击",
     CurrentValue = false,
-    Flag = "AllBlockExeToggle",
-    Callback = function(Value)
-        isAllBlockActive = Value
-        if isAllBlockActive then
-            blockCheckLoop = game:GetService("RunService").RenderStepped:Connect(function()
+    Flag = "BlockExeAttackToggle",
+    Callback = function(isOn)
+        isBlockActive = isOn
+        if isOn then
+            -- 开启时启动检测循环
+            checkLoop = game:GetService("RunService").RenderStepped:Connect(function()
                 local localPlayer = game:GetService("Players").LocalPlayer
                 local character = localPlayer.Character
-                if not character then return end
+                if not character then return end -- 角色未加载则跳过
                 
-                -- 统计Block数量，小于1时才触发格挡
+                -- 统计当前Block数量
                 local blockCount = #character:GetChildren()
                 local actualBlockCount = 0
                 for _, child in ipairs(character:GetChildren()) do
@@ -1058,31 +1063,34 @@ SurvivalTab:CreateToggle({
                     end
                 end
                 
-                if actualBlockCount < 1 then
+                -- 满足条件（无Block/Block数量<1、冷却结束）则执行格挡
+                local currentTime = os.clock()
+                if actualBlockCount < MAX_BLOCK_COUNT and currentTime - lastExecuteTime >= COOLDOWN then
                     local args = {character, true}
-                    local success, err = pcall(function()
+                    local success = pcall(function()
                         game:GetService("ReplicatedStorage")
-                            :WaitForChild("PlayerRemoteEvents", 5)
-                            :WaitForChild("BlockEvent", 5)
+                            :WaitForChild("PlayerRemoteEvents")
+                            :WaitForChild("BlockEvent")
                             :FireServer(unpack(args))
                     end)
                     if success then
-                        print("[维度融合] Block数量不足2个，已触发格挡（当前数量：" .. actualBlockCount .. "）")
-                    else
-                        warn("[维度融合] 触发格挡失败：" .. err)
+                        lastExecuteTime = currentTime -- 更新冷却时间
+                        print("[格挡功能] 触发格挡，当前Block数量：" .. actualBlockCount)
                     end
                 end
             end)
-            print("[维度融合] 格挡exe阵营所有攻击已开启（限2个Block）")
+            print("[格挡功能] 已开启（单Block限制+0.2秒冷却）")
         else
-            if blockCheckLoop then
-                blockCheckLoop:Disconnect()
-                blockCheckLoop = nil
+            -- 关闭时停止循环
+            if checkLoop then
+                checkLoop:Disconnect()
+                checkLoop = nil
             end
-            print("[维度融合] 格挡exe阵营所有攻击已关闭")
+            print("[格挡功能] 已关闭")
         end
     end
 })
+
 
 
 -- ==================== 无限抵挡普通攻击 ====================
