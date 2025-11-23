@@ -1036,7 +1036,7 @@ SurvivalTab:CreateToggle({
 
 SurvivalTab:CreateParagraph({
     Title = "注:",
-    Content = "因为格挡效果也有持续时间然后因为反作弊格挡效果也不能超过一个不然会被踢出去所以我得加冷却，所以空隙可能有点大，没办法我也感觉头疼"
+    Content = "因为格挡exe所有攻击效果也有持续时间然后因为反作弊格挡效果也不能超过一个不然会被踢出去，最主要的是因为延迟所以我得加冷却，所以空隙可能有点大，没办法我也感觉头疼"
 })
 -- 格挡exe阵营攻击（单Block限制+0.2秒冷却+换号适配）
 local isBlockActive = false
