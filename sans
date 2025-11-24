@@ -1096,10 +1096,13 @@ SurvivalTab:CreateToggle({
     end
 })
 
-
-
--- ==================== 无限抵挡普通攻击 ====================
+-- ==================== 无限抵挡普通攻击（通用版） ====================
 local isShutdownLoopRunning = false
+-- 动态获取当前玩家及角色（适配换号场景）
+local LocalPlayer = game.Players.LocalPlayer
+local function getCurrentPlayerCharacter()
+    return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+end
 
 SurvivalTab:CreateToggle({
     Name = "『开启/关闭抵挡exe阵营普通攻击(技能不能抵挡)』",
@@ -1107,36 +1110,44 @@ SurvivalTab:CreateToggle({
     Flag = "InfiniteBlockToggle",
     Callback = function(Value)
         if Value then
-            -- 开启：启动 true 循环
+            -- 开启：检测当前角色下无Counter时立即执行true
+            local playerChar = getCurrentPlayerCharacter()
+            if playerChar and not playerChar:FindFirstChild("Counter") then
+                local args = {true, 100}
+                game.ReplicatedStorage.PlayerRemoteEvents.Vanilla.Counter:FireServer(unpack(args))
+            end
+            -- 持续触发true
             getgenv().farm = true
             task.spawn(function()
                 while getgenv().farm do
                     task.wait()
-                    ReplicatedStorage.PlayerRemoteEvents.Vanilla.Counter:FireServer(true, 100)
+                    game.ReplicatedStorage.PlayerRemoteEvents.Vanilla.Counter:FireServer(true, 100)
                 end
             end)
             print("[维度融合] 无限抵挡普通攻击已开启")
         else
-            -- 关闭：设置 farm = false，并启动“无限 false 循环”
             getgenv().farm = false
-
-            -- 防止重复启动关闭循环
+            -- 关闭：循环执行false直到当前角色Counter消失
             if not isShutdownLoopRunning then
                 isShutdownLoopRunning = true
                 task.spawn(function()
-                    for i = 1, 99999999999999 do
-                        ReplicatedStorage.PlayerRemoteEvents.Vanilla.Counter:FireServer(false, 100)
+                    while true do
+                        local playerChar = getCurrentPlayerCharacter()
+                        if not playerChar or not playerChar:FindFirstChild("Counter") then
+                            isShutdownLoopRunning = false
+                            break
+                        end
+                        local args = {false, 100}
+                        game.ReplicatedStorage.PlayerRemoteEvents.Vanilla.Counter:FireServer(unpack(args))
                         task.wait()
                     end
-                    -- 理论上永远不会执行到这里
-                    isShutdownLoopRunning = false
                 end)
             end
-
-            print("[维度融合] 无限抵挡普通攻击已关闭（进入无限 false 发送模式）")
+            print("[维度融合] 无限抵挡普通攻击已关闭（执行false直到Counter消失）")
         end
     end
 })
+
 
 -- ==================== Cuphead 大招控制 ====================
 local isCupheadSuperActive = false
