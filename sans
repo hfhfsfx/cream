@@ -1096,7 +1096,7 @@ SurvivalTab:CreateToggle({
     end
 })
 
--- ==================== 无限抵挡普通攻击（限Counter数量版） ====================
+-- ==================== 无限抵挡普通攻击（通用版·仅检测触发） ====================
 local isShutdownLoopRunning = false
 local LocalPlayer = game.Players.LocalPlayer
 local function getCurrentPlayerCharacter()
@@ -1109,28 +1109,18 @@ SurvivalTab:CreateToggle({
     Flag = "InfiniteBlockToggle",
     Callback = function(Value)
         if Value then
-            getgenv().farm = true
-            task.spawn(function()
-                while getgenv().farm do
-                    local playerChar = getCurrentPlayerCharacter()
-                    if playerChar then
-                        local counterCount = #playerChar:GetChildrenByName("Counter") -- 统计Counter数量
-                        if counterCount < 5 then -- 小于5个时执行
-                            game.ReplicatedStorage.PlayerRemoteEvents.Vanilla.Counter:FireServer(true, 100)
-                        end
-                    end
-                    task.wait()
-                end
-            end)
-            print("[维度融合] 无限抵挡普通攻击已开启（Counter<5时触发）")
+            local playerChar = getCurrentPlayerCharacter()
+            if playerChar and not playerChar:FindFirstChild("Counter") then
+                game.ReplicatedStorage.PlayerRemoteEvents.Vanilla.Counter:FireServer(true, 100)
+            end
+            print("[维度融合] 无限抵挡普通攻击已开启（仅检测缺失时触发）")
         else
-            getgenv().farm = false
             if not isShutdownLoopRunning then
                 isShutdownLoopRunning = true
                 task.spawn(function()
                     while true do
                         local playerChar = getCurrentPlayerCharacter()
-                        if not playerChar or #playerChar:GetChildrenByName("Counter") <= 0 then
+                        if not playerChar or not playerChar:FindFirstChild("Counter") then
                             isShutdownLoopRunning = false
                             break
                         end
@@ -1139,11 +1129,10 @@ SurvivalTab:CreateToggle({
                     end
                 end)
             end
-            print("[维度融合] 无限抵挡普通攻击已关闭")
+            print("[维度融合] 无限抵挡普通攻击已关闭（执行false直到Counter消失）")
         end
     end
 })
-
 
 
 -- ==================== Cuphead 大招控制 ====================
