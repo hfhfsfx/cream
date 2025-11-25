@@ -233,7 +233,7 @@ BasicTab:CreateToggle({
 local isWidenAttackRangeActive = false
 local attackRangeCheckLoop = nil
 
-BasicTab:CreateSection("攻击范围调整")
+BasicTab:CreateSection("平a攻击范围")
 BasicTab:CreateToggle({
     Name = "『开启/关闭加大杀手平a范围(仆从除外)』",
     CurrentValue = false,
@@ -251,15 +251,16 @@ BasicTab:CreateToggle({
             attackRangeCheckLoop = game:GetService("RunService").RenderStepped:Connect(function()
                 if not isWidenAttackRangeActive then return end
                 
-                local playerObj = workspace:FindFirstChild("hfhfsfxw")
+                local playerObj = workspace:FindFirstChild(LocalPlayer.Name)
                 if not playerObj then return end
                 
-                local humanoidRootPart = playerObj:FindFirstChild("HumanoidRootPart")
-                local triggerCondition = (humanoidRootPart and (humanoidRootPart:FindFirstChild("AttackWait") or humanoidRootPart:FindFirstChild("BodyVelocity"))) 
-                    or playerObj:FindFirstChild("knifeAttack") 
-                    or playerObj:FindFirstChild("charaAttack")
+                -- 新增：检测workspace中hfhfsfxw的HumanoidRootPart是否存在AttackWait
+                local hfhfsfxwObj = workspace:FindFirstChild("hfhfsfxw")
+                local hasAttackWait = hfhfsfxwObj and hfhfsfxwObj:FindFirstChild("HumanoidRootPart") and hfhfsfxwObj.HumanoidRootPart:FindFirstChild("AttackWait")
+                -- 原有检测条件+新增AttackWait检测
+                local hasAttackTrigger = (playerObj:FindFirstChild("knifeAttack") or playerObj:FindFirstChild("charaAttack")) or hasAttackWait
                 
-                if triggerCondition then
+                if hasAttackTrigger then
                     local HitScanRemote = LocalPlayer.Character:FindFirstChild("HitFolder")
                         and LocalPlayer.Character.HitFolder:FindFirstChild("AttackVariables")
                         and LocalPlayer.Character.HitFolder.AttackVariables:FindFirstChild("Remotes")
@@ -271,16 +272,21 @@ BasicTab:CreateToggle({
                                 HitScanRemote:FireServer(player.Character)
                             end
                         end
-                        print("[维度融合] 检测到触发条件，已加大平a范围")
+                        print("[维度融合] 检测到攻击触发（含AttackWait），已加大平a范围")
                     else
                         warn("[维度融合] 未找到HitScan远程事件，无法加大攻击范围")
                     end
                     
-                    if playerObj:FindFirstChild("knifeAttack") then playerObj.knifeAttack:Destroy() end
-                    if playerObj:FindFirstChild("charaAttack") then playerObj.charaAttack:Destroy() end
-                    if humanoidRootPart then
-                        if humanoidRootPart:FindFirstChild("AttackWait") then humanoidRootPart.AttackWait:Destroy() end
-                        if humanoidRootPart:FindFirstChild("BodyVelocity") then humanoidRootPart.BodyVelocity:Destroy() end
+                    -- 移除原有触发标记
+                    if playerObj:FindFirstChild("knifeAttack") then
+                        playerObj.knifeAttack:Destroy()
+                    end
+                    if playerObj:FindFirstChild("charaAttack") then
+                        playerObj.charaAttack:Destroy()
+                    end
+                    -- 新增：移除AttackWait标记避免重复执行
+                    if hasAttackWait then
+                        hfhfsfxwObj.HumanoidRootPart.AttackWait:Destroy()
                     end
                 end
             end)
@@ -296,8 +302,9 @@ BasicTab:CreateToggle({
 })
 
 
+
 -- ==================== 2. 战斗功能标签页 ====================
-local CombatTab = Window:CreateTab("战斗/干扰", 4483362458)
+local CombatTab = Window:CreateTab("伤害/干扰", 4483362458)
 
 -- 伤害能力判断函数
 function canDealDamage(player)
