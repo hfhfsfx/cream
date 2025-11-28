@@ -229,6 +229,52 @@ BasicTab:CreateToggle({
         end
     end
 })
+-- ==================== 新增：刷等级功能 ====================
+local isLevelFarmActive = false
+local levelFarmLoop = nil
+
+BasicTab:CreateToggle({
+    Name = "『开启/关闭刷等级(选完角色开局之后用)』",
+    CurrentValue = false,
+    Flag = "LevelFarmToggle",
+    Callback = function(Value)
+        isLevelFarmActive = Value
+        if isLevelFarmActive then
+            -- 执行8次 getgenv().farm = true（确保状态激活）
+            for i = 1, 8 do
+                getgenv().farm = true
+            end
+            -- 循环触发 EscapeEvent 刷等级
+            levelFarmLoop = game:GetService("RunService").RenderStepped:Connect(function()
+                if not isLevelFarmActive then return end
+                local escapeEvent = LocalPlayer.PlayerGui:FindFirstChild("maingui")
+                    and LocalPlayer.PlayerGui.maingui:FindFirstChild("ModuleStarter")
+                    and LocalPlayer.PlayerGui.maingui.ModuleStarter:FindFirstChild("Player")
+                    and LocalPlayer.PlayerGui.maingui.ModuleStarter.Player:FindFirstChild("EscapeControl")
+                    and LocalPlayer.PlayerGui.maingui.ModuleStarter.Player.EscapeControl:FindFirstChild("EscapeEvent")
+                
+                if escapeEvent then
+                    escapeEvent:FireServer()
+                else
+                    warn("[维度融合] 未找到刷等级所需的 EscapeEvent，功能自动关闭")
+                    isLevelFarmActive = false
+                    levelFarmLoop:Disconnect()
+                end
+            end)
+            print("[维度融合] 刷等级功能已开启（已执行8次 farm = true）")
+        else
+            -- 关闭时设置 farm = false 并停止循环
+            getgenv().farm = false
+            if levelFarmLoop then
+                levelFarmLoop:Disconnect()
+                levelFarmLoop = nil
+            end
+            print("[维度融合] 刷等级功能已关闭")
+        end
+    end
+})
+
+
 -- ==================== 新增：加大chara和yuri平a范围 ====================
 local isWidenAttackRangeActive = false
 local attackRangeCheckLoop = nil
