@@ -2544,7 +2544,130 @@ AbilityTab:CreateToggle({
         end
     end
 })
+-- ==================== 新增：选人围绕混沌矛 ====================
+local targetOrbitChaosSpearPlayer = nil
+local isOrbitChaosSpearActive = false
+local orbitChaosSpearLoop = nil
 
+-- 旋转配置
+local orbitConfig = {
+    radius = 100, -- 围绕半径
+    angleStep = 1, -- 每步旋转角度
+    orbitInterval = 0.5/360, -- 旋转间隔
+    spearFireInterval = 0.1 -- 混沌矛发射间隔
+}
+
+-- 创建选人下拉框
+local orbitChaosSpearDropdown = AbilityTab:CreateDropdown({
+    Name = "选择围绕混沌矛目标玩家",
+    Options = getPlayerNames(),
+    CurrentOption = getPlayerNames()[1] or "无",
+    MultipleOptions = false,
+    Flag = "OrbitChaosSpearTargetDropdown",
+    Callback = function(Options)
+        local name = Options[1]
+        targetOrbitChaosSpearPlayer = Players:FindFirstChild(name)
+        local targetName = targetOrbitChaosSpearPlayer and targetOrbitChaosSpearPlayer.Name or "无"
+        print("[维度融合] 围绕混沌矛目标已选中：" .. targetName)
+    end
+})
+
+-- 刷新下拉框
+local function refreshOrbitChaosSpearDropdown()
+    orbitChaosSpearDropdown:Refresh(getPlayerNames())
+    if targetOrbitChaosSpearPlayer and not targetOrbitChaosSpearPlayer:IsDescendantOf(Players) then
+        targetOrbitChaosSpearPlayer = nil
+        print("[维度融合] 围绕混沌矛目标已离开，已重置")
+    end
+end
+
+Players.PlayerAdded:Connect(refreshOrbitChaosSpearDropdown)
+Players.PlayerRemoving:Connect(refreshOrbitChaosSpearDropdown)
+
+-- 选人围绕混沌矛 Toggle
+AbilityTab:CreateToggle({
+    Name = "『开启/关闭选人围绕混沌矛』",
+    CurrentValue = false,
+    Flag = "OrbitChaosSpearToggle",
+    Callback = function(Value)
+        isOrbitChaosSpearActive = Value
+        if isOrbitChaosSpearActive then
+            if not targetOrbitChaosSpearPlayer then
+                warn("[维度融合] 请先从下拉框选择围绕混沌矛目标！")
+                isOrbitChaosSpearActive = false
+                return
+            end
+
+            orbitChaosSpearLoop = task.spawn(function()
+                print("[维度融合] 选人围绕混沌矛已开启，目标：" .. targetOrbitChaosSpearPlayer.Name)
+                local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                local ChaosSpearEvent = ReplicatedStorage:FindFirstChild("PlayerRemoteEvents")
+                    and ReplicatedStorage.PlayerRemoteEvents:FindFirstChild("Shadow")
+                    and ReplicatedStorage.PlayerRemoteEvents.Shadow:FindFirstChild("ChaosSpear")
+                
+                if not ChaosSpearEvent then
+                    warn("[维度融合] 未找到 Shadow.ChaosSpear 远程事件！")
+                    isOrbitChaosSpearActive = false
+                    return
+                end
+
+                local LocalPlayer = game:GetService("Players").LocalPlayer
+                local currentAngle = 0
+                local fireTimer = 0
+
+                while isOrbitChaosSpearActive and targetOrbitChaosSpearPlayer and targetOrbitChaosSpearPlayer:IsDescendantOf(Players) do
+                    task.wait(orbitConfig.orbitInterval)
+                    
+                    -- 检查本地玩家和目标玩家角色有效性
+                    if not LocalPlayer.Character or not targetOrbitChaosSpearPlayer.Character then
+                        continue
+                    end
+
+                    local localRoot = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    local targetRoot = targetOrbitChaosSpearPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if not localRoot or not targetRoot then
+                        continue
+                    end
+
+                    -- 更新旋转角度
+                    currentAngle = currentAngle + orbitConfig.angleStep
+                    if currentAngle >= 360 then
+                        currentAngle = 0
+                    end
+
+                    -- 计算围绕位置
+                    local rad = math.rad(currentAngle)
+                    local orbitPos = Vector3.new(
+                        targetRoot.Position.X + orbitConfig.radius * math.cos(rad),
+                        localRoot.Position.Y, -- 保持自身Y轴高度
+                        targetRoot.Position.Z + orbitConfig.radius * math.sin(rad)
+                    )
+
+                    -- 移动本地玩家到围绕位置
+                    localRoot.CFrame = CFrame.lookAt(orbitPos, targetRoot.Position)
+
+                    -- 控制混沌矛发射频率
+                    fireTimer = fireTimer + orbitConfig.orbitInterval
+                    if fireTimer >= orbitConfig.spearFireInterval then
+                        fireTimer = 0
+                        -- 向目标方向发射混沌矛
+                        local targetCFrame = CFrame.lookAt(localRoot.Position, targetRoot.Position)
+                        ChaosSpearEvent:FireServer(targetCFrame)
+                    end
+                end
+
+                isOrbitChaosSpearActive = false
+                print("[维度融合] 选人围绕混沌矛已自动关闭（目标离开或开关关闭）")
+            end)
+        else
+            if orbitChaosSpearLoop then
+                task.cancel(orbitChaosSpearLoop)
+                orbitChaosSpearLoop = nil
+            end
+            print("[维度融合] 选人围绕混沌矛已关闭")
+        end
+    end
+})
 
 
 
