@@ -2582,7 +2582,7 @@ local chaosOrbitConfig = {
     angleStep = 3, -- 每次旋转角度增量
     teleportInterval = 0 / 360, -- 瞬移间隔（0.5秒绕完360度）
     fireDistance = 200, -- 混沌矛发射距离
-    fireYOffset = 10 -- 发射高度偏移
+    fireYOffset = 6 -- 发射高度偏移
 }
 
 -- 等待本地角色加载
