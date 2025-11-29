@@ -2544,6 +2544,274 @@ AbilityTab:CreateToggle({
         end
     end
 })
+-- ==================== Gaster Blaster（龙骨炮）功能 ====================
+local isGasterBlasterActive = false
+local gasterBlasterLoop = nil
+
+AbilityTab:CreateSection("龙骨炮，必须选择sans再用不然会被踢出去")
+AbilityTab:CreateToggle({
+    Name = "『开启/关闭无限龙骨炮（全体玩家）』",
+    CurrentValue = false,
+    Flag = "GasterBlasterToggle",
+    Callback = function(Value)
+        isGasterBlasterActive = Value
+        if isGasterBlasterActive then
+            getgenv().farm = true
+            gasterBlasterLoop = task.spawn(function()
+                print("[维度融合] 无限龙骨炮功能已开启")
+                local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                local GasterBlasterEvent = ReplicatedStorage:FindFirstChild("PlayerRemoteEvents")
+                    and ReplicatedStorage.PlayerRemoteEvents:FindFirstChild("GasterBlasterEvent")
+                
+                if not GasterBlasterEvent then
+                    warn("[维度融合] 未找到 GasterBlasterEvent 远程事件！")
+                    getgenv().farm = false
+                    isGasterBlasterActive = false
+                    return
+                end
+
+                local Players = game:GetService("Players")
+                local LocalPlayer = Players.LocalPlayer
+
+                while getgenv().farm do
+                    task.wait(0.1)
+                    local targetPlayers = {}
+                    for _, player in ipairs(Players:GetPlayers()) do
+                        if player ~= LocalPlayer and player.Character then
+                            table.insert(targetPlayers, player)
+                        end
+                    end
+                    for _, targetPlayer in ipairs(targetPlayers) do
+                        local rootPart = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if rootPart then
+                            local targetCFrame = CFrame.new(rootPart.Position)
+                            local args = {targetCFrame.Position}
+                            GasterBlasterEvent:FireServer(unpack(args))
+                        end
+                    end
+                end
+                print("[维度融合] 无限龙骨炮功能已自动关闭")
+            end)
+        else
+            getgenv().farm = false
+            if gasterBlasterLoop then
+                task.cancel(gasterBlasterLoop)
+                gasterBlasterLoop = nil
+            end
+            print("[维度融合] 无限龙骨炮功能已关闭")
+        end
+    end
+})
+
+-- ==================== 循环对有伤害能力玩家释放龙骨炮 ====================
+local isGasterBlasterDamageActive = false
+local gasterBlasterDamageLoop = nil
+
+AbilityTab:CreateToggle({
+    Name = "『开启/关闭循环龙骨炮（锁定exe队伍）』",
+    CurrentValue = false,
+    Flag = "GasterBlasterDamageToggle",
+    Callback = function(Value)
+        isGasterBlasterDamageActive = Value
+        if isGasterBlasterDamageActive then
+            gasterBlasterDamageLoop = task.spawn(function()
+                print("[维度融合] 循环龙骨炮（仅伤害能力玩家）已开启")
+                local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                local GasterBlasterEvent = ReplicatedStorage:FindFirstChild("PlayerRemoteEvents")
+                    and ReplicatedStorage.PlayerRemoteEvents:FindFirstChild("GasterBlasterEvent")
+                
+                if not GasterBlasterEvent then
+                    warn("[维度融合] 未找到 GasterBlasterEvent 远程事件！")
+                    isGasterBlasterDamageActive = false
+                    return
+                end
+
+                local Players = game:GetService("Players")
+                local LocalPlayer = Players.LocalPlayer
+
+                while isGasterBlasterDamageActive do
+                    task.wait(0.1)
+                    for _, player in ipairs(Players:GetPlayers()) do
+                        if player ~= LocalPlayer and canDealDamage(player) and player.Character then
+                            local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
+                            if rootPart then
+                                local targetCFrame = CFrame.new(rootPart.Position)
+                                local args = {targetCFrame.Position}
+                                GasterBlasterEvent:FireServer(unpack(args))
+                            end
+                        end
+                    end
+                end
+                print("[维度融合] 循环龙骨炮（仅伤害能力玩家）已自动关闭")
+            end)
+        else
+            if gasterBlasterDamageLoop then
+                task.cancel(gasterBlasterDamageLoop)
+                gasterBlasterDamageLoop = nil
+            end
+            print("[维度融合] 循环龙骨炮（仅伤害能力玩家）已关闭")
+        end
+    end
+})
+
+-- ==================== 对称双线旋转龙骨炮（自身为中心） ====================
+local isDualLineRotatingGasterBlasterActive = false
+local dualLineRotatingGasterBlasterLoop = nil
+
+AbilityTab:CreateToggle({
+    Name = "『开启/关闭对称双线旋转龙骨炮』",
+    CurrentValue = false,
+    Flag = "DualLineRotatingGasterBlasterToggle",
+    Callback = function(Value)
+        isDualLineRotatingGasterBlasterActive = Value
+        if isDualLineRotatingGasterBlasterActive then
+            getgenv().farm = true
+            dualLineRotatingGasterBlasterLoop = task.spawn(function()
+                print("[维度融合] 对称双线旋转龙骨炮已开启（双线路同步旋转）")
+                local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                local GasterBlasterEvent = ReplicatedStorage:FindFirstChild("PlayerRemoteEvents")
+                    and ReplicatedStorage.PlayerRemoteEvents:FindFirstChild("GasterBlasterEvent")
+                
+                if not GasterBlasterEvent then
+                    warn("[维度融合] 未找到 GasterBlasterEvent 远程事件！")
+                    getgenv().farm = false
+                    isDualLineRotatingGasterBlasterActive = false
+                    return
+                end
+
+                local Players = game:GetService("Players")
+                local LocalPlayer = Players.LocalPlayer
+                local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+                local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+                local spearCountPerLine = 40
+                local radius = 5
+                local fireDelay = 0
+                local rotateSpeed = 0
+
+                local currentAngle = 0
+
+                while getgenv().farm and isDualLineRotatingGasterBlasterActive do
+                    task.wait()
+                    currentAngle = currentAngle + rotateSpeed
+                    if currentAngle >= 2 * math.pi then currentAngle = 0 end
+
+                    for i = 1, spearCountPerLine do
+                        if not getgenv().farm or not isDualLineRotatingGasterBlasterActive then break end
+                        
+                        local angle1 = (i - 1) * (2 * math.pi / spearCountPerLine) + currentAngle
+                        local offsetX1 = math.cos(angle1) * radius
+                        local offsetZ1 = math.sin(angle1) * radius
+                        local targetPos1 = humanoidRootPart.Position + Vector3.new(offsetX1, 0, offsetZ1)
+
+                        local angle2 = angle1 + math.pi
+                        local offsetX2 = math.cos(angle2) * radius
+                        local offsetZ2 = math.sin(angle2) * radius
+                        local targetPos2 = humanoidRootPart.Position + Vector3.new(offsetX2, 0, offsetZ2)
+
+                        local args1 = {targetPos1}
+                        local args2 = {targetPos2}
+                        GasterBlasterEvent:FireServer(unpack(args1))
+                        GasterBlasterEvent:FireServer(unpack(args2))
+                        task.wait(fireDelay)
+                    end
+                end
+                print("[维度融合] 对称双线旋转龙骨炮已关闭")
+            end)
+        else
+            getgenv().farm = false
+            if dualLineRotatingGasterBlasterLoop then
+                task.cancel(dualLineRotatingGasterBlasterLoop)
+                dualLineRotatingGasterBlasterLoop = nil
+            end
+            print("[维度融合] 对称双线旋转龙骨炮已手动关闭")
+        end
+    end
+})
+
+-- ==================== 选人无限龙骨炮功能 ====================
+local targetGasterBlasterPlayer = nil
+local isTargetGasterBlasterActive = false
+local targetGasterBlasterLoop = nil
+
+local gasterBlasterDropdown = AbilityTab:CreateDropdown({
+    Name = "选择龙骨炮目标玩家",
+    Options = getPlayerNames(),
+    CurrentOption = getPlayerNames()[1] or "无",
+    MultipleOptions = false,
+    Flag = "GasterBlasterTargetDropdown",
+    Callback = function(Options)
+        local name = Options[1]
+        targetGasterBlasterPlayer = Players:FindFirstChild(name)
+        local targetName = targetGasterBlasterPlayer and targetGasterBlasterPlayer.Name or "无"
+        print("[维度融合] 龙骨炮目标已选中：" .. targetName)
+    end
+})
+
+local function refreshGasterBlasterDropdown()
+    gasterBlasterDropdown:Refresh(getPlayerNames())
+    if targetGasterBlasterPlayer and not targetGasterBlasterPlayer:IsDescendantOf(Players) then
+        targetGasterBlasterPlayer = nil
+        print("[维度融合] 龙骨炮目标已离开，已重置")
+    end
+end
+
+Players.PlayerAdded:Connect(refreshGasterBlasterDropdown)
+Players.PlayerRemoving:Connect(refreshGasterBlasterDropdown)
+
+AbilityTab:CreateToggle({
+    Name = "『开启/关闭选人无限龙骨炮』",
+    CurrentValue = false,
+    Flag = "TargetGasterBlasterToggle",
+    Callback = function(Value)
+        isTargetGasterBlasterActive = Value
+        if isTargetGasterBlasterActive then
+            if not targetGasterBlasterPlayer then
+                warn("[维度融合] 请先从下拉框选择龙骨炮目标！")
+                isTargetGasterBlasterActive = false
+                return
+            end
+
+            targetGasterBlasterLoop = task.spawn(function()
+                print("[维度融合] 选人无限龙骨炮已开启，目标：" .. targetGasterBlasterPlayer.Name)
+                local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                local GasterBlasterEvent = ReplicatedStorage:FindFirstChild("PlayerRemoteEvents")
+                    and ReplicatedStorage.PlayerRemoteEvents:FindFirstChild("GasterBlasterEvent")
+                
+                if not GasterBlasterEvent then
+                    warn("[维度融合] 未找到 GasterBlasterEvent 远程事件！")
+                    getgenv().farm = false
+                    isTargetGasterBlasterActive = false
+                    return
+                end
+
+                local LocalPlayer = game:GetService("Players").LocalPlayer
+
+                while isTargetGasterBlasterActive and targetGasterBlasterPlayer and targetGasterBlasterPlayer:IsDescendantOf(Players) do
+                    task.wait(0.1)
+                    if targetGasterBlasterPlayer ~= LocalPlayer and targetGasterBlasterPlayer.Character then
+                        local rootPart = targetGasterBlasterPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if rootPart then
+                            local args = {rootPart.Position}
+                            GasterBlasterEvent:FireServer(unpack(args))
+                        end
+                    end
+                end
+
+                isTargetGasterBlasterActive = false
+                print("[维度融合] 选人无限龙骨炮已自动关闭（目标离开或开关关闭）")
+            end)
+        else
+            getgenv().farm = false
+            if targetGasterBlasterLoop then
+                task.cancel(targetGasterBlasterLoop)
+                targetGasterBlasterLoop = nil
+            end
+            print("[维度融合] 选人无限龙骨炮已关闭")
+        end
+    end
+})
+
 
 -- ==================== 6. 面板控制标签页 ====================
 local ControlTab = Window:CreateTab("面板控制", 4483362458)
