@@ -2544,7 +2544,8 @@ AbilityTab:CreateToggle({
         end
     end
 })
--- ==================== 选人围绕混沌矛（自动追踪版） ====================
+
+-- ==================== 选人围绕混沌矛（全向追踪版） ====================
 local targetChaosOrbitPlayer = nil
 local isChaosOrbitActive = false
 local chaosOrbitLoop = nil
@@ -2602,11 +2603,11 @@ local function waitForLocalCharacterChaos()
     return rootPart
 end
 
--- 计算混沌矛发射点位（改为追踪目标）
+-- 计算混沌矛发射点位（全向追踪，包含垂直方向）
 local function calculateChaosFirePoints(localRootPart, targetRootPart)
     local points = {}
-    -- 朝向目标玩家方向发射
-    local targetDir = (targetRootPart.Position - localRootPart.Position).Unit * Vector3.new(1, 0, 1).Unit
+    -- 全向指向目标玩家，保留垂直高度差异
+    local targetDir = (targetRootPart.Position - localRootPart.Position).Unit
     local firePos = localRootPart.Position + targetDir * chaosOrbitConfig.fireDistance + Vector3.new(0, chaosOrbitConfig.fireYOffset, 0)
     table.insert(points, firePos)
     return points
@@ -2617,7 +2618,7 @@ local function calculateChaosTeleportPoint(centerPos, currentAngle, localRootPar
     local rad = math.rad(currentAngle)
     local teleportX = centerPos.X + chaosOrbitConfig.radius * math.cos(rad)
     local teleportZ = centerPos.Z + chaosOrbitConfig.radius * math.sin(rad)
-    local teleportY = centerPos.Y + 1 -- 固定高度避免波动
+    local teleportY = centerPos.Y + 1 -- 固定环绕高度，避免垂直波动
     local teleportPos = Vector3.new(teleportX, teleportY, teleportZ)
     local lookAtCFrame = CFrame.lookAt(teleportPos, Vector3.new(centerPos.X, teleportY, centerPos.Z))
     return teleportPos, lookAtCFrame
@@ -2682,7 +2683,7 @@ AbilityTab:CreateToggle({
                         localRootPart.CFrame = lookAtCFrame
                     end
 
-                    -- 计算并发射混沌矛（传入目标根部件实现追踪）
+                    -- 计算并发射混沌矛（全向追踪目标）
                     local firePoints = calculateChaosFirePoints(localRootPart, targetRootPart)
                     if #firePoints > 0 then
                         fireChaosSpear(firePoints)
