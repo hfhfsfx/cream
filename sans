@@ -2544,46 +2544,47 @@ AbilityTab:CreateToggle({
         end
     end
 })
+-- ==================== 循环追踪混沌矛（优化功能） ====================
+local targetChaosTrackPlayer = nil
+local isChaosTrackActive = false
+local chaosTrackLoop = nil
 
--- ==================== 选人围绕混沌矛（全向追踪版） ====================
-local targetChaosOrbitPlayer = nil
-local isChaosOrbitActive = false
-local chaosOrbitLoop = nil
-
--- 选人下拉框
-local chaosOrbitDropdown = AbilityTab:CreateDropdown({
-    Name = "选择混沌矛围绕玩家",
+-- 选人下拉框（支持选择任意玩家）
+local chaosTrackDropdown = AbilityTab:CreateDropdown({
+    Name = "选择追踪目标玩家",
     Options = getPlayerNames(),
     CurrentOption = getPlayerNames()[1] or "无",
     MultipleOptions = false,
-    Flag = "ChaosOrbitTargetDropdown",
+    Flag = "ChaosTrackTargetDropdown",
     Callback = function(Options)
         local name = Options[1]
-        targetChaosOrbitPlayer = Players:FindFirstChild(name)
-        local targetName = targetChaosOrbitPlayer and targetChaosOrbitPlayer.Name or "无"
-        print("[维度融合] 混沌矛围绕目标已选中：" .. targetName)
+        targetChaosTrackPlayer = Players:FindFirstChild(name)
+        local targetName = targetChaosTrackPlayer and targetChaosTrackPlayer.Name or "无"
+        print("[维度融合] 混沌矛追踪目标已选中：" .. targetName)
     end
 })
 
 -- 刷新下拉框
-local function refreshChaosOrbitDropdown()
-    chaosOrbitDropdown:Refresh(getPlayerNames())
-    if targetChaosOrbitPlayer and not targetChaosOrbitPlayer:IsDescendantOf(Players) then
-        targetChaosOrbitPlayer = nil
-        print("[维度融合] 混沌矛围绕目标已离开，已重置")
+local function refreshChaosTrackDropdown()
+    chaosTrackDropdown:Refresh(getPlayerNames())
+    if targetChaosTrackPlayer and not targetChaosTrackPlayer:IsDescendantOf(Players) then
+        targetChaosTrackPlayer = nil
+        print("[维度融合] 混沌矛追踪目标已离开，已重置")
     end
 end
 
-Players.PlayerAdded:Connect(refreshChaosOrbitDropdown)
-Players.PlayerRemoving:Connect(refreshChaosOrbitDropdown)
+Players.PlayerAdded:Connect(refreshChaosTrackDropdown)
+Players.PlayerRemoving:Connect(refreshChaosTrackDropdown)
 
--- 混沌矛围绕核心配置参数
-local chaosOrbitConfig = {
+-- 混沌矛追踪核心配置参数
+local chaosTrackConfig = {
     radius = 120, -- 环绕半径
-    angleStep = 3, -- 每次旋转角度增量
+    angleStep = 3, -- 水平旋转角度增量
+    verticalAngleRange = 60, -- 垂直旋转角度范围（±30度）
+    verticalAngleStep = 2, -- 垂直旋转角度增量
     teleportInterval = 0.5 / 360, -- 瞬移间隔（0.5秒绕完360度）
     fireDistance = 200, -- 混沌矛发射距离
-    fireYOffset = 10 -- 发射高度偏移
+    fireYOffsetRange = 50 -- 垂直发射高度范围（±25 studs）
 }
 
 -- 等待本地角色加载
@@ -2591,35 +2592,42 @@ local function waitForLocalCharacterChaos()
     local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     local rootPart = Character:WaitForChild("HumanoidRootPart", 10)
     if not rootPart then
-        warn("[选人围绕混沌矛] 未找到本地玩家角色核心部位！")
+        warn("[循环追踪混沌矛] 未找到本地玩家角色核心部位！")
         return nil
     end
     Character.Humanoid.Died:Connect(function()
-        isChaosOrbitActive = false
-        if chaosOrbitLoop then
-            chaosOrbitLoop = nil
+        isChaosTrackActive = false
+        if chaosTrackLoop then
+            chaosTrackLoop = nil
         end
     end)
     return rootPart
 end
 
--- 计算混沌矛发射点位（全向追踪，包含垂直方向）
-local function calculateChaosFirePoints(localRootPart, targetRootPart)
+-- 计算混沌矛立体发射点位（自动追踪目标）
+local function calculateChaosTrackFirePoints(localRootPart, targetRootPart)
     local points = {}
-    -- 全向指向目标玩家，保留垂直高度差异
-    local targetDir = (targetRootPart.Position - localRootPart.Position).Unit
-    local firePos = localRootPart.Position + targetDir * chaosOrbitConfig.fireDistance + Vector3.new(0, chaosOrbitConfig.fireYOffset, 0)
-    table.insert(points, firePos)
+    -- 朝向目标方向
+    local targetDir = (targetRootPart.Position - localRootPart.Position).Unit * Vector3.new(1, 0, 1).Unit
+    -- 生成多个垂直高度的发射点
+    for yOffset = -chaosTrackConfig.fireYOffsetRange/2, chaosTrackConfig.fireYOffsetRange/2, 10 do
+        local firePos = localRootPart.Position + targetDir * chaosTrackConfig.fireDistance + Vector3.new(0, yOffset, 0)
+        table.insert(points, firePos)
+    end
     return points
 end
 
--- 计算瞬移点位
-local function calculateChaosTeleportPoint(centerPos, currentAngle, localRootPart)
-    local rad = math.rad(currentAngle)
-    local teleportX = centerPos.X + chaosOrbitConfig.radius * math.cos(rad)
-    local teleportZ = centerPos.Z + chaosOrbitConfig.radius * math.sin(rad)
-    local teleportY = centerPos.Y + 1 -- 固定环绕高度，避免垂直波动
+-- 计算立体瞬移点位（水平+垂直旋转）
+local function calculateChaosTrackTeleportPoint(centerPos, currentHorizAngle, currentVertAngle)
+    local horizRad = math.rad(currentHorizAngle)
+    local vertRad = math.rad(currentVertAngle)
+    -- 立体环绕计算
+    local radius = chaosTrackConfig.radius * math.cos(vertRad)
+    local teleportX = centerPos.X + radius * math.cos(horizRad)
+    local teleportZ = centerPos.Z + radius * math.sin(horizRad)
+    local teleportY = centerPos.Y + chaosTrackConfig.radius * math.sin(vertRad) + 1
     local teleportPos = Vector3.new(teleportX, teleportY, teleportZ)
+    -- 始终朝向目标中心
     local lookAtCFrame = CFrame.lookAt(teleportPos, Vector3.new(centerPos.X, teleportY, centerPos.Z))
     return teleportPos, lookAtCFrame
 end
@@ -2630,7 +2638,7 @@ local function fireChaosSpear(points)
         and ReplicatedStorage.PlayerRemoteEvents:FindFirstChild("Shadow")
         and ReplicatedStorage.PlayerRemoteEvents.Shadow:FindFirstChild("ChaosSpear")
     if not ChaosSpearEvent then
-        warn("[选人围绕混沌矛] 未找到 Shadow.ChaosSpear 远程事件！")
+        warn("[循环追踪混沌矛] 未找到 Shadow.ChaosSpear 远程事件！")
         return
     end
     for _, pos in ipairs(points) do
@@ -2639,37 +2647,39 @@ local function fireChaosSpear(points)
     end
 end
 
--- 选人围绕混沌矛开关
+-- 循环追踪混沌矛开关
 AbilityTab:CreateToggle({
-    Name = "『开启/关闭选人围绕混沌矛』",
+    Name = "『开启/关闭循环追踪混沌矛』",
     CurrentValue = false,
-    Flag = "ChaosOrbitToggle",
+    Flag = "ChaosTrackToggle",
     Callback = function(Value)
-        isChaosOrbitActive = Value
+        isChaosTrackActive = Value
         local localRootPart = waitForLocalCharacterChaos()
         if not localRootPart then
-            isChaosOrbitActive = false
+            isChaosTrackActive = false
             return
         end
 
-        if isChaosOrbitActive then
-            if not targetChaosOrbitPlayer then
-                warn("[选人围绕混沌矛] 请先从下拉框选择围绕目标！")
-                isChaosOrbitActive = false
+        if isChaosTrackActive then
+            if not targetChaosTrackPlayer then
+                warn("[循环追踪混沌矛] 请先从下拉框选择追踪目标！")
+                isChaosTrackActive = false
                 return
             end
-            if targetChaosOrbitPlayer == LocalPlayer then
-                warn("[选人围绕混沌矛] 不能围绕自己释放！")
-                isChaosOrbitActive = false
+            if targetChaosTrackPlayer == LocalPlayer then
+                warn("[循环追踪混沌矛] 不能追踪自己释放！")
+                isChaosTrackActive = false
                 return
             end
 
-            print("[维度融合] 选人围绕混沌矛已开启，目标：" .. targetChaosOrbitPlayer.Name)
-            chaosOrbitLoop = coroutine.create(function()
-                local currentAngle = 0
-                while isChaosOrbitActive and targetChaosOrbitPlayer and targetChaosOrbitPlayer:IsDescendantOf(Players) do
+            print("[维度融合] 循环追踪混沌矛已开启，目标：" .. targetChaosTrackPlayer.Name)
+            chaosTrackLoop = coroutine.create(function()
+                local currentHorizAngle = 0
+                local currentVertAngle = 0
+                local vertDirection = 1 -- 垂直旋转方向（1=向上，-1=向下）
+                while isChaosTrackActive and targetChaosTrackPlayer and targetChaosTrackPlayer:IsDescendantOf(Players) do
                     -- 验证目标角色存在
-                    local targetCharacter = targetChaosOrbitPlayer.Character
+                    local targetCharacter = targetChaosTrackPlayer.Character
                     if not targetCharacter or not targetCharacter:FindFirstChild("HumanoidRootPart") then
                         task.wait(0.1)
                         continue
@@ -2677,42 +2687,49 @@ AbilityTab:CreateToggle({
                     local targetRootPart = targetCharacter.HumanoidRootPart
                     local centerPos = targetRootPart.Position
 
-                    -- 计算并执行瞬移
-                    local teleportPos, lookAtCFrame = calculateChaosTeleportPoint(centerPos, currentAngle, localRootPart)
+                    -- 计算并执行立体瞬移
+                    local teleportPos, lookAtCFrame = calculateChaosTrackTeleportPoint(centerPos, currentHorizAngle, currentVertAngle)
                     if teleportPos and lookAtCFrame then
                         localRootPart.CFrame = lookAtCFrame
                     end
 
-                    -- 计算并发射混沌矛（全向追踪目标）
-                    local firePoints = calculateChaosFirePoints(localRootPart, targetRootPart)
+                    -- 计算并发射追踪混沌矛（多高度）
+                    local firePoints = calculateChaosTrackFirePoints(localRootPart, targetRootPart)
                     if #firePoints > 0 then
                         fireChaosSpear(firePoints)
                     end
 
-                    -- 更新旋转角度
-                    currentAngle = currentAngle + chaosOrbitConfig.angleStep
-                    if currentAngle >= 360 then
-                        currentAngle = 0
+                    -- 更新水平旋转角度
+                    currentHorizAngle = currentHorizAngle + chaosTrackConfig.angleStep
+                    if currentHorizAngle >= 360 then
+                        currentHorizAngle = 0
+                    end
+
+                    -- 更新垂直旋转角度（往返）
+                    currentVertAngle = currentVertAngle + chaosTrackConfig.verticalAngleStep * vertDirection
+                    if currentVertAngle >= chaosTrackConfig.verticalAngleRange/2 or currentVertAngle <= -chaosTrackConfig.verticalAngleRange/2 then
+                        vertDirection = -vertDirection
                     end
 
                     -- 控制环绕速度
-                    task.wait(chaosOrbitConfig.teleportInterval)
-                    if not isChaosOrbitActive then
+                    task.wait(chaosTrackConfig.teleportInterval)
+                    if not isChaosTrackActive then
                         break
                     end
                 end
-                isChaosOrbitActive = false
-                print("[维度融合] 选人围绕混沌矛已自动关闭")
+                isChaosTrackActive = false
+                print("[维度融合] 循环追踪混沌矛已自动关闭")
             end)
-            coroutine.resume(chaosOrbitLoop)
+            coroutine.resume(chaosTrackLoop)
         else
-            if chaosOrbitLoop then
-                chaosOrbitLoop = nil
+            if chaosTrackLoop then
+                chaosTrackLoop = nil
             end
-            print("[维度融合] 选人围绕混沌矛已关闭")
+            print("[维度融合] 循环追踪混沌矛已关闭")
         end
     end
 })
+
 
 
 
