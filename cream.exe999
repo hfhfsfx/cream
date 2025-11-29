@@ -1,0 +1,2858 @@
+-- 现在，开源！测试
+
+local gameId = 86780775958445
+local everyGame = true
+
+if everyGame then
+
+if not _G.hasRunOnce then
+    _G.hasRunOnce = true
+
+local player = game.Players.LocalPlayer
+
+local function destroyObject(obj)
+	local Players = game:GetService("Players")
+	local ReplicatedStorage = game:GetService("ReplicatedStorage")
+	local LocalPlayer = Players.LocalPlayer
+
+	local displayPlayers = ReplicatedStorage:WaitForChild("displayPlayers")
+	local playerData = displayPlayers:WaitForChild(LocalPlayer.Name)
+	local stats = playerData:WaitForChild("stats")
+	local characterStat = stats:WaitForChild("character")
+
+	local remotes = ReplicatedStorage:WaitForChild("remotes")
+	local abilities = remotes:WaitForChild("abilities")
+
+	if characterStat.Value == "sonicexe" then
+		abilities:FireServer("removeTeleport", obj)
+local s = game.Players.LocalPlayer.Character.torso.torso:FindFirstChild("teleport")
+if s then
+abilities:FireServer("removeTeleport", s)
+end
+	elseif characterStat.Value == "eggman" then
+		abilities:FireServer("removeTurret", obj)
+	else
+		warn("错误的角色，需要 sonic.exe 或 eggman:", characterStat.Value)
+	end
+end
+
+local function openUrl(url, title)
+local GuiService = game:GetService("GuiService")
+local HttpService = game:GetService("HttpService")
+
+    local info = {
+        presentationStyle = 2,
+        url = tostring(url),
+        title = tostring(url),
+        visible = true
+    }
+    GuiService:BroadcastNotification(HttpService:JSONEncode(info), 20)
+end
+
+local function enableClimbing()
+    while true do
+        local character = player.Character
+        if character then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, true)
+            end
+        end
+        task.wait(5)
+    end
+end
+
+task.spawn(enableClimbing)
+
+player.CharacterAdded:Connect(function()
+game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
+    task.spawn(enableClimbing)
+end)
+
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Window = Rayfield:CreateWindow({
+   Name = "DrayvenX 测试版",
+   Icon = 0,
+   LoadingTitle = "请等待...",
+   LoadingSubtitle = "",
+   Theme = "Serenity",
+})
+
+local Tab = Window:CreateTab("信息", 0)
+
+Tab:CreateButton({
+Name = "由 ACE1991ACE 制作",
+Callback = function()
+openUrl("https://www.roblox.com/users/3154785632/profile", "Cat")
+end,
+})
+
+local HttpService = game:GetService("HttpService")
+local player = game.Players.LocalPlayer
+local FORMSPREE_ID = "mdkdrjdl"
+local fileName = "version.currentData"
+local cooldownSeconds = 300
+local lastSend = 0
+
+if isfile and isfile(fileName) then
+    local ok, content = pcall(readfile, fileName)
+    if ok and content then
+        local num = tonumber(content)
+        if num then lastSend = num end
+    end
+end
+
+local function requestExec(options)
+    if http_request then
+        return http_request(options)
+    elseif request then
+        return request(options)
+    elseif syn and syn.request then
+        return syn.request(options)
+    elseif fluxus and fluxus.request then
+        return fluxus.request(options)
+    else
+        return nil
+    end
+end
+
+local function sendFeedback(reason, sender)
+    local formData = {reason = reason, sender = sender, _subject = "反馈", _format = "json"}
+    local body = ""
+    for k, v in pairs(formData) do
+        body = body .. string.format("%s=%s&", k, HttpService:UrlEncode(v))
+    end
+
+    local success, res = pcall(function()
+        return requestExec({
+            Url = "https://formspree.io/f/" .. FORMSPREE_ID,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/x-www-form-urlencoded",
+                ["Accept"] = "application/json"
+            },
+            Body = body
+        })
+    end)
+
+    if not success or not res then
+        return false, "无网络连接"
+    elseif res.StatusCode == 200 then
+        return true
+    else
+        return false, tostring(res.StatusCode)
+    end
+end
+
+Tab:CreateInput({
+    Name = "您的反馈",
+    CurrentValue = "",
+    PlaceholderText = "输入反馈原因...",
+    RemoveTextAfterFocusLost = false,
+    Flag = "InputReason",
+    Callback = function(Text)
+        getgenv().feedbackReason = Text
+    end,
+})
+
+Tab:CreateInput({
+    Name = "邮箱（如果您想提供反馈）",
+    CurrentValue = "",
+    PlaceholderText = "可选邮箱",
+    RemoveTextAfterFocusLost = false,
+    Flag = "InputEmail",
+    Callback = function(Text)
+        getgenv().feedbackEmail = Text
+    end,
+})
+
+local FeedbackButton = Tab:CreateButton({
+    Name = "发送",
+    Callback = function()
+        local now = os.time()
+        if now - lastSend < cooldownSeconds then
+            Rayfield:Notify({
+                Title = "反馈",
+                Content = "您发送得太快了。",
+                Duration = 3
+            })
+            if FeedbackButton and type(FeedbackButton.Set) == "function" then pcall(function() FeedbackButton:Set("太快了") end) end
+            task.wait(2)
+            if FeedbackButton and type(FeedbackButton.Set) == "function" then pcall(function() FeedbackButton:Set("发送") end) end
+            return
+        end
+
+        local reason = getgenv().feedbackReason or ""
+        if reason == "" then
+            Rayfield:Notify({
+                Title = "反馈",
+                Content = "请输入反馈原因。",
+                Duration = 3
+            })
+            if FeedbackButton and type(FeedbackButton.Set) == "function" then pcall(function() FeedbackButton:Set("无输入") end) end
+            task.wait(2)
+            if FeedbackButton and type(FeedbackButton.Set) == "function" then pcall(function() FeedbackButton:Set("发送") end) end
+            return
+        end
+
+        local email = getgenv().feedbackEmail or ""
+        local pattern = "^[A-Za-z0-9._%%+%-]+@[A-Za-z0-9%-]+%.[A-Za-z][A-Za-z]+$"
+        if email ~= "" and not email:match(pattern) then
+            Rayfield:Notify({
+                Title = "反馈",
+                Content = "无效的邮箱。请修正或留空。",
+                Duration = 3
+            })
+            if FeedbackButton and type(FeedbackButton.Set) == "function" then pcall(function() FeedbackButton:Set("无效邮箱") end) end
+            task.wait(2)
+            if FeedbackButton and type(FeedbackButton.Set) == "function" then pcall(function() FeedbackButton:Set("发送") end) end
+            return
+        end
+
+        local sender = (email ~= "" and email:match(pattern)) and (email .. " (" .. player.Name .. ")") or player.Name
+
+        local ok, code = sendFeedback(reason, sender)
+        if ok then
+            Rayfield:Notify({
+                Title = "反馈",
+                Content = "反馈发送成功！",
+                Duration = 3
+            })
+            if FeedbackButton and type(FeedbackButton.Set) == "function" then pcall(function() FeedbackButton:Set("反馈已发送！") end) end
+            lastSend = now
+            if writefile then pcall(function() writefile(fileName, tostring(now)) end) end
+        else
+            local msg = "发送反馈失败。请稍后重试。"
+            if code == "no_network" then
+                msg = "未检测到网络连接。"
+            elseif tonumber(code) then
+                msg = "服务器返回错误: " .. code
+            end
+
+            Rayfield:Notify({
+                Title = "反馈",
+                Content = msg,
+                Duration = 3
+            })
+            if FeedbackButton and type(FeedbackButton.Set) == "function" then pcall(function() FeedbackButton:Set("发送失败") end) end
+        end
+
+        task.wait(2)
+        if FeedbackButton and type(FeedbackButton.Set) == "function" then pcall(function() FeedbackButton:Set("发送") end) end
+    end,
+})
+
+if FeedbackButton and type(FeedbackButton.Set) == "function" then pcall(function() FeedbackButton:Set("发送") end) end
+
+local Tab = Window:CreateTab("需要蛋头博士或索尼克斯", 0)
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local DrownEvent = game.ReplicatedStorage.remotes.abilities
+
+local function getPlayerList()
+    local t = {"所有人", "所有人（除了我）"}
+    for _, plr in ipairs(Players:GetPlayers()) do
+        table.insert(t, plr.Name)
+    end
+    return t
+end
+
+local Dropdown = Tab:CreateDropdown({
+    Name = "选择要踢出或重置的玩家",
+    Options = getPlayerList(),
+    CurrentOption = {"所有人（除了我）"},
+    MultipleOptions = false,
+    Flag = "TargetDropdown",
+    Callback = function(selected) end,
+})
+
+Players.PlayerAdded:Connect(function()
+    Dropdown:Refresh(getPlayerList())
+end)
+
+Players.PlayerRemoving:Connect(function()
+    Dropdown:Refresh(getPlayerList())
+end)
+
+local Button = Tab:CreateButton({
+    Name = "踢出",
+    Callback = function()
+        local current = Dropdown.CurrentOption
+        if type(current) == "table" then current = current[1] end
+        if not current then return end
+        if current == "所有人" then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player.Character then
+                    pcall(function()
+                        DrownEvent:FireServer("removeTurret", player)
+                    end)
+                end
+            end
+        elseif current == "所有人（除了我）" then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    pcall(function()
+                       destroyObject(player)
+                    end)
+                end
+            end
+        else
+            local player = Players:FindFirstChild(current)
+            if player and player.Character then
+                pcall(function()
+                   destroyObject(player)
+                end)
+            end
+        end
+    end,
+})
+
+local Button = Tab:CreateButton({
+    Name = "重置",
+    Callback = function()
+        local current = Dropdown.CurrentOption
+        if type(current) == "table" then current = current[1] end
+        if not current then return end
+        if current == "所有人" then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player.Character then
+                    pcall(function()
+                        DrownEvent:FireServer("removeTurret", player)
+                    end)
+                end
+            end
+        elseif current == "所有人（除了我）" then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    pcall(function()
+                        destroyObject(player.Character.Head)
+                    end)
+                end
+            end
+        else
+            local player = Players:FindFirstChild(current)
+            if player and player.Character then
+                pcall(function()
+                   destroyObject(player.Character.Head)
+                end)
+            end
+        end
+    end,
+})
+
+Tab:CreateButton({
+Name = "清理地图",
+Callback = function()
+local map = game.Workspace:FindFirstChild("game") and game.Workspace.game:FindFirstChild("currentMap")
+if map then
+    local folder
+    for _, obj in ipairs(map:GetChildren()) do
+        if obj:IsA("Folder") then
+            folder = obj
+            break
+        end
+    end
+    if folder then
+        for _, v in ipairs(folder:GetDescendants()) do
+            destroyObject(v)
+        end
+    else
+        print("未找到。")
+    end
+end
+end,
+})
+
+Tab:CreateButton({
+Name = "销毁工具（点击删除）",
+Callback = function()
+game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+
+local Tool = Instance.new("Tool")
+Tool.Name = "移除炮塔"
+Tool.RequiresHandle = false
+Tool.Parent = LocalPlayer.Backpack
+
+Tool.Activated:Connect(function()
+	local target = Mouse.Target
+	if target and target:IsA("BasePart") then
+		destroyObject(target)
+	end
+end)
+end,
+})
+
+Tab:CreateSection("高级")
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local DrownEvent = game.ReplicatedStorage.remotes.abilities
+
+local function getPlayerList()
+    local t = {"所有人", "所有人（除了我）"}
+    for _, plr in ipairs(Players:GetPlayers()) do
+        table.insert(t, plr.Name)
+    end
+    return t
+end
+
+local Dropdown = Tab:CreateDropdown({
+    Name = "选择玩家",
+    Options = getPlayerList(),
+    CurrentOption = {"所有人（除了我）"},
+    MultipleOptions = false,
+    Flag = "TargetDropdown",
+    Callback = function(selected) end,
+})
+
+Players.PlayerAdded:Connect(function()
+    Dropdown:Refresh(getPlayerList())
+end)
+
+Players.PlayerRemoving:Connect(function()
+    Dropdown:Refresh(getPlayerList())
+end)
+
+local function getBodyParts()
+    return {
+    "头部",
+    "躯干",
+    "左臂",
+    "右臂",
+    "左腿",
+    "右腿",
+    "人体根部部分",
+    "头",
+    "手臂1",
+    "手臂2",
+    "腿1",
+    "腿2",
+    "躯干"
+}
+end
+
+local PartDropdown = Tab:CreateDropdown({
+    Name = "清理角色对象",
+    Options = getBodyParts(),
+    CurrentOption = {"人体根部部分"},
+    MultipleOptions = true,
+    Flag = "PartDropdown",
+    Callback = function(selected) end,
+})
+
+local function findPartInCharacter(character, name)
+    if not character then return nil end
+    local exact = character:FindFirstChild(name)
+    if exact then return exact end
+    local lname = name:lower()
+    for _, obj in ipairs(character:GetDescendants()) do
+        if obj:IsA("BasePart") and obj.Name:lower() == lname then
+            return obj
+        end
+    end
+    return nil
+end
+
+Tab:CreateButton({
+    Name = "销毁",
+    Callback = function()
+        local selectedPlayer = Dropdown.CurrentOption and Dropdown.CurrentOption[1]
+        local selectedParts = PartDropdown.CurrentOption or {}
+        if not selectedPlayer or #selectedParts == 0 then
+            warn("请选择一个玩家和至少一个部位！")
+            return
+        end
+
+        local targetPlayers = {}
+        if selectedPlayer == "所有人" then
+            for _, p in ipairs(Players:GetPlayers()) do
+                table.insert(targetPlayers, p)
+            end
+        elseif selectedPlayer == "所有人（除了我）" then
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer then
+                    table.insert(targetPlayers, p)
+                end
+            end
+        else
+            local p = Players:FindFirstChild(selectedPlayer)
+            if p then
+                table.insert(targetPlayers, p)
+            else
+                warn("玩家 \""..tostring(selectedPlayer).."\" 未在玩家列表中找到。")
+                return
+            end
+        end
+
+        for _, player in ipairs(targetPlayers) do
+            if player and player.Character then
+                for _, partName in ipairs(selectedParts) do
+                    local part = findPartInCharacter(player.Character, partName)
+                    if part then
+                        print("workspace."..player.Name.."."..part.Name)
+                        destroyObject(part)
+                    else
+                        warn(partName.." 在 "..player.Name.." 的角色中未找到")
+                    end
+                end
+            else
+                warn("玩家 "..(player and player.Name or "未知").." 的角色未找到")
+            end
+        end
+    end,
+})
+
+-- 某些游戏
+if game.PlaceId == 73526576502092 then
+
+local Tab = Window:CreateTab("Sonic.exe: The Disaster Eclipsed", 0)
+
+local running = false
+
+Tab:CreateToggle({
+    Name = "全员无敌",
+    CurrentValue = false,
+    Flag = "InvincibilityToggle",
+    Callback = function(Value)
+        running = Value
+        if running then
+            task.spawn(function()
+                while running do
+                    for _, plr in ipairs(game.Players:GetPlayers()) do
+                        workspace.game.WorkspaceStuff.SetInvincibilityScript.SetInvincibility:FireServer(plr.Character, "Add")
+                    end
+                    task.wait(0.5)
+                end
+            end)
+        end
+    end,
+})
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local DrownEvent = workspace.game.WorkspaceStuff.DrownPlayerScript.DrownPlayer
+
+local function getPlayerList()
+    local t = {"所有人", "所有人（除了我）"}
+    for _, plr in ipairs(Players:GetPlayers()) do
+        table.insert(t, plr.Name)
+    end
+    return t
+end
+
+local Dropdown = Tab:CreateDropdown({
+    Name = "选择要击杀的玩家",
+    Options = getPlayerList(),
+    CurrentOption = {"所有人（除了我）"},
+    MultipleOptions = false,
+    Flag = "TargetDropdown",
+    Callback = function(selected) end,
+})
+
+Players.PlayerAdded:Connect(function()
+    Dropdown:Refresh(getPlayerList())
+end)
+
+Players.PlayerRemoving:Connect(function()
+    Dropdown:Refresh(getPlayerList())
+end)
+
+local Button = Tab:CreateButton({
+    Name = "击杀",
+    Callback = function()
+        local current = Dropdown.CurrentOption
+        if type(current) == "table" then current = current[1] end
+        if not current then return end
+        if current == "所有人" then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player.Character then
+                    pcall(function()
+                        DrownEvent:FireServer(player.Character, "Add")
+                    end)
+                end
+            end
+        elseif current == "所有人（除了我）" then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    pcall(function()
+                        DrownEvent:FireServer(player.Character, "Add")
+                    end)
+                end
+            end
+        else
+            local player = Players:FindFirstChild(current)
+            if player and player.Character then
+                pcall(function()
+                    DrownEvent:FireServer(player.Character, "Add")
+                end)
+            end
+        end
+    end,
+})
+
+Tab:CreateButton({
+Name = "播放声音（GUI）",
+Callback = function()
+local p = game:GetService("Players").LocalPlayer
+local g = Instance.new("ScreenGui", game.CoreGui)
+local toggle = Instance.new("TextButton", g)
+local f = Instance.new("Frame", g)
+local ref = Instance.new("TextButton", f)
+local sw = Instance.new("TextButton", f)
+local sb = Instance.new("TextBox", f)
+local sf = Instance.new("ScrollingFrame", f)
+local ui = Instance.new("UIListLayout", sf)
+local mode = "全部"
+
+toggle.Size = UDim2.new(0, 35, 0, 35)
+toggle.Position = UDim2.new(0, 10, 0.5, -20)
+toggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+toggle.Text = "â‰¡"
+toggle.TextColor3 = Color3.new(1,1,1)
+toggle.BorderSizePixel = 0
+toggle.Active = true
+toggle.Draggable = true
+
+f.Size = UDim2.new(0, 250, 0, 320)
+f.Position = UDim2.new(0.5, -125, 0.5, -160)
+f.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+f.BorderSizePixel = 0
+f.Visible = true
+f.Active = true
+f.Draggable = true
+
+ref.Size = UDim2.new(0, 80, 0, 25)
+ref.Position = UDim2.new(0, 5, 0, 5)
+ref.Text = "刷新"
+ref.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+ref.TextColor3 = Color3.new(1, 1, 1)
+
+sw.Size = UDim2.new(0, 150, 0, 25)
+sw.Position = UDim2.new(0, 90, 0, 5)
+sw.Text = "模式: 全部"
+sw.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+sw.TextColor3 = Color3.new(1, 1, 1)
+
+sb.Size = UDim2.new(1, -10, 0, 25)
+sb.Position = UDim2.new(0, 5, 0, 35)
+sb.PlaceholderText = "搜索声音..."
+sb.Text = ""
+sb.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+sb.TextColor3 = Color3.new(1,1,1)
+sb.BorderSizePixel = 0
+sb.ClearTextOnFocus = false
+
+sf.Position = UDim2.new(0, 5, 0, 65)
+sf.Size = UDim2.new(1, -10, 1, -70)
+sf.ScrollBarThickness = 0
+sf.CanvasSize = UDim2.new(0, 0, 0, 10000)
+sf.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+sf.BorderSizePixel = 0
+
+local function makeButton(name, obj)
+	local b = Instance.new("TextButton", sf)
+	b.Size = UDim2.new(1, -10, 0, 25)
+	b.Text = name
+	b.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	b.TextColor3 = Color3.new(1, 1, 1)
+	b.MouseButton1Click:Connect(function()
+		local args = {obj}
+		game.Workspace.game.WorkspaceStuff.PlayServerSidedSoundScript.PlayServerSidedSound:FireServer(unpack(args))
+	end)
+end
+
+local function refresh()
+	for _, v in pairs(sf:GetChildren()) do
+		if v:IsA("TextButton") then v:Destroy() end
+	end
+	local filter = sb.Text:lower()
+	local function scan(container)
+		for _, v in pairs(container:GetDescendants()) do
+			if v:IsA("Sound") and v.Name:lower():find(filter) then
+				makeButton(v.Name, v)
+			end
+		end
+	end
+	if mode == "全部" or mode == "工作区" then scan(workspace) end
+	if mode == "全部" or mode == "声音服务" then scan(game:GetService("SoundService")) end
+end
+
+ref.MouseButton1Click:Connect(refresh)
+sw.MouseButton1Click:Connect(function()
+	if mode == "全部" then
+		mode = "工作区"
+		sw.Text = "模式: 工作区"
+	elseif mode == "工作区" then
+		mode = "声音服务"
+		sw.Text = "模式: 声音服务"
+	else
+		mode = "全部"
+		sw.Text = "模式: 全部"
+	end
+	refresh()
+end)
+sb:GetPropertyChangedSignal("Text"):Connect(refresh)
+toggle.MouseButton1Click:Connect(function()
+	f.Visible = not f.Visible
+end)
+
+refresh()
+end,
+})
+end
+
+-- 主要
+local Tab = Window:CreateTab("主要", 10814531047)
+
+local Players = game:GetService("Players")
+local Remotes = game:GetService("ReplicatedStorage"):WaitForChild("remotes"):WaitForChild("abilities")
+
+local BetaEnabled = false
+
+local Toggle = Tab:CreateToggle({
+    Name = "全员不朽",
+    CurrentValue = false,
+    Flag = "Toggle_ImmortalAll",
+    Callback = function(Value)
+        BetaEnabled = Value
+    end,
+})
+
+task.spawn(function()
+    local index = 1
+    while true do
+        task.wait()
+        if not BetaEnabled then
+            index = 1
+            continue
+        end
+        
+        local allPlayers = Players:GetPlayers()
+        if #allPlayers > 0 then
+            if index > #allPlayers then
+                index = 1
+            end
+            
+            local player = allPlayers[index]
+            if player and player.Character then
+                Remotes:FireServer("shieldShare", player.Character, "fireShield")
+            end
+            
+            index += 1
+        end
+    end
+end)
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local abilityFolder = player:FindFirstChild("PlayerGui") and player.PlayerGui:FindFirstChild("client") and player.PlayerGui.client:FindFirstChild("abilities") and player.PlayerGui.client.abilities:FindFirstChild("abilityBasics")
+
+local baseOptions = {}
+if abilityFolder then
+	for _, v in ipairs(abilityFolder:GetChildren()) do
+		table.insert(baseOptions, v.Name)
+	end
+else
+	local placeId = game.PlaceId
+	baseOptions = {"amy", "blaze", "cream", "eggman", "knuckles", "metalsonic", "rouge", "sally", "shadow", "silver", "tails", "sonicexe", "tailsdoll", "kolossos"}
+	if placeId == 73526576502092 then
+		table.insert(baseOptions, "metalknuckles")
+		table.insert(baseOptions, "vector")
+		table.insert(baseOptions, "furnace")
+		table.insert(baseOptions, "sonic")
+	end
+end
+
+local selectedCharacter = "amy"
+local Dropdown = Tab:CreateDropdown({
+	Name = "选择角色",
+	Options = baseOptions,
+	CurrentOption = {selectedCharacter},
+	MultipleOptions = false,
+	Flag = "Dropdown1",
+	Callback = function(Options)
+		selectedCharacter = Options[1]
+	end,
+})
+
+local autoMorph = false
+local Toggle = Tab:CreateToggle({
+	Name = "自动变形",
+	CurrentValue = false,
+	Flag = "Toggle1",
+	Callback = function(Value)
+		autoMorph = Value
+	end,
+})
+
+RunService.RenderStepped:Connect(function()
+	if autoMorph and selectedCharacter then
+		pcall(function()
+			ReplicatedStorage.remotes.morphs:FireServer(selectedCharacter)
+		end)
+	end
+end)
+
+local function createDropdown(tab, name, options)
+    return tab:CreateDropdown({
+        Name = name,
+        Options = options,
+        CurrentOption = {"选择 " .. name},
+        MultipleOptions = false,
+        Flag = "Dropdown_" .. name,
+        Callback = function(Options)
+            if Options[1] ~= "none" then
+                game:GetService("ReplicatedStorage")
+                    :WaitForChild("remotes")
+                    :WaitForChild("expressions")
+                    :FireServer(Options[1])
+            end
+        end,
+    })
+end
+
+createDropdown(Tab, "表情", {"angry", "glad", "surprised", "sad", "happy", "worried", "confused", "tired", "enraged", "hurt"})
+createDropdown(Tab, "眼睛", {"bloodshot", "regularEyes", "removeBloodshot", "scaredEyes"})
+createDropdown(Tab, "伤口", {"torsoBlood", "noseWound", "neckWound", "mouthBlood", "headWounds"})
+
+Tab:CreateButton({
+Name = "大命中框",
+Callback = function()
+local Players = game:GetService("Players")
+local LP = Players.LocalPlayer
+
+for _, v in ipairs(Players:GetPlayers()) do
+    if v ~= LP then
+        local char = v.Character
+        if char then
+            local torso = char:FindFirstChild("torso")
+            if torso then
+                local collision = torso:FindFirstChild("collision")
+                if collision then
+                    collision.Size = Vector3.new(30, 30, 30)
+                    collision.Transparency = 0.9
+                end
+            end
+        end
+    end
+end
+end,
+})
+
+local Tab = Window:CreateTab("传送", 6723742952)
+local tps = {
+    {"传送到大厅", Vector3.new(0, 10, 0)},
+    {"传送到游戏（可能掉入虚空）", Vector3.new(-272, 155, -313)},
+    {"传送到选择箱", Vector3.new(0, 4, -80)},
+    {"传送到选择介绍", Vector3.new(-174, 2, 114)},
+}
+
+for _, v in ipairs(tps) do
+    Tab:CreateButton({
+        Name = v[1],
+        Callback = function()
+            local char = game.Players.LocalPlayer.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                char.HumanoidRootPart.CFrame = CFrame.new(v[2])
+            end
+        end
+    })
+end
+
+local Tab = Window:CreateTab("头部", 0)
+
+local teleporEnabled = false
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local headRotation = ReplicatedStorage:WaitForChild("remotes"):WaitForChild("headRotation")
+
+Tab:CreateToggle({
+   Name = "无头",
+   CurrentValue = false,
+   Callback = function(Value)
+      teleporEnabled = Value
+   end,
+})
+
+RunService.Heartbeat:Connect(function()
+   if teleporEnabled then
+      for i = 1, 10 do
+         headRotation:FireServer(
+            CFrame.new(999999, 999999, 999999, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+         )
+      end
+   end
+end)
+
+local ToggleEnabled = false
+
+local Toggle = Tab:CreateToggle({
+    Name = "180° 头部旋转",
+    CurrentValue = false,
+    Flag = "Toggle1",
+    Callback = function(Value)
+        ToggleEnabled = Value
+        if Value then
+            updateHeadRotation()
+        end
+    end,
+})
+
+local RS = game:GetService("RunService")
+local remote = game:GetService("ReplicatedStorage"):WaitForChild("remotes"):WaitForChild("headRotation")
+local player = game.Players.LocalPlayer
+
+local function getHeadMotor()
+    local char = player.Character or player.CharacterAdded:Wait()
+    local torso = char:FindFirstChild("torso")
+    if not torso then return nil end
+    local main = torso:FindFirstChild("main")
+    if not main then return nil end
+    local headMotor = main:FindFirstChild("head")
+    if not headMotor then return nil end
+    return headMotor
+end
+
+function updateHeadRotation()
+    local headMotor = getHeadMotor()
+    if headMotor and headMotor:IsA("Motor6D") then
+        local c0 = headMotor.C0
+        local c0Position = c0.Position
+        local finalCFrame = CFrame.new(c0Position) * CFrame.Angles(0, math.rad(180), 0)
+        remote:FireServer(finalCFrame)
+    end
+end
+
+player.CharacterAdded:Connect(function()
+    player.Character:WaitForChild("torso", 5)
+    wait(1)
+    if ToggleEnabled then
+        updateHeadRotation()
+    end
+end)
+
+RS.Heartbeat:Connect(function()
+    if ToggleEnabled then
+        for i = 1, 10 do
+            updateHeadRotation()
+        end
+    end
+end)
+
+local Tab = Window:CreateTab("幸存者", 135443303437470)
+
+Tab:CreateSection("主要")
+
+local player = game.Players.LocalPlayer
+local lastExit = nil
+local teleportEnabled = false
+
+local function findExit()
+    local map = game.Workspace:FindFirstChild("game") and game.Workspace.game:FindFirstChild("currentMap")
+    if not map then return nil end
+
+    local exitRing = nil
+    for _, obj in ipairs(map:GetDescendants()) do
+        if obj:IsA("Model") and obj.Name == "exitRing" and obj.PrimaryPart then
+            exitRing = obj
+            break
+        end
+    end
+
+    if exitRing then return exitRing.PrimaryPart end
+
+    local function checkExits(path)
+        local exits = path and path:FindFirstChild("default") and path.default:FindFirstChild("exits")
+        if exits then
+            for _, obj in ipairs(exits:GetChildren()) do
+                if obj:IsA("Part") and (obj.Name == "1" or obj.Name == "2" or obj.Name == "3" or obj.Name == "4") and obj:FindFirstChildOfClass("TouchTransmitter") then
+                    return obj
+                end
+            end
+        end
+        return nil
+    end
+
+    return checkExits(map:FindFirstChild("you can't run")) or checkExits(map:FindFirstChild("base"))
+end
+
+task.spawn(function()
+    while true do
+        if teleportEnabled then
+            local character = player.Character
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                local exit = findExit()
+                if exit and exit ~= lastExit then
+                    lastExit = exit
+                    character.HumanoidRootPart.CFrame = exit.CFrame
+                end
+            end
+        end
+        task.wait(0.5)
+    end
+end)
+
+local Toggle = Tab:CreateToggle({
+    Name = "自动逃脱（来自原版，可能无效）",
+    CurrentValue = false,
+    Flag = "Toggle_Teleport",
+    Callback = function(Value)
+        teleportEnabled = Value
+    end,
+})
+
+Tab:CreateButton({
+    Name = "立即成为仆从",
+    Callback = function()
+        local player = game:GetService("Players").LocalPlayer
+        local rs = game:GetService("ReplicatedStorage")
+        local ss = game:GetService("SoundService")
+        local running = true
+
+        local function getGUI()
+            return player:FindFirstChild("PlayerGui")
+        end
+
+        local function getHUD()
+            local gui = getGUI()
+            return gui and gui:FindFirstChild("gui") and gui.gui:FindFirstChild("hud")
+        end
+
+        local function disableSpectate()
+            local hud = getHUD()
+            if hud then
+                if hud:FindFirstChild("spectate") then
+                    hud.spectate.Visible = false
+                end
+                if hud:FindFirstChild("healthbars") and not hud.healthbars.Visible then
+                    hud.healthbars.Visible = true
+                end
+            end
+        end
+
+        player.CharacterAdded:Connect(function()
+            running = false
+        end)
+
+        task.spawn(function()
+            while running do
+                local success, _ = pcall(disableSpectate)
+                if not success then
+                    running = false
+                end
+                task.wait(0.1)
+            end
+        end)
+
+        rs.remotes.actions:FireServer("drown")
+        rs.remotes.infect:FireServer()
+        task.wait(1.3)
+
+        local gui = getGUI()
+        if gui then
+            gui.stats:SetAttribute("isDead", false)
+            task.wait(5)
+            local hud = getHUD()
+            if hud and hud:FindFirstChild("continue") then
+                hud.continue.Visible = false
+            end
+        end
+
+        wait(5)
+        ss.mainSounds.current.SoundId = "rbxassetid://133273560899979"
+    end,
+})
+
+Tab:CreateSection("一键点击!!!!")
+Tab:CreateButton({
+Name = "露姬 | 在地图周围放置遥控陷阱",
+Callback = function()
+local Players = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
+local LP = Players.LocalPlayer
+local HRP = LP.Character and LP.Character:WaitForChild("HumanoidRootPart")
+local Remotes = RS:WaitForChild("remotes"):WaitForChild("abilities")
+
+local step = 15
+local maxRange = 250
+local batchSize = 20
+local heightLimit = 20
+
+local currentMap = workspace:WaitForChild("game"):WaitForChild("currentMap")
+local grounds = {}
+for _, v in ipairs(currentMap:GetDescendants()) do
+	if v:IsA("BasePart") and not v.Name:lower():find("invisiblewall")
+		and v.Transparency < 1 and v.CanCollide then
+		table.insert(grounds, v)
+	end
+end
+
+local params = RaycastParams.new()
+params.FilterType = Enum.RaycastFilterType.Exclude
+params.FilterDescendantsInstances = {LP.Character}
+params.IgnoreWater = true
+
+local totalCount = 0
+local batchCount = 0
+
+for x = -maxRange, maxRange, step do
+	for z = -maxRange, maxRange, step do
+		if math.abs(x) > 5 or math.abs(z) > 5 then
+			local origin = HRP.Position + Vector3.new(x, 50, z)
+			local direction = Vector3.new(0, -600, 0)
+			local result = workspace:Raycast(origin, direction, params)
+
+			if result and table.find(grounds, result.Instance) then
+				local posY = result.Position.Y
+				local hrpY = HRP.Position.Y
+				if posY > hrpY - heightLimit and posY < hrpY + heightLimit then
+					Remotes:FireServer("remoteTrap", result.Position + Vector3.new(0, 0.6, 0))
+					totalCount += 1
+					batchCount += 1
+				end
+			end
+
+			if batchCount >= batchSize then
+				task.wait()
+				batchCount = 0
+			end
+		end
+	end
+end
+end,
+})
+
+Tab:CreateButton({
+Name = "露姬 | 激活所有遥控陷阱",
+Callback = function()
+local Players = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
+local LP = Players.LocalPlayer
+local Remotes = RS:WaitForChild("remotes"):WaitForChild("abilities")
+
+for _, trap in pairs(workspace:GetChildren()) do
+    if trap.Name:match(LP.Name .. "'s remote") then
+        local args = {
+            "activateRemoteTrap",
+            trap
+        }
+        Remotes:FireServer(unpack(args))
+    end
+end
+end,
+})
+
+local Section = Tab:CreateSection("有效吗？")
+
+local ToggleActive = false
+local boostConn
+
+local Shadow_boostState_landed = Tab:CreateToggle({
+    Name = "刷屏 BoostState: Landed / 让所有人都有相机抖动（暗影）",
+    CurrentValue = false,
+    Flag = "Toggle1",
+    Callback = function(Value)
+        ToggleActive = Value
+        local gameFolder = workspace
+
+        if ToggleActive then
+            if gameFolder then
+                task.defer(function()
+                    for _, obj in ipairs(gameFolder:GetChildren()) do
+                        if obj.Name == "boostEffect" then
+                            obj:Destroy()
+                        end
+                    end
+                end)
+                boostConn = gameFolder.ChildAdded:Connect(function(obj)
+                    task.defer(function()
+                        if obj.Name == "boostEffect" then
+                            obj:Destroy()
+                        end
+                    end)
+                end)
+            end
+            task.spawn(function()
+                while ToggleActive do
+                    for i = 1, 15 do
+                        game:GetService("ReplicatedStorage").remotes.abilities:FireServer("boostState", "landed")
+                    end
+                    task.wait()
+                end
+            end)
+        else
+            if boostConn then
+                boostConn:Disconnect()
+                boostConn = nil
+            end
+        end
+    end,
+})
+
+local ToggleActive = false
+local speedRadius = Tab:CreateToggle({
+    Name = "让所有人卡顿（布雷兹）",
+    CurrentValue = false,
+    Flag = "Toggle1",
+    Callback = function(Value)
+        ToggleActive = Value
+        if ToggleActive then
+            spawn(function()
+                while ToggleActive do
+for i = 1, 5 do
+                        local args = {
+                            [1] = "setHeatWaveParticles",
+                            [2] = "punch"
+                        }
+                        game:GetService("ReplicatedStorage"):WaitForChild("remotes"):WaitForChild("abilities"):FireServer(unpack(args))
+                    end
+                    local char = game.Players.LocalPlayer.Character
+                    if char then
+                        local arm = char:FindFirstChild("arm1")
+                        if arm then
+                            local hand = arm:FindFirstChild("hand")
+                            if hand then
+                                local hand2 = hand:FindFirstChild("hand")
+                                if hand2 then
+                                    hand2:Destroy()
+                                end
+                            end
+                        end
+                    end
+                    task.wait()
+                end
+            end)
+        end
+    end,
+})
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Remotes = ReplicatedStorage:WaitForChild("remotes")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
+local Dropdown
+local playerNames = {"幸存者", "Exe", "所有人"}
+local selectedPlayers = {}
+
+local Toggles = {
+    Grapple = false,
+    HeatWave = false,
+    Orb = false,
+    Flashbang = false,
+    Homing = false,
+    Boost = false,
+    Hammer = false,
+    Cannon = false,
+    Zapper = false,
+chaos = false,
+lasera = false,
+laserb = false,
+glideCarry = false,
+Eggman = false,
+unknowna = false,
+buff = false,
+hitSpin = false,
+}
+
+local cannonConn
+local lastHammerTime = 0
+local HAMMER_INTERVAL = 1/15
+local LoopCount = 1
+
+local function getValidSurvivors()
+    local survivors = {}
+    for _, player in ipairs(Players:GetPlayers()) do
+        local displayFolder = ReplicatedStorage.displayPlayers:FindFirstChild(player.Name)
+        if displayFolder then
+            local healthValue = displayFolder:FindFirstChild("health")
+            if healthValue and healthValue:IsA("NumberValue") and healthValue.Value > 0 then
+                table.insert(survivors, player.Name)
+            end
+        end
+    end
+    return survivors
+end
+
+local function getValidExes()
+    local exes = {}
+    for _, player in ipairs(Players:GetPlayers()) do
+        local displayFolder = ReplicatedStorage.displayPlayers:FindFirstChild(player.Name)
+        if displayFolder then
+            local healthValue = displayFolder:FindFirstChild("health")
+            if healthValue and healthValue:IsA("NumberValue") and healthValue.Value <= 0 then
+                table.insert(exes, player.Name)
+            end
+        end
+    end
+    return exes
+end
+
+local function updatePlayerList()
+    local newPlayerNames = {"幸存者", "Exe", "所有人"}
+    for _, player in ipairs(Players:GetPlayers()) do
+        table.insert(newPlayerNames, player.Name .. " (" .. player.DisplayName .. ")")
+    end
+    if #newPlayerNames ~= #playerNames then
+        playerNames = newPlayerNames
+        if Dropdown then
+            Dropdown:Refresh(playerNames)
+        end
+    end
+end
+
+Dropdown = Tab:CreateDropdown({
+    Name = "选择玩家",
+    Options = playerNames,
+    CurrentOption = {"选择！"},
+    MultipleOptions = true,
+    Flag = "Dropdown1",
+    Callback = function(Options)
+        selectedPlayers = {}
+        for _, option in ipairs(Options) do
+            local cleanName = option:match("^(.-) %(") or option
+            if cleanName == "幸存者" then
+                for _, s in ipairs(getValidSurvivors()) do
+                    table.insert(selectedPlayers, s)
+                end
+            elseif cleanName == "Exe" then
+                for _, e in ipairs(getValidExes()) do
+                    table.insert(selectedPlayers, e)
+                end
+            elseif cleanName == "所有人" then
+                for _, p in ipairs(Players:GetPlayers()) do
+                    if p ~= LocalPlayer then
+                        table.insert(selectedPlayers, p.Name)
+                    end
+                end
+            else
+                table.insert(selectedPlayers, cleanName)
+            end
+        end
+    end,
+})
+
+local Input = Tab:CreateInput({
+    Name = "循环次数",
+    CurrentValue = "1",
+    PlaceholderText = "输入次数",
+    RemoveTextAfterFocusLost = false,
+    Flag = "Input1",
+    Callback = function(Text)
+        LoopCount = tonumber(Text) or 1
+    end,
+})
+
+local function forAllPlayers(callback)
+    for _, name in ipairs(selectedPlayers) do
+        local plr = Players:FindFirstChild(name)
+        if plr and plr.Character then
+            callback(plr.Character)
+        end
+    end
+end
+
+local function metal()
+    forAllPlayers(function(target)
+        for i = 1, LoopCount do
+            Remotes.abilities:FireServer("grapple", target, Vector3.new(0,0,0))
+        end
+    end)
+end
+
+local function castHeatWave()
+    forAllPlayers(function(target)
+        for i = 1, LoopCount do
+            if target:FindFirstChild("HumanoidRootPart") then
+                Remotes.abilities:FireServer("heatWave")
+                Remotes.abilities:FireServer("releaseHeatWave", target.HumanoidRootPart.CFrame)
+            end
+        end
+    end)
+end
+
+local function castOrb()
+    forAllPlayers(function(target)
+        for i = 1, LoopCount do
+            Remotes.abilities:FireServer("orb")
+            if target:FindFirstChild("HumanoidRootPart") then
+                Remotes.abilities:FireServer("throwOrb", target.HumanoidRootPart.Position)
+            end
+        end
+    end)
+end
+
+local function cannon()
+    forAllPlayers(function(target)
+        for i = 1, LoopCount do
+            if target:FindFirstChild("HumanoidRootPart") then
+                Remotes.abilities:FireServer("cannonShoot", target.HumanoidRootPart.Position, target)
+            end
+        end
+    end)
+end
+
+local function eggmanNoCountdown()
+    local displayPlayers = ReplicatedStorage:FindFirstChild("displayPlayers")
+    if not displayPlayers then return end
+
+    forAllPlayers(function(plr)
+        local playerFolder = displayPlayers:FindFirstChild(plr.Name)
+        if playerFolder then
+            local cooldowns = playerFolder:FindFirstChild("cooldowns")
+            if cooldowns then
+                for _, v in ipairs(cooldowns:GetDescendants()) do
+                    if v:IsA("Instance") then
+                        destroyObject(v)
+                    end
+                end
+            end
+        end
+    end)
+end
+
+local function flashbang()
+    forAllPlayers(function(target)
+        for i = 1, LoopCount do
+            if target:FindFirstChild("HumanoidRootPart") then
+                local pos = target.HumanoidRootPart.Position - Vector3.new(0,3,0)
+                Remotes.abilities:FireServer("flashbang", pos)
+            end
+        end
+    end)
+end
+
+local function homingAttackAction()
+    forAllPlayers(function(target)
+        for i = 1, LoopCount do
+            Remotes.abilities:FireServer("homingAttack")
+            Remotes.abilities:FireServer("homingAttackTarget", target)
+        end
+    end)
+end
+
+local function boost()
+    forAllPlayers(function(target)
+        for i = 1, LoopCount do
+            Remotes.abilities:FireServer("boost")
+            Remotes.abilities:FireServer("boostPush", {target})
+        end
+    end)
+end
+
+local function hammer()
+    local currentTime = tick()
+    if currentTime - lastHammerTime < HAMMER_INTERVAL then return end
+    lastHammerTime = currentTime
+    forAllPlayers(function(target)
+        for i = 1, LoopCount do
+            if target:FindFirstChild("HumanoidRootPart") then
+                Remotes.abilities:FireServer("throwHammer", target.HumanoidRootPart.Position)
+            end
+        end
+    end)
+end
+
+local function chaosFire()
+    forAllPlayers(function(target)
+        for i = 1, LoopCount do
+            if target:FindFirstChild("HumanoidRootPart") then
+                Remotes.abilities:FireServer("throwChaosSpears", target.HumanoidRootPart.Position)
+            end
+        end
+    end)
+end
+
+local function laseraFire()
+    forAllPlayers(function(target)
+        for i = 1, LoopCount do
+            Remotes.abilities:FireServer("cannonShoot", target.HumanoidRootPart.Position, target, "laser")
+        end
+    end)
+end
+
+local function glideCarryFire()
+    forAllPlayers(function(target)
+        for i = 1, LoopCount do
+            Remotes.abilities:FireServer("glide")
+game.ReplicatedStorage.remotes.abilities:FireServer("glideCarry", target, game.Players.LocalPlayer.Character)
+        end
+    end)
+end
+
+local function laserbFire()
+    forAllPlayers(function(target)
+        for i = 1, LoopCount do
+            Remotes.abilities:FireServer("cannonShoot", target.HumanoidRootPart.Position, target, "energyBall", game.Players.LocalPlayer.Character.HumanoidRootPart.Position)
+        end
+    end)
+end
+
+local function unknownaFire()
+    forAllPlayers(function(target)
+        for i = 1, LoopCount do
+            Remotes.abilities:FireServer("earthShatter", math.huge, target.HumanoidRootPart.Position)
+        end
+    end)
+end
+
+local function buffFire()
+    forAllPlayers(function(target)
+        for i = 1, LoopCount do
+            workspace:WaitForChild("game"):WaitForChild("WorkspaceStuff"):WaitForChild("SetTagScript"):WaitForChild("SetTag"):FireServer(target, "Add", "tauntBuffed")
+        end
+    end)
+end
+
+local function hitSpinFire()
+    forAllPlayers(function(target)
+        for i = 1, LoopCount do
+local args = {
+	"hitSpindashSonic",
+	target
+}
+game:GetService("ReplicatedStorage"):WaitForChild("remotes"):WaitForChild("abilities"):FireServer(unpack(args))
+            end
+    end)
+end
+
+local function shootZapper()
+    forAllPlayers(function(target)
+        for i = 1, LoopCount do
+            if target:FindFirstChild("HumanoidRootPart") then
+                local args = {
+                    "shootZapper",
+                    target,
+                    target.HumanoidRootPart.Position
+                }
+                Remotes.abilities:FireServer(unpack(args))
+            end
+        end
+    end)
+end
+
+local function setupCannonConnection(enabled)
+    if enabled then
+        if cannonConn then cannonConn:Disconnect() end
+        cannonConn = Workspace.game.currentMap.DescendantAdded:Connect(function(desc)
+            if desc:IsA("MeshPart") and desc.Name == "laser" then
+                task.defer(function()
+                    -- 维护
+                end)
+            end
+        end)
+    else
+        if cannonConn then
+            cannonConn:Disconnect()
+            cannonConn = nil
+        end
+    end
+end
+
+RunService.Heartbeat:Connect(function()
+    if Toggles.Grapple then metal() end
+    if Toggles.HeatWave then castHeatWave() end
+    if Toggles.Orb then castOrb() end
+    if Toggles.Cannon then cannon() end
+    if Toggles.Flashbang then flashbang() end
+    if Toggles.Homing then homingAttackAction() end
+    if Toggles.Boost then boost() end
+    if Toggles.Hammer then hammer() end
+    if Toggles.Zapper then shootZapper() end
+if Toggles.chaos then chaosFire() end
+if Toggles.lasera then laseraFire() end
+if Toggles.laserb then laserbFire() end
+if Toggles.glideCarry then glideCarryFire() end
+if Toggles.Eggman then eggmanNoCountdown() end
+if Toggles.unknowna then unknownaFire() end
+if Toggles.buff then buffFire() end
+if Toggles.hitSpin then hitSpinFire() end
+end)
+
+Tab:CreateToggle({Name = "金属索尼克斯 | 刷屏抓钩，所有目标！", CurrentValue = false, Flag = "toggle_grapple", Callback = function(Value) Toggles.Grapple = Value end})
+Tab:CreateToggle({
+    Name = "蛋头博士或索尼克斯 | 所有人都没有冷却时间",
+    CurrentValue = false,
+    Flag = "toggle_eggman",
+    Callback = function(Value)
+        Toggles.Eggman = Value
+    end
+})
+Tab:CreateToggle({Name = "布雷兹 | 刷屏热浪", CurrentValue = false, Flag = "toggle_heatwave", Callback = function(Value) Toggles.HeatWave = Value end})
+Tab:CreateToggle({Name = "希弗尔 | 刷屏球体", CurrentValue = false, Flag = "toggle_orb", Callback = function(Value) Toggles.Orb = Value end})
+Tab:CreateToggle({Name = "塔尔斯 | 刷屏加农炮", CurrentValue = false, Flag = "toggle_cannon", Callback = function(Value) Toggles.Cannon = Value setupCannonConnection(Value) end})
+Tab:CreateToggle({Name = "露姬 | 刷屏闪光弹", CurrentValue = false, Flag = "toggle_flashbang", Callback = function(Value) Toggles.Flashbang = Value end})
+Tab:CreateToggle({Name = "暗影 | 刷屏追踪攻击", CurrentValue = false, Flag = "toggle_homing", Callback = function(Value) Toggles.Homing = Value end})
+Tab:CreateToggle({Name = "暗影 | 刷屏加速", CurrentValue = false, Flag = "toggle_boost", Callback = function(Value) Toggles.Boost = Value end})
+Tab:CreateToggle({Name = "所有角色 | 刷屏投掷锤子", CurrentValue = false, Flag = "toggle_hammer", Callback = function(Value) Toggles.Hammer = Value end})
+Tab:CreateToggle({Name = "蛋头博士 | 刷屏电击枪", CurrentValue = false, Flag = "toggle_zapper", Callback = function(Value) Toggles.Zapper = Value end})
+if game.PlaceId == 73526576502092 then
+Tab:CreateToggle({Name = "暗影 | 刷屏投掷混沌长矛", CurrentValue = false, Flag = "toggle_testa", Callback = function(Value) Toggles.chaos = Value end})
+Tab:CreateToggle({Name = "塔尔斯 | 刷屏激光模式", CurrentValue = false, Flag = "njeke", Callback = function(Value) Toggles.lasera = Value end})
+Tab:CreateToggle({Name = "塔尔斯 | 刷屏能量球模式", CurrentValue = false, Flag = "gsysb", Callback = function(Value) Toggles.laserb = Value end})
+Tab:CreateToggle({Name = "塔尔斯 | 刷屏携带某人，exe也不例外", CurrentValue = false, Flag = "hsuaijw", Callback = function(Value) Toggles.glideCarry = Value end})
+Tab:CreateToggle({Name = "金属纳克鲁斯 | 刷屏地裂", CurrentValue = false, Flag = "hsuaijw", Callback = function(Value) Toggles.unknowna = Value end})
+Tab:CreateToggle({Name = "所有角色 | 刷屏嘲讽增益", CurrentValue = false, Flag = "hsuaijw", Callback = function(Value) Toggles.buff = Value end})
+Tab:CreateToggle({Name = "索尼克斯 | 刷屏命中旋转冲刺", CurrentValue = false, Flag = "hsuaijw", Callback = function(Value) Toggles.hitSpin = Value end})
+end
+
+task.spawn(function()
+    while task.wait(1) do
+        updatePlayerList()
+    end
+end)
+
+_G.PlayerPosition = nil
+RunService.Heartbeat:Connect(function()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        _G.PlayerPosition = LocalPlayer.Character.HumanoidRootPart.Position
+    end
+end)
+
+local Section = Tab:CreateSection("不选择玩家刷屏")
+
+local Remotes = game:GetService("ReplicatedStorage"):WaitForChild("remotes")
+local Abilities = Remotes:WaitForChild("abilities")
+local GameRoot = workspace:WaitForChild("game")
+
+local turrets = {}
+local INTERVAL = 0.03
+local repairing = false
+
+local function isTurret(obj)
+    local n = obj.Name:lower()
+    return string.find(n, "'s turret") or string.find(n, "turret")
+end
+
+for _, obj in ipairs(GameRoot:GetDescendants()) do
+    if isTurret(obj) then
+        turrets[obj] = true
+    end
+end
+
+GameRoot.DescendantAdded:Connect(function(obj)
+    if isTurret(obj) then
+        turrets[obj] = true
+    end
+end)
+
+GameRoot.DescendantRemoving:Connect(function(obj)
+    if turrets[obj] then
+        turrets[obj] = nil
+    end
+end)
+
+local Toggle = Tab:CreateToggle({
+    Name = "自动修复炮塔",
+    CurrentValue = false,
+    Flag = "AutoRepairToggle",
+    Callback = function(value)
+        repairing = value
+    end,
+})
+
+task.spawn(function()
+    while true do
+        task.wait(INTERVAL)
+        if repairing then
+            for obj in pairs(turrets) do
+                if obj and obj.Parent then
+                    pcall(function()
+                        Abilities:FireServer("repairTurret", obj)
+                    end)
+                else
+                    turrets[obj] = nil
+                end
+            end
+        end
+    end
+end)
+
+local Tab = Window:CreateTab("索尼克斯和仆从", 73545495297148)
+local Players = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
+local Remotes = RS:WaitForChild("remotes"):WaitForChild("abilities")
+local RunService = game:GetService("RunService")
+
+local LP = Players.LocalPlayer
+local LoopCount = 1
+local selectedPlayers = {}
+
+local function getAllPlayers()
+local list = {}
+for _, plr in ipairs(Players:GetPlayers()) do
+if plr ~= LP then
+table.insert(list, plr)
+end
+end
+return list
+end
+
+local function furnaceSpam()
+for _, plr in ipairs(selectedPlayers) do
+if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+for i = 1, LoopCount do
+local pos = plr.Character.HumanoidRootPart.Position
+Remotes:FireServer("propulsion", pos)
+end
+end
+end
+end
+
+local function redRingSpam()
+for _, plr in ipairs(selectedPlayers) do
+if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+for i = 1, LoopCount do
+local pos = plr.Character.HumanoidRootPart.Position
+Remotes:FireServer("redRing", pos)
+end
+end
+end
+end
+
+local Dropdown = Tab:CreateDropdown({
+Name = "选择玩家",
+Options = {"所有人"},
+CurrentOption = {"所有人"},
+MultipleOptions = true,
+Flag = "Dropdown_Furnace",
+Callback = function(opts)
+selectedPlayers = {}
+for _, v in ipairs(opts) do
+if v == "所有人" then
+selectedPlayers = getAllPlayers()
+else
+local p = Players:FindFirstChild(v)
+if p then table.insert(selectedPlayers, p) end
+end
+end
+end
+})
+
+local Input = Tab:CreateInput({
+Name = "循环次数",
+CurrentValue = "1",
+PlaceholderText = "输入次数",
+RemoveTextAfterFocusLost = false,
+Callback = function(txt)
+LoopCount = tonumber(txt) or 1
+end
+})
+
+local Toggles = { Furnace = false, RedRing = false}
+
+if game.PlaceId == 73526576502092 then
+
+Tab:CreateToggle({
+Name = "熔炉 | 刷屏推进",
+CurrentValue = false,
+Flag = "toggle_furnace",
+Callback = function(v)
+Toggles.Furnace = v
+end
+})
+
+Tab:CreateToggle({
+Name = "LordX | 刷屏红环",
+CurrentValue = false,
+Flag = "toggle_redring",
+Callback = function(v)
+Toggles.RedRing = v
+end
+})
+
+RunService.Heartbeat:Connect(function()
+if Toggles.Furnace then furnaceSpam() end
+if Toggles.RedRing then redRingSpam() end
+end)
+
+end
+
+local function refreshDropdown()
+local opts = {"所有人"}
+for _, plr in ipairs(Players:GetPlayers()) do
+table.insert(opts, plr.Name)
+end
+Dropdown:Refresh(opts)
+end
+
+refreshDropdown()
+
+Players.PlayerAdded:Connect(refreshDropdown)
+Players.PlayerRemoving:Connect(refreshDropdown)
+
+local Section = Tab:CreateSection("不选择玩家刷屏")
+
+local Toggles = {
+	FurnaceOverheat = false,
+	lordX = false
+}
+
+local RS = game:GetService("RunService")
+local R = game:GetService("ReplicatedStorage"):WaitForChild("remotes"):WaitForChild("abilities")
+
+Tab:CreateToggle({
+	Name = "熔炉 | 刷屏过热",
+	CurrentValue = false,
+	Flag = "toggle_overheat",
+	Callback = function(v)
+		Toggles.FurnaceOverheat = v
+	end
+})
+
+Tab:CreateToggle({
+	Name = "LordX | 刷屏手臂猛击",
+	CurrentValue = false,
+	Flag = "jsjsjshsxb",
+	Callback = function(v)
+		Toggles.lordX = v
+	end
+})
+
+RS.Heartbeat:Connect(function()
+	if Toggles.FurnaceOverheat then
+		R:FireServer("overheat")
+	end
+
+	if Toggles.lordX then
+		R:FireServer("armLunge")
+	end
+end)
+
+local Tab = Window:CreateTab("客户端", 9405930424)
+
+local Input = Tab:CreateInput({
+   Name = "设置你的生命值",
+   CurrentValue = "",
+   PlaceholderText = "数据",
+   Flag = "Input1", 
+   Callback = function(setdata)
+local playerName = game.Players.LocalPlayer.Name
+local newHealthValue = setdata
+
+local replicatedStorage = game:GetService("ReplicatedStorage")
+local displayPlayers = replicatedStorage:FindFirstChild("displayPlayers")
+
+if displayPlayers then
+    local playerData = displayPlayers:FindFirstChild(playerName)
+    if playerData and playerData:FindFirstChild("health") then
+        playerData.health.Value = newHealthValue
+    end
+end
+   end,
+})
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SkyboxesFolder = ReplicatedStorage:WaitForChild("skyboxes")
+local Skyboxes = {}
+
+for _, skybox in ipairs(SkyboxesFolder:GetChildren()) do
+    if skybox:IsA("Sky") then
+        table.insert(Skyboxes, skybox.Name)
+    end
+end
+
+local Dropdown = Tab:CreateDropdown({
+   Name = "选择天空盒",
+   Options = Skyboxes,
+   CurrentOption = {Skyboxes[1]},
+   MultipleOptions = false,
+   Flag = "DropdownSkyBox",
+   Callback = function(Options)
+       for _, skybox in ipairs(SkyboxesFolder:GetChildren()) do
+           if skybox.Name == Options[1] then
+               local newSky = skybox:Clone()
+               newSky.Parent = game.Lighting
+               for _, child in ipairs(game.Lighting:GetChildren()) do
+                   if child:IsA("Sky") and child ~= newSky then
+                       child:Destroy()
+                   end
+               end
+           end
+       end
+   end,
+})
+
+Tab:CreateButton({
+Name = "无雾",
+Callback = function()
+game:GetService("RunService").Heartbeat:Connect(function()
+    game.Lighting.atmosphere.Density = 0
+    game.Lighting.blur.Enabled = false
+    game.Lighting.bloom.Enabled = false
+    game.Lighting.colorCorrection.Enabled = false
+    game:GetService("Lighting").depthOfField.Enabled = false
+    game:GetService("Lighting").sunRays.Enabled = false
+    game:GetService("Lighting").Brightness = 2
+    game:GetService("Lighting").Ambient = Color3.new(1, 1, 1)
+
+    local Cam = workspace:FindFirstChild("Camera")
+    if Cam then
+        local as = Cam:FindFirstChild("ashes")
+        local ra = Cam:FindFirstChild("rain")
+        if as then
+            as:Destroy()
+        end
+        if ra then
+            ra:Destroy()
+        end
+    end
+end)
+end,
+})
+
+local Dropdown = Tab:CreateDropdown({
+   Name = "游戏模式",
+   Options = {"", "teamVsTeam", "doubleTrouble"},
+   CurrentOption = "",
+   MultipleOptions = false,
+   Flag = "erly",
+   Callback = function(optn)
+       local selected = tostring(optn[1] or "")
+       local settingsDisplay = game.ReplicatedStorage:FindFirstChild("settingsDisplay")
+       if settingsDisplay then
+           local gamemode = settingsDisplay:FindFirstChild("gamemode")
+           if gamemode and gamemode:IsA("StringValue") then
+               gamemode.Value = selected
+           end
+       end
+   end,
+})
+
+local Tab = Window:CreateTab("测试版", 88065516251752)
+
+local player = game.Players.LocalPlayer
+local defaultSpeed = 16
+local runSpeed = 35
+local currentAnimation
+
+local screenGui = Instance.new("ScreenGui", game.CoreGui)
+local button = Instance.new("TextButton", screenGui)
+
+button.Size = UDim2.new(0, 100, 0, 50)
+button.Position = UDim2.new(0.5, -50, 0.1, 0)
+button.Text = "奔跑"
+button.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+button.Draggable = true
+button.Active = true
+button.Visible = false
+
+local function stopCurrentAnimation(humanoid)
+    if currentAnimation then
+        currentAnimation:Stop()
+        currentAnimation = nil
+    end
+end
+
+local function setupCharacter(char)
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    local rootPart = char:FindFirstChild("HumanoidRootPart")
+
+    if humanoid and rootPart then
+        stopCurrentAnimation(humanoid)
+
+        local selection = workspace.game.selectionIntro.positions.survivors
+        local targetPos
+
+        for i = 1, 7 do
+            local part = selection:FindFirstChild("player" .. i)
+            if part and #part:GetChildren() == 0 then
+                targetPos = part.Position
+                break
+            end
+        end
+
+        if targetPos then
+            rootPart.CFrame = CFrame.new(targetPos.X, 2, 113)
+            humanoid.WalkSpeed = runSpeed
+
+            local animRun = Instance.new("Animation")
+            animRun.AnimationId = "rbxassetid://76389912099262"
+            currentAnimation = humanoid:LoadAnimation(animRun)
+            currentAnimation:Play()
+
+            humanoid:MoveTo(targetPos)
+
+            humanoid.MoveToFinished:Connect(function()
+                stopCurrentAnimation(humanoid)
+                local animIdle = Instance.new("Animation")
+                animIdle.AnimationId = "rbxassetid://114478970530288"
+                currentAnimation = humanoid:LoadAnimation(animIdle)
+                currentAnimation:Play()
+                humanoid.WalkSpeed = defaultSpeed
+            end)
+        end
+    end
+end
+
+button.MouseButton1Click:Connect(function()
+    if player.Character then
+        setupCharacter(player.Character)
+    end
+end)
+
+local part = Instance.new("Part", workspace)
+part.Size = Vector3.new(13, 408, 133)
+part.Position = Vector3.new(-187.25, -7.018, -39.75)
+part.Transparency = 1
+part.CanCollide = true
+part.Anchored = true
+part.Rotation = Vector3.new(90, 90, 0)
+
+Tab:CreateToggle({
+Name = "在选择介绍中显示我",
+CurrentValue = false,
+Flag = "hhhhhhh",
+Callback = function(Value)
+button.Visible = Value
+end,
+})
+
+local Tab = Window:CreateTab("通用", 0)
+
+Tab:CreateButton({
+Name = "无限收益",
+Callback = function()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
+end,
+})
+
+Tab:CreateButton({
+Name = "动画扫描器",
+Callback = function()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Biem6ondo/Test/refs/heads/main/Testing"))()
+end,
+})
+
+local Tab = Window:CreateTab("杂项", 18683003750)
+
+Tab:CreateButton({
+Name = "防死亡或眩晕（已修复！）",
+Callback = function()
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:FindFirstChildWhichIsA("Humanoid")
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+local runService = game:GetService("RunService")
+local userInputService = game:GetService("UserInputService")
+
+local speed = 2.9
+local tpwalking = true
+local gravitySpeed = 0.5
+local anchoredState = false
+local gravityEnabled = true
+local jumpEnabled = true
+local tpwalkEnabled = true
+
+local function isOnGround()
+    local rayOrigin = humanoidRootPart.Position
+    local rayDirection = Vector3.new(0, -3.5, 0)
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {character}
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)  
+    return raycastResult ~= nil
+end
+
+local function jumpCharacter()
+    if jumpEnabled and humanoid and humanoidRootPart then
+        character:TranslateBy(Vector3.new(0, 15, 0))
+        task.wait(0.2)
+        while gravityEnabled and not isOnGround() do  
+            character:TranslateBy(Vector3.new(0, -gravitySpeed, 0))  
+            task.wait(0.02)  
+        end  
+    end
+end
+
+local gui = Instance.new("ScreenGui", player.PlayerGui)
+gui.ResetOnSpawn = true
+
+local speedLabel = Instance.new("TextLabel", gui)
+speedLabel.Size = UDim2.new(0, 200, 0, 50)
+speedLabel.Position = UDim2.new(0.5, -100, 0.1, 0)
+speedLabel.BackgroundTransparency = 0.5
+speedLabel.TextScaled = true
+speedLabel.Visible = false
+speedLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedLabel.Font = Enum.Font.SourceSansBold
+
+local function toggleAnchoredState()
+    anchoredState = not anchoredState
+    humanoidRootPart.Anchored = anchoredState
+    gravityEnabled = anchoredState
+    jumpEnabled = anchoredState
+    tpwalkEnabled = anchoredState
+    print(anchoredState and "HumanoidRootPart 锚定: 开启" or "HumanoidRootPart 锚定: 关闭")
+end
+
+if userInputService.TouchEnabled then
+    print("您是移动设备")
+
+    local speedBox = Instance.new("TextBox", gui)
+    speedBox.Size = UDim2.new(0, 200, 0, 50)
+    speedBox.Position = UDim2.new(0.5, 0, 0, 0)
+    speedBox.PlaceholderText = "输入速度"
+    speedBox.Text = "2.9"
+    speedBox.ClearTextOnFocus = true
+    speedBox.BackgroundTransparency = 0.3
+    speedBox.BorderSizePixel = 0
+    speedBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    speedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    speedBox.Font = Enum.Font.SourceSansBold
+speedBox.AnchorPoint = Vector2.new(0.5, 0.5)
+
+    local corner = Instance.new("UICorner", speedBox)
+    corner.CornerRadius = UDim.new(0, 10)
+
+    local applyBtn = Instance.new("TextButton", gui)
+    applyBtn.Size = UDim2.new(0, 200, 0, 50)
+    applyBtn.Position = UDim2.new(0.5, 0, 0.08, 0)
+    applyBtn.Text = "应用速度"
+    applyBtn.BackgroundTransparency = 0.3
+    applyBtn.BorderSizePixel = 0
+    applyBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    applyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    applyBtn.Font = Enum.Font.SourceSansBold
+applyBtn.TextScaled = true
+applyBtn.AnchorPoint = Vector2.new(0.5, 0.5)
+
+    local corner2 = Instance.new("UICorner", applyBtn)
+    corner2.CornerRadius = UDim.new(0, 10)
+
+    applyBtn.MouseButton1Click:Connect(function()
+        local newSpeed = tonumber(speedBox.Text)
+        if newSpeed and newSpeed > 0 then
+            speed = newSpeed
+            speedLabel.Text = "速度: " .. speed
+            speedLabel.Visible = true
+            task.wait(1)
+            speedLabel.Visible = false
+        end
+    end)
+
+    local toggleBtn = Instance.new("TextButton", gui)
+    toggleBtn.Size = UDim2.new(0, 200, 0, 50)
+    toggleBtn.Position = UDim2.new(0, 0, 0.4, 0)
+    toggleBtn.Text = "已禁用"
+    toggleBtn.BackgroundTransparency = 0.3
+    toggleBtn.BorderSizePixel = 0
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleBtn.Font = Enum.Font.SourceSansBold
+toggleBtn.TextScaled = true
+
+    local corner3 = Instance.new("UICorner", toggleBtn)
+    corner3.CornerRadius = UDim.new(0, 10)
+
+    toggleBtn.MouseButton1Click:Connect(function()
+        toggleAnchoredState()
+        toggleBtn.Text = anchoredState and "已启用" or "已禁用"
+    end)
+
+    local jumpBtn = player.PlayerGui.TouchGui.TouchControlFrame:FindFirstChild("JumpButton")
+    if jumpBtn then
+        jumpBtn.MouseButton1Click:Connect(jumpCharacter)
+    end
+else
+    print("您是电脑")
+
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "速度控制",
+        Text = "按 V + 滚动（下，上）来（减少，增加）速度，按 V 切换",
+        Duration = 5
+    })
+
+    userInputService.InputChanged:Connect(function(input)
+        if userInputService:IsKeyDown(Enum.KeyCode.V) and (input.UserInputType == Enum.UserInputType.MouseWheel) then
+            if input.Position.Z > 0 then
+                speed = math.min(speed + 1, 100)
+            else
+                speed = math.max(speed - 1, 1)
+            end
+
+            speedLabel.Text = "速度: " .. speed
+            speedLabel.Visible = true
+
+            task.wait(1)
+            speedLabel.Visible = false
+        end
+    end)
+
+    userInputService.InputBegan:Connect(function(input, gameProcessed)
+        if not gameProcessed then
+            if input.KeyCode == Enum.KeyCode.V then
+                toggleAnchoredState()
+            elseif input.KeyCode == Enum.KeyCode.Space then
+                jumpCharacter()
+            end
+        end
+    end)
+end
+
+runService.Heartbeat:Connect(function(delta)
+    if tpwalkEnabled and tpwalking and humanoid and humanoid.MoveDirection.Magnitude > 0 then
+        local direction = humanoid.MoveDirection.Unit
+        local moveDistance = speed * delta * 10
+        local rootPos = humanoidRootPart.Position
+
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterDescendantsInstances = {character}
+        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+
+        local offsets = {
+            Vector3.new(0, 0, 0),
+            Vector3.new(2, 0, 0),
+            Vector3.new(-2, 0, 0)
+        }
+
+        local hitFront = false
+        for _, offset in ipairs(offsets) do
+            local origin = rootPos + offset
+            local frontRay = workspace:Raycast(origin, direction * (moveDistance + 1), raycastParams)
+            if frontRay then
+                hitFront = true
+                break
+            end
+        end
+
+        if not hitFront then
+            character:TranslateBy(direction * moveDistance)
+        else
+            local heightCheck = 2.75
+            local clearAbove = true
+
+            for _, offset in ipairs(offsets) do
+                local origin = rootPos + offset + Vector3.new(0, heightCheck, 0)
+                local upRay = workspace:Raycast(origin, direction * (moveDistance + 1), raycastParams)
+                if upRay then
+                    clearAbove = false
+                    break
+                end
+            end
+
+            if clearAbove then
+                character:TranslateBy(Vector3.new(0, 4.5, 0))
+                character:TranslateBy(direction * moveDistance)
+            end
+        end
+
+        local bottomOrigin = rootPos
+        local downRay = workspace:Raycast(bottomOrigin, Vector3.new(0, -3, 0), raycastParams)
+
+        if downRay and downRay.Position.Y > rootPos.Y - 2 then
+        
+            character:TranslateBy(Vector3.new(0, 4, 0))
+        end
+    end
+end)
+
+runService.RenderStepped:Connect(function()
+    if gravityEnabled and not isOnGround() then
+        humanoidRootPart.CFrame = humanoidRootPart.CFrame * CFrame.new(0, -gravitySpeed, 0)
+    end
+end)
+
+-- 提示
+
+local tips = {
+    "提示: 您应该同时移动和按下切换按钮，以便动画正常运行。",
+    "提示: 推荐速度: 2.9/3",
+    "提示: 需要启用 shiftlock（移动设备）",
+    "提示: 电脑上的 shiftlock 将在稍后添加！"
+}
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local PlayerGui = player:WaitForChild("PlayerGui")
+
+local gui = Instance.new("ScreenGui", PlayerGui)
+gui.Name = "CoolTipGui"
+
+local frame = Instance.new("Frame", gui)
+frame.AnchorPoint = Vector2.new(0.5, 1)
+frame.Position = UDim2.new(0.5, 0, 1, -20)
+frame.Size = UDim2.new(0.8, 0, 0, 40)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BackgroundTransparency = 1
+frame.BorderSizePixel = 0
+frame.ClipsDescendants = true
+frame.Visible = true
+frame.ZIndex = 10
+
+local uicorner = Instance.new("UICorner", frame)
+uicorner.CornerRadius = UDim.new(0, 8)
+
+local label = Instance.new("TextLabel", frame)
+label.Size = UDim2.new(1, -10, 1, 0)
+label.Position = UDim2.new(0, 5, 0, 0)
+label.BackgroundTransparency = 1
+label.TextColor3 = Color3.fromRGB(255, 0, 0)
+label.TextSize = 18
+label.Font = Enum.Font.GothamSemibold
+label.Text = ""
+label.TextTransparency = 0.3
+label.ZIndex = 1
+
+local function showTip(text)
+    label.Text = text
+    label.TextTransparency = 1
+    for i = 1, 10 do
+        label.TextTransparency = 1 - (i * 0.1)
+        task.wait(0.05)
+    end
+end
+
+task.spawn(function()
+    local i = 1
+    while true do
+        showTip(tips[i])
+        i += 1
+        if i > #tips then i = 1 end
+        task.wait(5)
+    end
+end)
+end,
+})
+
+local player = game.Players.LocalPlayer
+
+local toggleState = false
+local Toggle = Tab:CreateToggle({
+    Name = "可以攀爬",
+    CurrentValue = false,
+    Flag = "Toggle_Ladder",
+    Callback = function(Value)
+        toggleState = Value
+
+        local currentMap = game.Workspace:FindFirstChild("game") and game.Workspace.game:FindFirstChild("currentMap")
+        if not currentMap then return end
+
+        for _, part in ipairs(currentMap:GetDescendants()) do
+            if part:IsA("BasePart") and part.Name == "ladder" then
+                part.Transparency = toggleState and 0 or 1
+                part.CanCollide = toggleState
+            end
+        end
+    end,
+})
+
+local Toggle = Tab:CreateToggle({
+    Name = "客户端技能无冷却 + 修复技能无冷却",
+    CurrentValue = false,
+    Flag = "Toggle1",
+    Callback = function(Value)
+        _G.ToggleState = Value
+    end,
+})
+
+_G.ToggleState = false
+
+spawn(function()
+    while true do
+        task.wait()
+        if _G.ToggleState then
+            if game.ReplicatedStorage.displayPlayers:FindFirstChild(game.Players.LocalPlayer.Name) and 
+               game.ReplicatedStorage.displayPlayers[game.Players.LocalPlayer.Name]:FindFirstChild("cooldowns") then
+
+                for _, child in ipairs(game.ReplicatedStorage.displayPlayers[game.Players.LocalPlayer.Name].cooldowns:GetChildren()) do
+                    if child:IsA("NumberValue") then
+                        child:Destroy()
+                    end
+                end
+            else
+            end
+        end
+    end
+end)
+
+Tab:CreateButton({
+Name = "跳跃无延迟",
+Callback = function()
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local UserInputService = game:GetService("UserInputService")
+local jumping = false
+
+local function isGrounded()
+    local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        return humanoid:GetState() == Enum.HumanoidStateType.Running or humanoid:GetState() == Enum.HumanoidStateType.Landed
+    end
+    return false
+end
+
+local function jump()
+    if isGrounded() then
+        LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end
+
+local function startJumping()
+    jumping = true
+    while jumping do
+        jump()
+        task.wait()
+    end
+end
+
+local function stopJumping()
+    jumping = false
+end
+
+local function removeJumpButton()
+    local touchGui = PlayerGui:FindFirstChild("TouchGui")
+    if touchGui then
+        local touchControlFrame = touchGui:FindFirstChild("TouchControlFrame")
+        if touchControlFrame then
+            local jumpButton = touchControlFrame:FindFirstChild("JumpButton")
+            if jumpButton then
+                jumpButton:Destroy()
+            end
+        end
+    end
+end
+
+local function createJumpButton()
+    local touchGui = PlayerGui:FindFirstChild("TouchGui")
+    if touchGui then
+        local touchControlFrame = touchGui:FindFirstChild("TouchControlFrame")
+        if touchControlFrame then
+            local jumpButton = Instance.new("ImageButton")
+            jumpButton.Name = "JumpButton"
+            jumpButton.Size = UDim2.new(0, 120, 0, 120)
+            jumpButton.Position = UDim2.new(1, -150, 1, -150)
+            jumpButton.Parent = touchControlFrame
+            jumpButton.BackgroundColor3 = Color3.new(0, 0, 0)
+            jumpButton.MouseButton1Down:Connect(startJumping)
+            jumpButton.MouseButton1Up:Connect(stopJumping)
+        end
+    end
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    if gameProcessedEvent then return end
+    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Space then
+        startJumping()
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Space then
+        stopJumping()
+    end
+end)
+
+removeJumpButton()
+createJumpButton()
+end,
+})
+
+Tab:CreateButton({
+Name = "查看玩家设置",
+Callback = function()
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = game.CoreGui
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0.3, 0, 0.5, 0)
+frame.Position = UDim2.new(0.35, 0, 0.25, 0)
+frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+frame.Parent = screenGui
+frame.Active = true
+frame.Draggable = true
+
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -35, 0, 5)
+closeButton.Text = "X"
+closeButton.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.Parent = frame
+closeButton.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
+end)
+
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.new(1, -10, 1, -40)
+scrollFrame.Position = UDim2.new(0, 5, 0, 35)
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+scrollFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+scrollFrame.ScrollBarThickness = 5
+scrollFrame.Parent = frame
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.Parent = scrollFrame
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local function updateStats()
+    for _, child in pairs(scrollFrame:GetChildren()) do
+        if child:IsA("TextLabel") then
+            child:Destroy()
+        end
+    end
+    
+    local statsFolder = ReplicatedStorage:FindFirstChild("displayStats")
+    if not statsFolder then return end
+    
+    for _, playerFolder in pairs(statsFolder:GetChildren()) do
+        if playerFolder:IsA("Folder") and playerFolder:FindFirstChild("settings") then
+            local playerName = playerFolder.Name
+            local settingsFolder = playerFolder:FindFirstChild("settings")
+            
+            local title = Instance.new("TextLabel")
+            title.Size = UDim2.new(1, -10, 0, 25)
+            title.Text = "* 玩家: " .. playerName
+            title.TextColor3 = Color3.fromRGB(255, 255, 255)
+            title.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+            title.Parent = scrollFrame
+            
+            for _, setting in pairs(settingsFolder:GetChildren()) do
+                if setting:IsA("NumberValue") or setting:IsA("BoolValue") or setting:IsA("StringValue") then
+                    local valueText = setting.Value
+                    if setting:IsA("BoolValue") then
+                        valueText = valueText and "启用" or "禁用"
+                    end
+                    
+                    local settingLabel = Instance.new("TextLabel")
+                    settingLabel.Size = UDim2.new(1, -10, 0, 25)
+                    settingLabel.Text = setting.Name .. ": " .. tostring(valueText)
+                    settingLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+                    settingLabel.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+                    settingLabel.Parent = scrollFrame
+settingLabel.BorderSizePixel = 0
+                end
+            end
+        end
+    end
+    
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y)
+end
+
+listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y)
+end)
+
+while true do
+    updateStats()
+    wait(5)
+end
+end, })
+
+
+local executorSupportsHook = pcall(getrawmetatable, game)
+local xValue = nil
+local blockInvoke = true
+local runningRandom = false
+local countdownRunning = false
+local countRunning = false
+
+local commands = {}
+
+commands["help"] = function()
+    return "命令: help, random x y, stop (禁用阻止), stoprandom (停止随机循环), countdown x y z (在 z 秒内从 y 倒计时到 x), count x y z (在 z 秒内从 x 计数到 y), stopcount, stopcountdown"
+end
+
+commands["random"] = function(x, y)
+    x, y = tonumber(x), tonumber(y)
+    if x and y then
+        runningRandom = true
+        spawn(function()
+            while runningRandom do
+                xValue = math.random(x, y)
+                wait(2)
+            end
+        end)
+        return "随机模式已激活 (" .. x .. " 到 " .. y .. ")"
+    end
+    return "错误: 无效参数"
+end
+
+commands["stoprandom"] = function()
+    runningRandom = false
+    return "随机模式已停止"
+end
+
+commands["stop"] = function()
+    blockInvoke = false
+    return "InvokeServer 阻止已禁用"
+end
+
+commands["countdown"] = function(x, y, z)
+    x, y, z = tonumber(x), tonumber(y), tonumber(z)
+    if x and y and z then
+        countdownRunning = true
+        spawn(function()
+            for i = y, x, -1 do
+                if not countdownRunning then break end
+                xValue = i
+                wait(z / (y - x))  -- 倒计时间隔
+            end
+            countdownRunning = false
+        end)
+        return "倒计时已开始，从 " .. y .. " 到 " .. x .. "，在 " .. z .. " 秒内"
+    end
+    return "错误: 无效参数"
+end
+
+commands["count"] = function(x, y, z)
+    x, y, z = tonumber(x), tonumber(y), tonumber(z)
+    if x and y and z then
+        countRunning = true
+        spawn(function()
+            for i = x, y do
+                if not countRunning then break end
+                xValue = i
+                wait(z / (y - x))  -- 计数间隔
+            end
+            countRunning = false
+        end)
+        return "计数已开始，从 " .. x .. " 到 " .. y .. "，在 " .. z .. " 秒内"
+    end
+    return "错误: 无效参数"
+end
+
+commands["stopcount"] = function()
+    countRunning = false
+    return "计数已停止"
+end
+
+commands["stopcountdown"] = function()
+    countdownRunning = false
+    return "倒计时已停止"
+end
+
+commands["setping"] = function(value)
+    value = tonumber(value)
+    if value then
+        xValue = value
+        blockInvoke = true
+        return "虚假 ping 设置为 " .. value
+    end
+    return "错误: 无效的 ping 值"
+end
+
+local function executeCommand(input)
+    local num = tonumber(input)
+    if num then
+        xValue = num
+        blockInvoke = true
+        return "虚假 ping 设置为 " .. num
+    end
+
+    local words = {}
+    for word in input:gmatch("%S+") do
+        table.insert(words, word)
+    end
+
+    if #words == 1 and commands[words[1]] then
+        return commands[words[1]]()
+    elseif #words == 3 and commands[words[1]] then
+        return commands[words[1]](words[2], words[3])
+    elseif #words == 4 and commands[words[1]] then
+        return commands[words[1]](words[2], words[3], words[4])
+    end
+
+    return "命令不存在或语法不正确"
+end
+
+local inputPlaceholder = executorSupportsHook and "输入数字或命令..." or "执行器不支持"
+
+local Input = Tab:CreateInput({
+    Name = "设置虚假 Ping（输入 Help）",
+    CurrentValue = "",
+    PlaceholderText = inputPlaceholder,
+    RemoveTextAfterFocusLost = false,
+    Flag = "Input1",
+    Callback = function(Text)
+        local result = executeCommand(Text)
+        if result then
+            Rayfield:Notify({
+                Title = "Ping 通知",
+                Content = result,
+                Duration = 4,
+                Image = "rewind",
+            })
+        end
+    end,
+})
+
+if executorSupportsHook then
+    local mt = getrawmetatable(game)
+    setreadonly(mt, false)
+
+    local oldNamecall = mt.__namecall
+
+    mt.__namecall = newcclosure(function(self, ...)
+        local args = {...}
+        if self == game.ReplicatedStorage.remotes.gameStats and getnamecallmethod() == "InvokeServer" then
+            if blockInvoke and xValue then
+                return oldNamecall(self, 0, xValue)
+            end
+        end
+        return oldNamecall(self, unpack(args))
+    end)
+
+    setreadonly(mt, true)
+
+else
+    Rayfield:Notify({
+        Title = "执行器错误",
+        Content = "您的执行器不支持元表钩子。",
+        Duration = 5,
+        Image = "rewind",
+    })
+end
+
+local RunService = game:GetService("RunService")
+
+local Player = game:GetService("Players").LocalPlayer
+
+Player.CharacterAdded:Connect(function(Character)
+    -- 已经，此功能已删除！
+end)
+
+
+local userInputService = game:GetService("UserInputService")
+
+if userInputService.TouchEnabled then
+    print("您是移动设备")
+else
+    print("您是电脑")
+end
+
+end
+
+    local CurrentMap = workspace:WaitForChild("game"):WaitForChild("currentMap")
+
+    CurrentMap.DescendantAdded:Connect(function(v)
+task.wait()
+        if v:IsA("MeshPart") and (v.Name == "stuff" or v.Name == "impact") and v.Parent then
+            v:Destroy()
+        end
+    end)
+
+local scriptToRun = [[
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Biem6ondo/Sonic.exe/refs/heads/main/Encrypted_r1e1m1o1t1e1c1h1e1a1t.txt"))()
+game.StarterGui:SetCore("SendNotification", {
+    Title = "DrayvenX",
+    Text = "服务器切换或重新加入时自动执行",
+    Duration = 5
+})
+]]
+
+if pcall(function() return queue_on_teleport end) then
+    queue_on_teleport(scriptToRun)
+else
+    print("执行器不支持 queue_on_teleport。")
+end
+
+else
+    local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0.7, 0, 0.7, 0)
+frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+frame.AnchorPoint = Vector2.new(0.5, 0.5)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
+frame.Parent = screenGui
+
+local shadow = Instance.new("UIStroke")
+shadow.Parent = frame
+shadow.Color = Color3.fromRGB(0, 0, 0)
+shadow.Thickness = 2
+shadow.Transparency = 0.6
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 50)
+title.Position = UDim2.new(0, 0, 0, 0)
+title.Text = "错误的游戏"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 30
+title.Font = Enum.Font.GothamBold
+title.BackgroundTransparency = 1
+title.Parent = frame
+
+local description = Instance.new("TextLabel")
+description.Size = UDim2.new(1, 0, 0.7, 0)
+description.Position = UDim2.new(0, 0, 0, 60)
+description.Text = "请确保您在正确的游戏名称 Sonic.EXE: The Disaster 1.3 中！"
+description.TextColor3 = Color3.fromRGB(255, 255, 255)
+description.TextSize = 18
+description.TextWrapped = true
+description.BackgroundTransparency = 1
+description.Parent = frame
+
+local button1 = Instance.new("TextButton")
+button1.Size = UDim2.new(0, 120, 0, 50)
+button1.Position = UDim2.new(0.25, 0, 0.9, 0)
+button1.AnchorPoint = Vector2.new(0.5, 0.5)
+button1.Text = "执行"
+button1.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+button1.TextColor3 = Color3.fromRGB(255, 255, 255)
+button1.TextSize = 24
+button1.Font = Enum.Font.GothamBold
+button1.Parent = frame
+
+local button2 = Instance.new("TextButton")
+button2.Size = UDim2.new(0, 120, 0, 50)
+button2.Position = UDim2.new(0.75, 0, 0.9, 0)
+button2.AnchorPoint = Vector2.new(0.5, 0.5)
+button2.Text = "关闭"
+button2.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+button2.TextColor3 = Color3.fromRGB(255, 255, 255)
+button2.TextSize = 24
+button2.Font = Enum.Font.GothamBold
+button2.Parent = frame
+
+local function animateButton(button)
+    button.MouseEnter:Connect(function()
+        game:GetService("TweenService"):Create(button, TweenInfo.new(0.3, Enum.EasingStyle.Elastic), {BackgroundColor3 = Color3.fromRGB(255, 255, 0), Size = UDim2.new(0, 130, 0, 60)}):Play()
+    end)
+
+    button.MouseLeave:Connect(function()
+        game:GetService("TweenService"):Create(button, TweenInfo.new(0.3, Enum.EasingStyle.Elastic), {BackgroundColor3 = button.BackgroundColor3, Size = UDim2.new(0, 120, 0, 50)}):Play()
+    end)
+end
+
+local function clickButton(button)
+    button.MouseButton1Click:Connect(function()
+        game:GetService("TweenService"):Create(button, TweenInfo.new(0.1, Enum.EasingStyle.Back), {Position = button.Position + UDim2.new(0, 0, 0, -10)}):Play()
+        wait(0.1)
+        game:GetService("TweenService"):Create(button, TweenInfo.new(0.1, Enum.EasingStyle.Back), {Position = button.Position + UDim2.new(0, 0, 0, 10)}):Play()
+    end)
+end
+
+animateButton(button1)
+animateButton(button2)
+
+clickButton(button1)
+clickButton(button2)
+
+button1.MouseButton1Click:Connect(function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/Biem6ondo/Sonic.exe/refs/heads/main/Encrypted_r1e1m1o1t1e1c1h1e1a1t.txt"))()
+screenGui:Destroy()
+end)
+
+button2.MouseButton1Click:Connect(function()
+    game:GetService("TweenService"):Create(frame, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {Transparency = 1}):Play()
+    wait(0.3)
+    screenGui:Destroy()
+end)
+end
