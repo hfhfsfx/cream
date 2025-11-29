@@ -50,7 +50,7 @@ local function getPlayerNames()
     return names
 end
 -- ==================== 1. 基础功能标签页 ====================
-local BasicTab = Window:CreateTab("基础功能", 4483362458)
+local BasicTab = Window:CreateTab("基础功能", 135443303437470)
 
 -- 飞行控制
 BasicTab:CreateSection("团队控制")
@@ -350,7 +350,7 @@ BasicTab:CreateToggle({
 
 
 -- ==================== 2. 战斗功能标签页 ====================
-local CombatTab = Window:CreateTab("伤害/干扰", 4483362458)
+local CombatTab = Window:CreateTab("伤害/干扰", 135443303437470)
 
 -- 伤害能力判断函数
 function canDealDamage(player)
@@ -995,7 +995,7 @@ CombatTab:CreateButton({
 })
 
 -- ==================== 3. 生存功能标签页 ====================
-local SurvivalTab = Window:CreateTab("生存/自杀", 4483362458)
+local SurvivalTab = Window:CreateTab("生存/自杀", 135443303437470)
 
 -- 无敌 Toggle
 local isInvincibleActive = false
@@ -1451,7 +1451,7 @@ SurvivalTab:CreateButton({
 })
 
 -- ==================== 4. 增益功能标签页 ====================
-local BuffTab = Window:CreateTab("增益", 4483362458)
+local BuffTab = Window:CreateTab("增益", 135443303437470)
 
 -- 福buff（选择玩家）- Toggle
 local targetPlayer = nil
@@ -1771,7 +1771,7 @@ BuffTab:CreateButton({
 
 
 -- ==================== 5. 角色选择标签页 ====================
-local CharacterTab = Window:CreateTab("角色选择", 4483362458)
+local CharacterTab = Window:CreateTab("角色选择", 135443303437470)
 
 local selectedCharacter = nil
 local selectedMinion = nil
@@ -2169,7 +2169,7 @@ CharacterTab:CreateToggle({
 
 
 -- ==================== 7. 角色技能标签页 ====================
-local AbilityTab = Window:CreateTab("角色技能", 4483362458)
+local AbilityTab = Window:CreateTab("角色技能", 135443303437470)
 
 local isBraverySoulActive = false
 local braverySoulLoop = nil
@@ -2946,7 +2946,7 @@ AbilityTab:CreateToggle({
 
 
 -- ==================== 6. 面板控制标签页 ====================
-local ControlTab = Window:CreateTab("面板控制", 4483362458)
+local ControlTab = Window:CreateTab("面板控制", 135443303437470)
 
 -- 关闭面板（清理所有功能循环）
 ControlTab:CreateButton({
