@@ -2686,8 +2686,8 @@ AbilityTab:CreateToggle({
 
                 local spearCountPerLine = 40
                 local radius = 5
-                local fireDelay = 0
-                local rotateSpeed = 0
+                local fireDelay = 0.05
+                local rotateSpeed = 0.01
 
                 local currentAngle = 0
 
