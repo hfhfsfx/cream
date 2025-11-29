@@ -2544,6 +2544,173 @@ AbilityTab:CreateToggle({
         end
     end
 })
+-- ==================== 选人围绕混沌矛（新增功能） ====================
+local targetChaosOrbitPlayer = nil
+local isChaosOrbitActive = false
+local chaosOrbitLoop = nil
+
+-- 选人下拉框
+local chaosOrbitDropdown = AbilityTab:CreateDropdown({
+    Name = "选择混沌矛围绕玩家",
+    Options = getPlayerNames(),
+    CurrentOption = getPlayerNames()[1] or "无",
+    MultipleOptions = false,
+    Flag = "ChaosOrbitTargetDropdown",
+    Callback = function(Options)
+        local name = Options[1]
+        targetChaosOrbitPlayer = Players:FindFirstChild(name)
+        local targetName = targetChaosOrbitPlayer and targetChaosOrbitPlayer.Name or "无"
+        print("[维度融合] 混沌矛围绕目标已选中：" .. targetName)
+    end
+})
+
+-- 刷新下拉框
+local function refreshChaosOrbitDropdown()
+    chaosOrbitDropdown:Refresh(getPlayerNames())
+    if targetChaosOrbitPlayer and not targetChaosOrbitPlayer:IsDescendantOf(Players) then
+        targetChaosOrbitPlayer = nil
+        print("[维度融合] 混沌矛围绕目标已离开，已重置")
+    end
+end
+
+Players.PlayerAdded:Connect(refreshChaosOrbitDropdown)
+Players.PlayerRemoving:Connect(refreshChaosOrbitDropdown)
+
+-- 混沌矛围绕核心配置参数
+local chaosOrbitConfig = {
+    radius = 120, -- 环绕半径
+    angleStep = 3, -- 每次旋转角度增量
+    teleportInterval = 0 / 360, -- 瞬移间隔（0.5秒绕完360度）
+    fireDistance = 200, -- 混沌矛发射距离
+    fireYOffset = 10 -- 发射高度偏移
+}
+
+-- 等待本地角色加载
+local function waitForLocalCharacterChaos()
+    local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local rootPart = Character:WaitForChild("HumanoidRootPart", 10)
+    if not rootPart then
+        warn("[选人围绕混沌矛] 未找到本地玩家角色核心部位！")
+        return nil
+    end
+    Character.Humanoid.Died:Connect(function()
+        isChaosOrbitActive = false
+        if chaosOrbitLoop then
+            chaosOrbitLoop = nil
+        end
+    end)
+    return rootPart
+end
+
+-- 计算混沌矛发射点位
+local function calculateChaosFirePoints(localRootPart)
+    local points = {}
+    local forwardDir = localRootPart.CFrame.LookVector * Vector3.new(1, 0, 1).Unit
+    local firePos = localRootPart.Position + forwardDir * chaosOrbitConfig.fireDistance + Vector3.new(0, chaosOrbitConfig.fireYOffset, 0)
+    table.insert(points, firePos)
+    return points
+end
+
+-- 计算瞬移点位
+local function calculateChaosTeleportPoint(centerPos, currentAngle, localRootPart)
+    local rad = math.rad(currentAngle)
+    local teleportX = centerPos.X + chaosOrbitConfig.radius * math.cos(rad)
+    local teleportZ = centerPos.Z + chaosOrbitConfig.radius * math.sin(rad)
+    local teleportY = centerPos.Y + 1 -- 固定高度避免波动
+    local teleportPos = Vector3.new(teleportX, teleportY, teleportZ)
+    local lookAtCFrame = CFrame.lookAt(teleportPos, Vector3.new(centerPos.X, teleportY, centerPos.Z))
+    return teleportPos, lookAtCFrame
+end
+
+-- 发射混沌矛
+local function fireChaosSpear(points)
+    local ChaosSpearEvent = ReplicatedStorage:FindFirstChild("PlayerRemoteEvents")
+        and ReplicatedStorage.PlayerRemoteEvents:FindFirstChild("Shadow")
+        and ReplicatedStorage.PlayerRemoteEvents.Shadow:FindFirstChild("ChaosSpear")
+    if not ChaosSpearEvent then
+        warn("[选人围绕混沌矛] 未找到 Shadow.ChaosSpear 远程事件！")
+        return
+    end
+    for _, pos in ipairs(points) do
+        local targetCFrame = CFrame.new(pos)
+        ChaosSpearEvent:FireServer(targetCFrame)
+    end
+end
+
+-- 选人围绕混沌矛开关
+AbilityTab:CreateToggle({
+    Name = "『开启/关闭选人围绕混沌矛』",
+    CurrentValue = false,
+    Flag = "ChaosOrbitToggle",
+    Callback = function(Value)
+        isChaosOrbitActive = Value
+        local localRootPart = waitForLocalCharacterChaos()
+        if not localRootPart then
+            isChaosOrbitActive = false
+            return
+        end
+
+        if isChaosOrbitActive then
+            if not targetChaosOrbitPlayer then
+                warn("[选人围绕混沌矛] 请先从下拉框选择围绕目标！")
+                isChaosOrbitActive = false
+                return
+            end
+            if targetChaosOrbitPlayer == LocalPlayer then
+                warn("[选人围绕混沌矛] 不能围绕自己释放！")
+                isChaosOrbitActive = false
+                return
+            end
+
+            print("[维度融合] 选人围绕混沌矛已开启，目标：" .. targetChaosOrbitPlayer.Name)
+            chaosOrbitLoop = coroutine.create(function()
+                local currentAngle = 0
+                while isChaosOrbitActive and targetChaosOrbitPlayer and targetChaosOrbitPlayer:IsDescendantOf(Players) do
+                    -- 验证目标角色存在
+                    local targetCharacter = targetChaosOrbitPlayer.Character
+                    if not targetCharacter or not targetCharacter:FindFirstChild("HumanoidRootPart") then
+                        task.wait(0.1)
+                        continue
+                    end
+                    local targetRootPart = targetCharacter.HumanoidRootPart
+                    local centerPos = targetRootPart.Position
+
+                    -- 计算并执行瞬移
+                    local teleportPos, lookAtCFrame = calculateChaosTeleportPoint(centerPos, currentAngle, localRootPart)
+                    if teleportPos and lookAtCFrame then
+                        localRootPart.CFrame = lookAtCFrame
+                    end
+
+                    -- 计算并发射混沌矛
+                    local firePoints = calculateChaosFirePoints(localRootPart)
+                    if #firePoints > 0 then
+                        fireChaosSpear(firePoints)
+                    end
+
+                    -- 更新旋转角度
+                    currentAngle = currentAngle + chaosOrbitConfig.angleStep
+                    if currentAngle >= 360 then
+                        currentAngle = 0
+                    end
+
+                    -- 控制环绕速度
+                    task.wait(chaosOrbitConfig.teleportInterval)
+                    if not isChaosOrbitActive then
+                        break
+                    end
+                end
+                isChaosOrbitActive = false
+                print("[维度融合] 选人围绕混沌矛已自动关闭")
+            end)
+            coroutine.resume(chaosOrbitLoop)
+        else
+            if chaosOrbitLoop then
+                chaosOrbitLoop = nil
+            end
+            print("[维度融合] 选人围绕混沌矛已关闭")
+        end
+    end
+})
 
 
 -- ==================== Gaster Blaster（龙骨炮）功能 ====================
