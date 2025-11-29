@@ -2544,7 +2544,7 @@ AbilityTab:CreateToggle({
         end
     end
 })
--- ==================== 选人围绕混沌矛（新增功能） ====================
+-- ==================== 选人围绕混沌矛（自动追踪版） ====================
 local targetChaosOrbitPlayer = nil
 local isChaosOrbitActive = false
 local chaosOrbitLoop = nil
@@ -2580,9 +2580,9 @@ Players.PlayerRemoving:Connect(refreshChaosOrbitDropdown)
 local chaosOrbitConfig = {
     radius = 120, -- 环绕半径
     angleStep = 3, -- 每次旋转角度增量
-    teleportInterval = 0 / 360, -- 瞬移间隔（0.5秒绕完360度）
+    teleportInterval = 0.5 / 360, -- 瞬移间隔（0.5秒绕完360度）
     fireDistance = 200, -- 混沌矛发射距离
-    fireYOffset = 6 -- 发射高度偏移
+    fireYOffset = 10 -- 发射高度偏移
 }
 
 -- 等待本地角色加载
@@ -2602,11 +2602,12 @@ local function waitForLocalCharacterChaos()
     return rootPart
 end
 
--- 计算混沌矛发射点位
-local function calculateChaosFirePoints(localRootPart)
+-- 计算混沌矛发射点位（改为追踪目标）
+local function calculateChaosFirePoints(localRootPart, targetRootPart)
     local points = {}
-    local forwardDir = localRootPart.CFrame.LookVector * Vector3.new(1, 0, 1).Unit
-    local firePos = localRootPart.Position + forwardDir * chaosOrbitConfig.fireDistance + Vector3.new(0, chaosOrbitConfig.fireYOffset, 0)
+    -- 朝向目标玩家方向发射
+    local targetDir = (targetRootPart.Position - localRootPart.Position).Unit * Vector3.new(1, 0, 1).Unit
+    local firePos = localRootPart.Position + targetDir * chaosOrbitConfig.fireDistance + Vector3.new(0, chaosOrbitConfig.fireYOffset, 0)
     table.insert(points, firePos)
     return points
 end
@@ -2681,8 +2682,8 @@ AbilityTab:CreateToggle({
                         localRootPart.CFrame = lookAtCFrame
                     end
 
-                    -- 计算并发射混沌矛
-                    local firePoints = calculateChaosFirePoints(localRootPart)
+                    -- 计算并发射混沌矛（传入目标根部件实现追踪）
+                    local firePoints = calculateChaosFirePoints(localRootPart, targetRootPart)
                     if #firePoints > 0 then
                         fireChaosSpear(firePoints)
                     end
@@ -2711,6 +2712,8 @@ AbilityTab:CreateToggle({
         end
     end
 })
+
+
 
 
 -- ==================== Gaster Blaster（龙骨炮）功能 ====================
