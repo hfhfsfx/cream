@@ -2653,8 +2653,7 @@ AbilityTab:CreateToggle({
         end
     end
 })
-
--- ==================== 对称双线旋转龙骨炮（自身为中心） ====================
+-- 对称双线旋转龙骨炮（自身为中心）- 修复后
 local isDualLineRotatingGasterBlasterActive = false
 local dualLineRotatingGasterBlasterLoop = nil
 
@@ -2684,10 +2683,12 @@ AbilityTab:CreateToggle({
                 local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
                 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
+                -- 调整参数：增加高度偏移，优化旋转速度
                 local spearCountPerLine = 40
-                local radius = 5
-                local fireDelay = 0.05
-                local rotateSpeed = 0.01
+                local radius = 8  -- 扩大环绕半径，避免贴近自身
+                local fireDelay = 0.01
+                local rotateSpeed = 0.05  -- 设置旋转速度，实现动态扩散
+                local heightOffset = 3  -- Y轴高度偏移，远离角色平面
 
                 local currentAngle = 0
 
@@ -2702,12 +2703,14 @@ AbilityTab:CreateToggle({
                         local angle1 = (i - 1) * (2 * math.pi / spearCountPerLine) + currentAngle
                         local offsetX1 = math.cos(angle1) * radius
                         local offsetZ1 = math.sin(angle1) * radius
-                        local targetPos1 = humanoidRootPart.Position + Vector3.new(offsetX1, 0, offsetZ1)
+                        -- 添加Y轴高度偏移，发射点高于角色
+                        local targetPos1 = humanoidRootPart.Position + Vector3.new(offsetX1, heightOffset, offsetZ1)
 
                         local angle2 = angle1 + math.pi
                         local offsetX2 = math.cos(angle2) * radius
                         local offsetZ2 = math.sin(angle2) * radius
-                        local targetPos2 = humanoidRootPart.Position + Vector3.new(offsetX2, 0, offsetZ2)
+                        -- 另一线路同样添加高度偏移，形成对称立体效果
+                        local targetPos2 = humanoidRootPart.Position + Vector3.new(offsetX2, heightOffset, offsetZ2)
 
                         local args1 = {targetPos1}
                         local args2 = {targetPos2}
@@ -2728,6 +2731,7 @@ AbilityTab:CreateToggle({
         end
     end
 })
+
 
 -- ==================== 选人无限龙骨炮功能 ====================
 local targetGasterBlasterPlayer = nil
