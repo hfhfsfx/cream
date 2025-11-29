@@ -241,7 +241,7 @@ BasicTab:CreateToggle({
         isLevelFarmActive = Value
         if isLevelFarmActive then
             -- 执行50次 getgenv().farm = true（确保状态激活）
-            for i = 1, 100 do
+            for i = 1, 400 do
                 getgenv().farm = true
             end
             -- 循环触发 EscapeEvent 刷等级
