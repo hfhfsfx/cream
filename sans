@@ -273,13 +273,14 @@ BasicTab:CreateToggle({
         end
     end
 })
--- ==================== 增加杀手和仆从普攻范围（账号无关稳定版） ====================
+-- ==================== 增加杀手和仆从普攻范围（重生稳定版） ====================
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 local isWidenAllAttackRangeActive = false
 local soundAttackConnection = nil
 local characterLoadConnection = nil
-local attackWaitConnection = nil
-local lastPlayerModel = nil
 
+-- 安全断开连接工具函数
 local function safeDisconnectConnection(conn)
     if conn and typeof(conn) == "RBXScriptConnection" then
         conn:Disconnect()
@@ -287,110 +288,89 @@ local function safeDisconnectConnection(conn)
     return nil
 end
 
--- 提取攻击范围扩大核心逻辑为独立函数，便于复用
-local function expandAttackRange(playerModel)
-    if not isWidenAllAttackRangeActive or not playerModel then return end
-    
-    local HitScanRemote = playerModel:FindFirstChild("HitFolder")
-        and playerModel.HitFolder:FindFirstChild("AttackVariables")
-        and playerModel.HitFolder.AttackVariables:FindFirstChild("Remotes")
-        and playerModel.HitFolder.AttackVariables.Remotes:FindFirstChild("HitScan")
-    
-    if HitScanRemote then
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character then
-                local success, err = pcall(function()
-                    HitScanRemote:FireServer(player.Character)
-                end)
-                if not success then
-                    warn("[维度融合] 对玩家 " .. player.Name .. " 普攻范围增加失败: " .. tostring(err))
+-- 递归查找攻击音效（优化查找逻辑）
+local function findSwooshSound(model)
+    if not model or not model:IsA("Model") then return nil end
+    -- 优先查找武器相关部件，提升查找效率
+    local weaponParts = {model:FindFirstChild("Weapon"), model:FindFirstChild("Tool"), model:FindFirstChild("装备")}
+    for _, part in ipairs(weaponParts) do
+        if part then
+            for _, child in ipairs(part:GetDescendants()) do
+                if child.Name == "Swoosh" and child:IsA("Sound") then
+                    return child
                 end
             end
         end
-        print("[维度融合] 已执行普攻范围扩大")
-    else
-        warn("[维度融合] 未找到HitScan远程事件")
     end
-end
-
--- 监听目标模型（自身角色）的AttackWait事件
-local function listenToAttackWait(playerModel)
-    if not playerModel then return end
-    
-    -- 清理旧连接
-    attackWaitConnection = safeDisconnectConnection(attackWaitConnection)
-    
-    local humanoidRootPart = playerModel:FindFirstChild("HumanoidRootPart")
-    if humanoidRootPart then
-        -- 监听AttackWait值变化（假设为ValueBase类型）
-        local attackWaitValue = humanoidRootPart:FindFirstChild("AttackWait")
-        if attackWaitValue then
-            attackWaitConnection = attackWaitValue.Changed:Connect(function()
-                expandAttackRange(playerModel)
-            end)
-            print("[维度融合] 已监听自身角色的AttackWait事件")
-        else
-            warn("[维度融合] 自身角色的HumanoidRootPart中未找到AttackWait值")
+    -- 全模型兜底查找
+    for _, child in ipairs(model:GetDescendants()) do
+        if child.Name == "Swoosh" and child:IsA("Sound") then
+            return child
         end
-    else
-        warn("[维度融合] 未找到自身角色的HumanoidRootPart")
     end
+    return nil
 end
 
+-- 核心功能初始化函数
 local function initAttackRangeFunction()
     if not isWidenAllAttackRangeActive then return end
     
-    -- 清理旧连接
+    -- 清理旧连接，避免重复绑定
     soundAttackConnection = safeDisconnectConnection(soundAttackConnection)
     
-    local playerModel = LocalPlayer.Character
-    if not playerModel then
-        -- 等待角色加载
-        local success = pcall(function()
-            playerModel = workspace:WaitForChild(LocalPlayer.Name, 3)
-        end)
-        if not success or not playerModel then
-            warn("[维度融合] 等待玩家模型超时")
-            return
-        end
+    -- 确保获取当前加载完成的角色模型
+    local playerModel = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    if not playerModel or not playerModel:FindFirstChild("Humanoid") then
+        warn("[维度融合] 角色模型或人形组件加载失败")
+        return
     end
     
-    lastPlayerModel = playerModel
+    -- 延长等待时间，确保武器和音效完全加载（从2秒延长至3秒）
+    task.wait(3)
     
-    -- 递归查找音效（更健壮的查找方式）
-    local function findSwooshSound(model)
-        if not model then return nil end
-        for _, child in ipairs(model:GetDescendants()) do
-            if child.Name == "Swoosh" and child:IsA("Sound") then
-                return child
-            end
-        end
-        return nil
-    end
-    
-    -- 尝试查找音效，最多重试3次
+    -- 增强音效查找：最多5次重试，每次间隔0.8秒
     local sound = nil
-    for attempt = 1, 3 do
+    for attempt = 1, 5 do
         sound = findSwooshSound(playerModel)
         if sound then break end
-        task.wait(0.5) -- 每次重试等待0.5秒
+        task.wait(0.8)
     end
     
     if sound then
-        -- 监听攻击音效触发
+        -- 重新绑定音效触发事件
         soundAttackConnection = sound.Played:Connect(function()
-            expandAttackRange(playerModel)
+            if not isWidenAllAttackRangeActive then return end
+            
+            -- 优化远程事件查找路径，增加容错
+            local HitScanRemote = playerModel:FindFirstChildWhichIsA("Folder", true)
+                and playerModel:FindFirstChildWhichIsA("Folder", true):FindFirstChild("AttackVariables", true)
+                and playerModel:FindFirstChildWhichIsA("Folder", true).AttackVariables:FindFirstChild("Remotes", true)
+                and playerModel:FindFirstChildWhichIsA("Folder", true).AttackVariables.Remotes:FindFirstChild("HitScan")
+            
+            if HitScanRemote then
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") then
+                        local success, err = pcall(function()
+                            HitScanRemote:FireServer(player.Character)
+                        end)
+                        if not success then
+                            warn("[维度融合] 对玩家 " .. player.Name .. " 普攻范围增加失败: " .. tostring(err))
+                        end
+                    end
+                end
+                print("[维度融合] 攻击音效触发，普攻范围已扩展")
+            else
+                warn("[维度融合] 未找到HitScan远程事件")
+            end
         end)
+        
+        print("[维度融合] 普攻范围增加功能初始化成功（角色：" .. playerModel.Name .. "）")
     else
-        warn("[维度融合] 未找到攻击音效Swoosh")
+        warn("[维度融合] 未找到攻击音效Swoosh，功能初始化失败")
     end
-    
-    -- 监听自身角色的AttackWait事件（替换硬编码用户名）
-    listenToAttackWait(playerModel)
-    
-    print("[维度融合] 普攻范围增加功能初始化成功")
 end
 
+-- Rayfield GUI开关回调（优化重生监听逻辑）
 BasicTab:CreateToggle({
     Name = "『开启/关闭增加杀手和仆从普攻范围』",
     CurrentValue = false,
@@ -399,28 +379,23 @@ BasicTab:CreateToggle({
         isWidenAllAttackRangeActive = Value
         
         if isWidenAllAttackRangeActive then
-            -- 首次初始化
-            task.spawn(function()
-                task.wait(1) -- 初始延迟确保角色加载
-                initAttackRangeFunction()
-            end)
+            -- 立即执行一次初始化
+            task.spawn(initAttackRangeFunction)
             
-            -- 监听角色重生，重新初始化所有监听
+            -- 重新绑定角色重生监听，确保每次重生都触发初始化
             characterLoadConnection = safeDisconnectConnection(characterLoadConnection)
             characterLoadConnection = LocalPlayer.CharacterAdded:Connect(function(newCharacter)
-                warn("[维度融合] 检测到角色重生，重新初始化普攻范围功能...")
-                task.wait(2) -- 等待角色完全加载
-                lastPlayerModel = newCharacter
+                print("[维度融合] 角色重生，正在重新初始化普攻范围功能...")
+                -- 等待角色完全加载后执行初始化
+                task.wait(1)
                 initAttackRangeFunction()
-                listenToAttackWait(newCharacter) -- 重生后重新监听AttackWait
             end)
             
             print("[维度融合] 普攻范围增加功能已开启")
         else
-            -- 关闭功能，清理所有连接
+            -- 关闭时彻底清理所有连接
             soundAttackConnection = safeDisconnectConnection(soundAttackConnection)
             characterLoadConnection = safeDisconnectConnection(characterLoadConnection)
-            attackWaitConnection = safeDisconnectConnection(attackWaitConnection)
             print("[维度融合] 普攻范围增加功能已关闭")
         end
     end
