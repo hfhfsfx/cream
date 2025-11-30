@@ -274,6 +274,57 @@ BasicTab:CreateToggle({
     end
 })
 
+-- ==================== 新增：增加杀手和仆从普攻范围 ====================
+local isAttackRangeIncreased = false
+local attackRangeConnection = nil
+
+BasicTab:CreateToggle({
+    Name = "『开启/关闭增加杀手和仆从普攻范围』",
+    CurrentValue = false,
+    Flag = "AttackRangeIncreaseToggle",
+    Callback = function(Value)
+        isAttackRangeIncreased = Value
+        if isAttackRangeIncreased then
+            -- 初始设置当前角色的普攻范围增强
+            local function setupHitSound(playerModel)
+                local success, result = pcall(function()
+                    local Sound = playerModel:WaitForChild("HitFolder"):WaitForChild("hitbox"):WaitForChild("Swoosh")
+                    
+                    Sound.Played:Connect(function()
+                        local HitScanRemote = playerModel:WaitForChild("HitFolder"):WaitForChild("AttackVariables"):WaitForChild("Remotes"):WaitForChild("HitScan")
+                        
+                        for _, player in ipairs(Players:GetPlayers()) do
+                            if player ~= LocalPlayer and player.Character then
+                                HitScanRemote:FireServer(player.Character)
+                            end
+                        end
+                    end)
+                end)
+                
+                if not success then
+                    warn("设置普攻范围增强失败: " .. tostring(result))
+                end
+            end
+
+            if LocalPlayer.Character then
+                setupHitSound(LocalPlayer.Character)
+            end
+
+            -- 监听角色重生，重新绑定功能
+            attackRangeConnection = LocalPlayer.CharacterAdded:Connect(function(character)
+                setupHitSound(character)
+            end)
+            print("[维度融合] 增加杀手和仆从普攻范围功能已开启")
+        else
+            -- 关闭时断开监听连接
+            if attackRangeConnection then
+                attackRangeConnection:Disconnect()
+                attackRangeConnection = nil
+            end
+            print("[维度融合] 增加杀手和仆从普攻范围功能已关闭")
+        end
+    end
+})
 
 
 -- ==================== 2. 战斗功能标签页 ====================
