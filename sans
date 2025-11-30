@@ -229,7 +229,7 @@ BasicTab:CreateToggle({
         end
     end
 })
--- ==================== 新增：刷等级功能 ====================
+-- ==================== 刷等级功能 ====================
 local isLevelFarmActive = false
 local levelFarmLoop = nil
 
@@ -273,79 +273,100 @@ BasicTab:CreateToggle({
         end
     end
 })
+-- ==================== 增加杀手和仆从普攻范围 ====================
+local isWidenAllAttackRangeActive = false
+local soundAttackConnection = nil
+local characterLoadConnection = nil
+local playerModelCache = nil
 
-
--- ==================== 新增：加大chara和yuri平a范围 ====================
-local isWidenAttackRangeActive = false
-local attackRangeCheckLoop = nil
-
-BasicTab:CreateSection("平a攻击范围")
 BasicTab:CreateToggle({
-    Name = "『开启/关闭加大杀手平a范围(仆从除外)』",
+    Name = "『开启/关闭增加杀手和仆从普攻范围』",
     CurrentValue = false,
-    Flag = "WidenAttackRangeToggle",
+    Flag = "WidenAllAttackRangeToggle",
     Callback = function(Value)
-        isWidenAttackRangeActive = Value
-        if isWidenAttackRangeActive then
-            local LocalPlayer = game:GetService("Players").LocalPlayer
-            if not LocalPlayer.Character then
-                warn("[维度融合] 角色未加载，无法开启平a范围加大功能！")
-                isWidenAttackRangeActive = false
+        isWidenAllAttackRangeActive = Value
+        local Players = game:GetService("Players")
+        local LocalPlayer = Players.LocalPlayer
+        
+        -- 清理原有连接
+        if soundAttackConnection then
+            soundAttackConnection:Disconnect()
+            soundAttackConnection = nil
+        end
+        if characterLoadConnection then
+            characterLoadConnection:Disconnect()
+            characterLoadConnection = nil
+        end
+        
+        -- 核心功能初始化函数（支持重生后重新加载）
+        local function initAttackRangeFunction()
+            if not isWidenAllAttackRangeActive then return end
+            
+            -- 查找玩家模型
+            local function findPlayerModel()
+                return LocalPlayer.Character or workspace:FindFirstChild(LocalPlayer.Name)
+            end
+            
+            playerModelCache = findPlayerModel() or workspace:WaitForChild(LocalPlayer.Name, 10)
+            
+            if not playerModelCache then
+                warn("[维度融合] 未找到玩家模型，普攻范围增加功能初始化失败")
                 return
             end
             
-            attackRangeCheckLoop = game:GetService("RunService").RenderStepped:Connect(function()
-                if not isWidenAttackRangeActive then return end
+            -- 查找攻击音效
+            local sound = playerModelCache:FindFirstChild("HitFolder")
+                and playerModelCache.HitFolder:FindFirstChild("hitbox")
+                and playerModelCache.HitFolder.hitbox:FindFirstChild("Swoosh")
+            
+            if not sound then
+                warn("[维度融合] 未找到攻击音效Swoosh，普攻范围增加功能初始化失败")
+                return
+            end
+            
+            -- 重新连接音效触发事件
+            if soundAttackConnection then
+                soundAttackConnection:Disconnect()
+            end
+            soundAttackConnection = sound.Played:Connect(function()
+                local HitScanRemote = playerModelCache:FindFirstChild("HitFolder")
+                    and playerModelCache.HitFolder:FindFirstChild("AttackVariables")
+                    and playerModelCache.HitFolder.AttackVariables:FindFirstChild("Remotes")
+                    and playerModelCache.HitFolder.AttackVariables.Remotes:FindFirstChild("HitScan")
                 
-                local playerObj = workspace:FindFirstChild(LocalPlayer.Name)
-                if not playerObj then return end
-                
-                -- 新增：检测workspace中hfhfsfxw的HumanoidRootPart是否存在AttackWait
-                local hfhfsfxwObj = workspace:FindFirstChild("hfhfsfxw")
-                local hasAttackWait = hfhfsfxwObj and hfhfsfxwObj:FindFirstChild("HumanoidRootPart") and hfhfsfxwObj.HumanoidRootPart:FindFirstChild("AttackWait")
-                -- 原有检测条件+新增AttackWait检测
-                local hasAttackTrigger = (playerObj:FindFirstChild("knifeAttack") or playerObj:FindFirstChild("charaAttack")) or hasAttackWait
-                
-                if hasAttackTrigger then
-                    local HitScanRemote = LocalPlayer.Character:FindFirstChild("HitFolder")
-                        and LocalPlayer.Character.HitFolder:FindFirstChild("AttackVariables")
-                        and LocalPlayer.Character.HitFolder.AttackVariables:FindFirstChild("Remotes")
-                        and LocalPlayer.Character.HitFolder.AttackVariables.Remotes:FindFirstChild("HitScan")
-                    
-                    if HitScanRemote then
-                        for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
-                            if player ~= LocalPlayer and player.Character then
-                                HitScanRemote:FireServer(player.Character)
-                            end
+                if HitScanRemote then
+                    for _, player in ipairs(Players:GetPlayers()) do
+                        if player ~= LocalPlayer and player.Character then
+                            HitScanRemote:FireServer(player.Character)
                         end
-                        print("[维度融合] 检测到攻击触发（含AttackWait），已加大平a范围")
-                    else
-                        warn("[维度融合] 未找到HitScan远程事件，无法加大攻击范围")
                     end
-                    
-                    -- 移除原有触发标记
-                    if playerObj:FindFirstChild("knifeAttack") then
-                        playerObj.knifeAttack:Destroy()
-                    end
-                    if playerObj:FindFirstChild("charaAttack") then
-                        playerObj.charaAttack:Destroy()
-                    end
-                    -- 新增：移除AttackWait标记避免重复执行
-                    if hasAttackWait then
-                        hfhfsfxwObj.HumanoidRootPart.AttackWait:Destroy()
-                    end
+                    print("[维度融合] 攻击音效触发，已增加杀手和仆从普攻范围")
+                else
+                    warn("[维度融合] 未找到HitScan远程事件，普攻范围增加失败")
                 end
             end)
-            print("[维度融合] 加大chara和yuri平a范围功能已开启")
+            
+            print("[维度融合] 普攻范围增加功能已重新初始化完成")
+        end
+        
+        if isWidenAllAttackRangeActive then
+            -- 首次初始化功能
+            initAttackRangeFunction()
+            
+            -- 监听角色重生事件，重生后自动重新初始化
+            characterLoadConnection = LocalPlayer.CharacterAdded:Connect(function(newCharacter)
+                playerModelCache = newCharacter
+                warn("[维度融合] 角色已重生，正在重新加载普攻范围增加功能...")
+                initAttackRangeFunction()
+            end)
+            
+            print("[维度融合] 增加杀手和仆从普攻范围功能已开启（支持重生不中断）")
         else
-            if attackRangeCheckLoop then
-                attackRangeCheckLoop:Disconnect()
-                attackRangeCheckLoop = nil
-            end
-            print("[维度融合] 加大chara和yuri平a范围功能已关闭")
+            print("[维度融合] 增加杀手和仆从普攻范围功能已关闭")
         end
     end
 })
+
 
 
 
