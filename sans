@@ -273,10 +273,11 @@ BasicTab:CreateToggle({
         end
     end
 })
--- ==================== 增加杀手和仆从普攻范围（增强稳定版） ====================
+-- ==================== 增加杀手和仆从普攻范围（账号无关稳定版） ====================
 local isWidenAllAttackRangeActive = false
 local soundAttackConnection = nil
 local characterLoadConnection = nil
+local attackWaitConnection = nil
 local lastPlayerModel = nil
 
 local function safeDisconnectConnection(conn)
@@ -284,6 +285,56 @@ local function safeDisconnectConnection(conn)
         conn:Disconnect()
     end
     return nil
+end
+
+-- 提取攻击范围扩大核心逻辑为独立函数，便于复用
+local function expandAttackRange(playerModel)
+    if not isWidenAllAttackRangeActive or not playerModel then return end
+    
+    local HitScanRemote = playerModel:FindFirstChild("HitFolder")
+        and playerModel.HitFolder:FindFirstChild("AttackVariables")
+        and playerModel.HitFolder.AttackVariables:FindFirstChild("Remotes")
+        and playerModel.HitFolder.AttackVariables.Remotes:FindFirstChild("HitScan")
+    
+    if HitScanRemote then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                local success, err = pcall(function()
+                    HitScanRemote:FireServer(player.Character)
+                end)
+                if not success then
+                    warn("[维度融合] 对玩家 " .. player.Name .. " 普攻范围增加失败: " .. tostring(err))
+                end
+            end
+        end
+        print("[维度融合] 已执行普攻范围扩大")
+    else
+        warn("[维度融合] 未找到HitScan远程事件")
+    end
+end
+
+-- 监听目标模型（自身角色）的AttackWait事件
+local function listenToAttackWait(playerModel)
+    if not playerModel then return end
+    
+    -- 清理旧连接
+    attackWaitConnection = safeDisconnectConnection(attackWaitConnection)
+    
+    local humanoidRootPart = playerModel:FindFirstChild("HumanoidRootPart")
+    if humanoidRootPart then
+        -- 监听AttackWait值变化（假设为ValueBase类型）
+        local attackWaitValue = humanoidRootPart:FindFirstChild("AttackWait")
+        if attackWaitValue then
+            attackWaitConnection = attackWaitValue.Changed:Connect(function()
+                expandAttackRange(playerModel)
+            end)
+            print("[维度融合] 已监听自身角色的AttackWait事件")
+        else
+            warn("[维度融合] 自身角色的HumanoidRootPart中未找到AttackWait值")
+        end
+    else
+        warn("[维度融合] 未找到自身角色的HumanoidRootPart")
+    end
 end
 
 local function initAttackRangeFunction()
@@ -326,35 +377,18 @@ local function initAttackRangeFunction()
     end
     
     if sound then
+        -- 监听攻击音效触发
         soundAttackConnection = sound.Played:Connect(function()
-            if not isWidenAllAttackRangeActive then return end
-            
-            local HitScanRemote = playerModel:FindFirstChild("HitFolder")
-                and playerModel.HitFolder:FindFirstChild("AttackVariables")
-                and playerModel.HitFolder.AttackVariables:FindFirstChild("Remotes")
-                and playerModel.HitFolder.AttackVariables.Remotes:FindFirstChild("HitScan")
-            
-            if HitScanRemote then
-                for _, player in ipairs(Players:GetPlayers()) do
-                    if player ~= LocalPlayer and player.Character then
-                        local success, err = pcall(function()
-                            HitScanRemote:FireServer(player.Character)
-                        end)
-                        if not success then
-                            warn("[维度融合] 对玩家 " .. player.Name .. " 普攻范围增加失败: " .. tostring(err))
-                        end
-                    end
-                end
-                print("[维度融合] 攻击音效触发，已增加普攻范围")
-            else
-                warn("[维度融合] 未找到HitScan远程事件")
-            end
+            expandAttackRange(playerModel)
         end)
-        
-        print("[维度融合] 普攻范围增加功能初始化成功")
     else
-        warn("[维度融合] 未找到攻击音效Swoosh，功能初始化失败")
+        warn("[维度融合] 未找到攻击音效Swoosh")
     end
+    
+    -- 监听自身角色的AttackWait事件（替换硬编码用户名）
+    listenToAttackWait(playerModel)
+    
+    print("[维度融合] 普攻范围增加功能初始化成功")
 end
 
 BasicTab:CreateToggle({
@@ -371,19 +405,22 @@ BasicTab:CreateToggle({
                 initAttackRangeFunction()
             end)
             
-            -- 监听角色重生
+            -- 监听角色重生，重新初始化所有监听
             characterLoadConnection = safeDisconnectConnection(characterLoadConnection)
             characterLoadConnection = LocalPlayer.CharacterAdded:Connect(function(newCharacter)
                 warn("[维度融合] 检测到角色重生，重新初始化普攻范围功能...")
                 task.wait(2) -- 等待角色完全加载
+                lastPlayerModel = newCharacter
                 initAttackRangeFunction()
+                listenToAttackWait(newCharacter) -- 重生后重新监听AttackWait
             end)
             
             print("[维度融合] 普攻范围增加功能已开启")
         else
-            -- 关闭功能
+            -- 关闭功能，清理所有连接
             soundAttackConnection = safeDisconnectConnection(soundAttackConnection)
             characterLoadConnection = safeDisconnectConnection(characterLoadConnection)
+            attackWaitConnection = safeDisconnectConnection(attackWaitConnection)
             print("[维度融合] 普攻范围增加功能已关闭")
         end
     end
