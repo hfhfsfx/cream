@@ -3086,6 +3086,18 @@ AbilityTab:CreateToggle({
     end
 })
 
+-- ==================== 新增：额外功能标签页 ====================
+local ExtraTab = Window:CreateTab("额外", 135443303437470)
+
+-- 班迪纸牌功能
+ExtraTab:CreateSection("班迪")
+ExtraTab:CreateButton({
+    Name = "班迪纸牌",
+    Callback = function()
+        game.ReplicatedStorage.PlayerRemoteEvents.Bendy.CardBoardEvent:FireServer()
+        print("[维度融合] 触发班迪纸牌功能")
+    end
+})
 
 
 
