@@ -3098,7 +3098,25 @@ ExtraTab:CreateButton({
         print("[维度融合] 触发班迪纸牌功能")
     end
 })
-
+-- 获得伞(克里姆)功能
+ExtraTab:CreateSection("伞(克里姆专属)")
+ExtraTab:CreateButton({
+    Name = "获得伞",
+    Callback = function()
+        local args = {
+            "preop"
+        }
+        local success, err = pcall(function()
+            game:GetService("ReplicatedStorage"):WaitForChild("PlayerRemoteEvents"):WaitForChild("Glide"):FireServer(unpack(args))
+        end)
+        
+        if success then
+            print("[维度融合] 成功获得伞(克里姆)")
+        else
+            warn("[维度融合] 获得伞功能执行失败: " .. tostring(err))
+        end
+    end
+})
 
 
 -- ==================== 面板控制标签页 - 状态显示模块 ====================
