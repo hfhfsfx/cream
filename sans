@@ -2149,66 +2149,7 @@ CharacterTab:CreateToggle({
 -- ==================== 7. 角色技能标签页 ====================
 local AbilityTab = Window:CreateTab("角色技能", 135443303437470)
 
-local isBraverySoulActive = false
-local braverySoulLoop = nil
-
-AbilityTab:CreateSection("特效")
-AbilityTab:CreateToggle({
-    Name = "『开启/关闭勇气灵魂特效』",
-    CurrentValue = false,
-    Flag = "BraverySoulToggle",
-    Callback = function(Value)
-        isBraverySoulActive = Value
-        if isBraverySoulActive then
-            getgenv().farm = true
-            braverySoulLoop = task.spawn(function()
-                print("[维度融合] 勇气灵魂特效已开启")
-                while getgenv().farm do
-                    task.wait(0.5)
-                    game.ReplicatedStorage.PlayerRemoteEvents.abilityEffect:FireServer()
-                end
-                print("[维度融合] 勇气灵魂特效已自动关闭")
-            end)
-        else
-            getgenv().farm = false
-            if braverySoulLoop then
-                task.cancel(braverySoulLoop)
-                braverySoulLoop = nil
-            end
-            print("[维度融合] 勇气灵魂特效已关闭")
-        end
-    end
-})
--- ==================== Sonic 旋转冲刺特效开关 ====================
-local isSpindashActive = false
-
-AbilityTab:CreateToggle({
-    Name = "『开启/关闭 Sonic 旋转冲刺特效』",
-    CurrentValue = false,
-    Flag = "SonicSpindashToggle",
-    Callback = function(Value)
-        isSpindashActive = Value
-        local spindashEvent = game:GetService("ReplicatedStorage")
-            :FindFirstChild("PlayerRemoteEvents")
-            and game:GetService("ReplicatedStorage").PlayerRemoteEvents:FindFirstChild("Sonic")
-            and game:GetService("ReplicatedStorage").PlayerRemoteEvents.Sonic:FindFirstChild("Spindash")
-
-        if not spindashEvent then
-            warn("[维度融合] 未找到 Sonic.Spindash 远程事件！")
-            return
-        end
-
-        if isSpindashActive then
-            spindashEvent:FireServer(true)
-            print("[维度融合] Sonic 旋转冲刺特效已开启")
-        else
-            spindashEvent:FireServer(false)
-            print("[维度融合] Sonic 旋转冲刺特效已关闭")
-        end
-    end
-})
-
--- ==================== 班迪墨水波浪（inkWave）功能 ====================
+-- 班迪墨水波浪（inkWave）功能
 local isInkWaveActive = false
 local inkWaveLoop = nil
 
@@ -3185,6 +3126,69 @@ ExtraTab:CreateToggle({
         end
     end
 })
+-- ==================== 特效功能 ====================
+ExtraTab:CreateSection("特效")
+
+-- 勇气灵魂特效开关
+local isBraverySoulActive = false
+local braverySoulLoop = nil
+
+ExtraTab:CreateToggle({
+    Name = "『开启/关闭勇气灵魂特效』",
+    CurrentValue = false,
+    Flag = "BraverySoulToggle",
+    Callback = function(Value)
+        isBraverySoulActive = Value
+        if isBraverySoulActive then
+            getgenv().farm = true
+            braverySoulLoop = task.spawn(function()
+                print("[维度融合] 勇气灵魂特效已开启")
+                while getgenv().farm do
+                    task.wait(0.5)
+                    game.ReplicatedStorage.PlayerRemoteEvents.abilityEffect:FireServer()
+                end
+                print("[维度融合] 勇气灵魂特效已自动关闭")
+            end)
+        else
+            getgenv().farm = false
+            if braverySoulLoop then
+                task.cancel(braverySoulLoop)
+                braverySoulLoop = nil
+            end
+            print("[维度融合] 勇气灵魂特效已关闭")
+        end
+    end
+})
+
+-- Sonic 旋转冲刺特效开关
+local isSpindashActive = false
+
+ExtraTab:CreateToggle({
+    Name = "『开启/关闭 Sonic 旋转冲刺特效』",
+    CurrentValue = false,
+    Flag = "SonicSpindashToggle",
+    Callback = function(Value)
+        isSpindashActive = Value
+        local spindashEvent = game:GetService("ReplicatedStorage")
+            :FindFirstChild("PlayerRemoteEvents")
+            and game:GetService("ReplicatedStorage").PlayerRemoteEvents:FindFirstChild("Sonic")
+            and game:GetService("ReplicatedStorage").PlayerRemoteEvents.Sonic:FindFirstChild("Spindash")
+
+        if not spindashEvent then
+            warn("[维度融合] 未找到 Sonic.Spindash 远程事件！")
+            return
+        end
+
+        if isSpindashActive then
+            spindashEvent:FireServer(true)
+            print("[维度融合] Sonic 旋转冲刺特效已开启")
+        else
+            spindashEvent:FireServer(false)
+            print("[维度融合] Sonic 旋转冲刺特效已关闭")
+        end
+    end
+})
+
 
 -- ==================== 面板控制标签页 - 状态显示模块 ====================
 local ControlTab = Window:CreateTab("面板控制", 135443303437470)
