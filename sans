@@ -7,6 +7,7 @@ local Window = Rayfield:CreateWindow({
     LoadingTitle = "维度融合",
     LoadingSubtitle = "加载中...",
     Theme = Blood
+})
     ConfigurationSaving = {
         Enabled = true,
         FolderName = "Aimbotgui",
