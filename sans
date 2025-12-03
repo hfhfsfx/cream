@@ -325,285 +325,6 @@ BasicTab:CreateToggle({
         end
     end
 })
--- ==================== 碰撞箱修改功能 ====================
-local Players = game:GetService("Players")
-local LP = Players.LocalPlayer
-local RunService = game:GetService("RunService")
-
--- 碰撞箱设置
-local collisionSettings = {
-    enabled = false,
-    width = 40,
-    height = 40,
-    depth = 40,
-    transparency = 0.7
-}
-
-local updateConnection = nil
-
--- 修改单个碰撞箱
-local function modifySingleCollision(collision)
-    if collisionSettings.enabled then
-        collision.Size = Vector3.new(collisionSettings.width, collisionSettings.height, collisionSettings.depth)
-        collision.Transparency = collisionSettings.transparency
-    else
-        -- 重置为默认值
-        collision.Size = Vector3.new(2, 4, 2)
-        collision.Transparency = 1
-    end
-end
-
--- 修改所有玩家的碰撞箱
-local function modifyCollisions()
-    for _, v in ipairs(Players:GetPlayers()) do
-        if v ~= LP then
-            local char = v.Character
-            if char then
-                local torso = char:FindFirstChild("HitFolder")
-                if torso then
-                    local collision = torso:FindFirstChild("collision")
-                    if collision then
-                        modifySingleCollision(collision)
-                    end
-                end
-            end
-        end
-    end
-end
-
--- 在基础标签页创建碰撞箱相关功能
-BasicTab:CreateSection("碰撞箱修改")
-
--- 创建启用/禁用开关
-BasicTab:CreateToggle({
-    Name = "『开启/关闭增大碰撞箱』",
-    CurrentValue = false,
-    Flag = "CollisionToggle",
-    Callback = function(Value)
-        collisionSettings.enabled = Value
-        
-        if collisionSettings.enabled then
-            -- 开启时启动循环更新
-            updateConnection = RunService.RenderStepped:Connect(function()
-                modifyCollisions()
-            end)
-            -- 立即应用一次修改
-            modifyCollisions()
-            print("[维度融合] 增大碰撞箱功能已开启")
-        else
-            -- 关闭时停止循环并重置碰撞箱
-            if updateConnection then
-                updateConnection:Disconnect()
-                updateConnection = nil
-            end
-            modifyCollisions()
-            print("[维度融合] 增大碰撞箱功能已关闭")
-        end
-    end
-})
-
--- 监听新玩家加入
-Players.PlayerAdded:Connect(function(player)
-    if player ~= LP then
-        player.CharacterAdded:Connect(function(char)
-            task.wait(0.5) -- 等待HitFolder完全加载
-            if collisionSettings.enabled then
-                local torso = char:FindFirstChild("HitFolder")
-                if torso then
-                    local collision = torso:FindFirstChild("collision")
-                    if collision then
-                        modifySingleCollision(collision)
-                    end
-                end
-            end
-        end)
-    end
-end)
-
--- 创建输入框用于修改长、宽、高
-BasicTab:CreateInput({
-    Name = "碰撞箱宽度",
-    CurrentValue = tostring(collisionSettings.width),
-    PlaceholderText = "请输入数值",
-    RemoveTextAfterFocusLost = false,
-    Flag = "WidthInput",
-    Callback = function(Text)
-        local numValue = tonumber(Text)
-        if numValue and numValue > 0 then
-            collisionSettings.width = numValue
-            print(string.format("[维度融合] 宽度已设置为: %s", Text))
-            
-            -- 如果功能已开启，立即应用新设置
-            if collisionSettings.enabled then
-                modifyCollisions()
-            end
-        else
-            warn("[维度融合] 宽度输入无效，请输入正数")
-        end
-    end
-})
-
-BasicTab:CreateInput({
-    Name = "碰撞箱高度",
-    CurrentValue = tostring(collisionSettings.height),
-    PlaceholderText = "请输入数值",
-    RemoveTextAfterFocusLost = false,
-    Flag = "HeightInput",
-    Callback = function(Text)
-        local numValue = tonumber(Text)
-        if numValue and numValue > 0 then
-            collisionSettings.height = numValue
-            print(string.format("[维度融合] 高度已设置为: %s", Text))
-            
-            -- 如果功能已开启，立即应用新设置
-            if collisionSettings.enabled then
-                modifyCollisions()
-            end
-        else
-            warn("[维度融合] 高度输入无效，请输入正数")
-        end
-    end
-})
-
-BasicTab:CreateInput({
-    Name = "碰撞箱深度",
-    CurrentValue = tostring(collisionSettings.depth),
-    PlaceholderText = "请输入数值",
-    RemoveTextAfterFocusLost = false,
-    Flag = "DepthInput",
-    Callback = function(Text)
-        local numValue = tonumber(Text)
-        if numValue and numValue > 0 then
-            collisionSettings.depth = numValue
-            print(string.format("[维度融合] 深度已设置为: %s", Text))
-            
-            -- 如果功能已开启，立即应用新设置
-            if collisionSettings.enabled then
-                modifyCollisions()
-            end
-        else
-            warn("[维度融合] 深度输入无效，请输入正数")
-        end
-    end
-})
-
--- 创建透明度输入框
-BasicTab:CreateInput({
-    Name = "碰撞箱透明度 (0-1)",
-    CurrentValue = tostring(collisionSettings.transparency),
-    PlaceholderText = "0=不透明, 1=完全透明",
-    RemoveTextAfterFocusLost = false,
-    Flag = "TransparencyInput",
-    Callback = function(Text)
-        local numValue = tonumber(Text)
-        if numValue and numValue >= 0 and numValue <= 1 then
-            collisionSettings.transparency = numValue
-            print(string.format("[维度融合] 透明度已设置为: %s", Text))
-            
-            -- 如果功能已开启，立即应用新设置
-            if collisionSettings.enabled then
-                modifyCollisions()
-            end
-        else
-            warn("[维度融合] 透明度输入无效，请输入0-1之间的数值")
-        end
-    end
-})
-
--- 创建预设按钮
-BasicTab:CreateSection("预设尺寸")
-
--- 小尺寸预设
-BasicTab:CreateButton({
-    Name = "预设: 小尺寸 (10x10x10)",
-    Callback = function()
-        collisionSettings.width = 10
-        collisionSettings.height = 10
-        collisionSettings.depth = 10
-        collisionSettings.transparency = 0.7
-        print("[维度融合] 已设置为小尺寸: 10x10x10")
-        
-        if collisionSettings.enabled then
-            modifyCollisions()
-        end
-    end
-})
-
--- 中尺寸预设
-BasicTab:CreateButton({
-    Name = "预设: 中尺寸 (25x25x25)",
-    Callback = function()
-        collisionSettings.width = 25
-        collisionSettings.height = 25
-        collisionSettings.depth = 25
-        collisionSettings.transparency = 0.7
-        print("[维度融合] 已设置为中尺寸: 25x25x25")
-        
-        if collisionSettings.enabled then
-            modifyCollisions()
-        end
-    end
-})
-
--- 大尺寸预设
-BasicTab:CreateButton({
-    Name = "预设: 大尺寸 (40x40x40)",
-    Callback = function()
-        collisionSettings.width = 40
-        collisionSettings.height = 40
-        collisionSettings.depth = 40
-        collisionSettings.transparency = 0.7
-        print("[维度融合] 已设置为大尺寸: 40x40x40")
-        
-        if collisionSettings.enabled then
-            modifyCollisions()
-        end
-    end
-})
-
--- 超大尺寸预设
-BasicTab:CreateButton({
-    Name = "预设: 超大尺寸 (75x75x75)",
-    Callback = function()
-        collisionSettings.width = 75
-        collisionSettings.height = 75
-        collisionSettings.depth = 75
-        collisionSettings.transparency = 0.7
-        print("[维度融合] 已设置为超大尺寸: 75x75x75")
-        
-        if collisionSettings.enabled then
-            modifyCollisions()
-        end
-    end
-})
-
-
--- 创建快速设置按钮（类似Set Fake Ping功能）
-BasicTab:CreateSection("快速设置")
-
-BasicTab:CreateInput({
-    Name = "快速设置尺寸 (输入一个数字)",
-    CurrentValue = "40",
-    PlaceholderText = "输入数字设置长宽高",
-    RemoveTextAfterFocusLost = false,
-    Flag = "QuickSetInput",
-    Callback = function(Text)
-        local numValue = tonumber(Text)
-        if numValue and numValue > 0 then
-            collisionSettings.width = numValue
-            collisionSettings.height = numValue
-            collisionSettings.depth = numValue
-            print(string.format("[维度融合] 快速设置为: %sx%sx%s", Text, Text, Text))
-            
-            -- 如果功能已开启，立即应用新设置
-            if collisionSettings.enabled then
-                modifyCollisions()
-            end
-        else
-            warn("[维度融合] 输入无效，请输入正数")
-        end
-    end
-})
 
 
 -- ==================== 2. 战斗功能标签页 ====================
@@ -3305,6 +3026,289 @@ AbilityTab:CreateToggle({
         end
     end
 })
+
+-- ==================== 碰撞箱修改功能 ====================
+local Players = game:GetService("Players")
+local LP = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+
+-- 碰撞箱设置
+local collisionSettings = {
+    enabled = false,
+    width = 40,
+    height = 40,
+    depth = 40,
+    transparency = 0.7
+}
+
+local updateConnection = nil
+
+-- 修改单个碰撞箱
+local function modifySingleCollision(collision)
+    if collisionSettings.enabled then
+        collision.Size = Vector3.new(collisionSettings.width, collisionSettings.height, collisionSettings.depth)
+        collision.Transparency = collisionSettings.transparency
+    else
+        -- 重置为默认值
+        collision.Size = Vector3.new(2, 4, 2)
+        collision.Transparency = 1
+    end
+end
+
+-- 修改所有玩家的碰撞箱
+local function modifyCollisions()
+    for _, v in ipairs(Players:GetPlayers()) do
+        if v ~= LP then
+            local char = v.Character
+            if char then
+                local torso = char:FindFirstChild("HitFolder")
+                if torso then
+                    local collision = torso:FindFirstChild("collision")
+                    if collision then
+                        modifySingleCollision(collision)
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- 监听新玩家加入
+Players.PlayerAdded:Connect(function(player)
+    if player ~= LP then
+        player.CharacterAdded:Connect(function(char)
+            task.wait(0.5) -- 等待HitFolder完全加载
+            if collisionSettings.enabled then
+                local torso = char:FindFirstChild("HitFolder")
+                if torso then
+                    local collision = torso:FindFirstChild("collision")
+                    if collision then
+                        modifySingleCollision(collision)
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- ==================== 7. 碰撞箱标签页 ====================
+local CollisionTab = Window:CreateTab("碰撞箱", 135443303437470)
+
+-- 在碰撞箱标签页创建碰撞箱相关功能
+CollisionTab:CreateSection("碰撞箱修改")
+
+-- 创建启用/禁用开关
+CollisionTab:CreateToggle({
+    Name = "『开启/关闭增大碰撞箱』",
+    CurrentValue = false,
+    Flag = "CollisionToggle",
+    Callback = function(Value)
+        collisionSettings.enabled = Value
+        
+        if collisionSettings.enabled then
+            -- 开启时启动循环更新
+            updateConnection = RunService.RenderStepped:Connect(function()
+                modifyCollisions()
+            end)
+            -- 立即应用一次修改
+            modifyCollisions()
+            print("[维度融合] 增大碰撞箱功能已开启")
+        else
+            -- 关闭时停止循环并重置碰撞箱
+            if updateConnection then
+                updateConnection:Disconnect()
+                updateConnection = nil
+            end
+            modifyCollisions()
+            print("[维度融合] 增大碰撞箱功能已关闭")
+        end
+    end
+})
+
+-- 创建输入框用于修改长、宽、高
+CollisionTab:CreateInput({
+    Name = "碰撞箱宽度",
+    CurrentValue = tostring(collisionSettings.width),
+    PlaceholderText = "请输入数值",
+    RemoveTextAfterFocusLost = false,
+    Flag = "WidthInput",
+    Callback = function(Text)
+        local numValue = tonumber(Text)
+        if numValue and numValue > 0 then
+            collisionSettings.width = numValue
+            print(string.format("[维度融合] 宽度已设置为: %s", Text))
+            
+            -- 如果功能已开启，立即应用新设置
+            if collisionSettings.enabled then
+                modifyCollisions()
+            end
+        else
+            warn("[维度融合] 宽度输入无效，请输入正数")
+        end
+    end
+})
+
+CollisionTab:CreateInput({
+    Name = "碰撞箱高度",
+    CurrentValue = tostring(collisionSettings.height),
+    PlaceholderText = "请输入数值",
+    RemoveTextAfterFocusLost = false,
+    Flag = "HeightInput",
+    Callback = function(Text)
+        local numValue = tonumber(Text)
+        if numValue and numValue > 0 then
+            collisionSettings.height = numValue
+            print(string.format("[维度融合] 高度已设置为: %s", Text))
+            
+            -- 如果功能已开启，立即应用新设置
+            if collisionSettings.enabled then
+                modifyCollisions()
+            end
+        else
+            warn("[维度融合] 高度输入无效，请输入正数")
+        end
+    end
+})
+
+CollisionTab:CreateInput({
+    Name = "碰撞箱深度",
+    CurrentValue = tostring(collisionSettings.depth),
+    PlaceholderText = "请输入数值",
+    RemoveTextAfterFocusLost = false,
+    Flag = "DepthInput",
+    Callback = function(Text)
+        local numValue = tonumber(Text)
+        if numValue and numValue > 0 then
+            collisionSettings.depth = numValue
+            print(string.format("[维度融合] 深度已设置为: %s", Text))
+            
+            -- 如果功能已开启，立即应用新设置
+            if collisionSettings.enabled then
+                modifyCollisions()
+            end
+        else
+            warn("[维度融合] 深度输入无效，请输入正数")
+        end
+    end
+})
+
+-- 创建透明度输入框
+CollisionTab:CreateInput({
+    Name = "碰撞箱透明度 (0-1)",
+    CurrentValue = tostring(collisionSettings.transparency),
+    PlaceholderText = "0=不透明, 1=完全透明",
+    RemoveTextAfterFocusLost = false,
+    Flag = "TransparencyInput",
+    Callback = function(Text)
+        local numValue = tonumber(Text)
+        if numValue and numValue >= 0 and numValue <= 1 then
+            collisionSettings.transparency = numValue
+            print(string.format("[维度融合] 透明度已设置为: %s", Text))
+            
+            -- 如果功能已开启，立即应用新设置
+            if collisionSettings.enabled then
+                modifyCollisions()
+            end
+        else
+            warn("[维度融合] 透明度输入无效，请输入0-1之间的数值")
+        end
+    end
+})
+
+-- 创建预设按钮
+CollisionTab:CreateSection("预设尺寸")
+
+-- 小尺寸预设
+CollisionTab:CreateButton({
+    Name = "预设: 小尺寸 (10x10x10)",
+    Callback = function()
+        collisionSettings.width = 10
+        collisionSettings.height = 10
+        collisionSettings.depth = 10
+        collisionSettings.transparency = 0.7
+        print("[维度融合] 已设置为小尺寸: 10x10x10")
+        
+        if collisionSettings.enabled then
+            modifyCollisions()
+        end
+    end
+})
+
+-- 中尺寸预设
+CollisionTab:CreateButton({
+    Name = "预设: 中尺寸 (25x25x25)",
+    Callback = function()
+        collisionSettings.width = 25
+        collisionSettings.height = 25
+        collisionSettings.depth = 25
+        collisionSettings.transparency = 0.7
+        print("[维度融合] 已设置为中尺寸: 25x25x25")
+        
+        if collisionSettings.enabled then
+            modifyCollisions()
+        end
+    end
+})
+
+-- 大尺寸预设
+CollisionTab:CreateButton({
+    Name = "预设: 大尺寸 (40x40x40)",
+    Callback = function()
+        collisionSettings.width = 40
+        collisionSettings.height = 40
+        collisionSettings.depth = 40
+        collisionSettings.transparency = 0.7
+        print("[维度融合] 已设置为大尺寸: 40x40x40")
+        
+        if collisionSettings.enabled then
+            modifyCollisions()
+        end
+    end
+})
+
+-- 超大尺寸预设
+CollisionTab:CreateButton({
+    Name = "预设: 超大尺寸 (75x75x75)",
+    Callback = function()
+        collisionSettings.width = 75
+        collisionSettings.height = 75
+        collisionSettings.depth = 75
+        collisionSettings.transparency = 0.7
+        print("[维度融合] 已设置为超大尺寸: 75x75x75")
+        
+        if collisionSettings.enabled then
+            modifyCollisions()
+        end
+    end
+})
+
+-- 创建快速设置按钮
+CollisionTab:CreateSection("快速设置")
+
+CollisionTab:CreateInput({
+    Name = "快速设置尺寸 (输入一个数字)",
+    CurrentValue = "40",
+    PlaceholderText = "输入数字设置长宽高",
+    RemoveTextAfterFocusLost = false,
+    Flag = "QuickSetInput",
+    Callback = function(Text)
+        local numValue = tonumber(Text)
+        if numValue and numValue > 0 then
+            collisionSettings.width = numValue
+            collisionSettings.height = numValue
+            collisionSettings.depth = numValue
+            print(string.format("[维度融合] 快速设置为: %sx%sx%s", Text, Text, Text))
+            
+            -- 如果功能已开启，立即应用新设置
+            if collisionSettings.enabled then
+                modifyCollisions()
+            end
+        else
+            warn("[维度融合] 输入无效，请输入正数")
+        end
+    end
+})
+
 
 -- ==================== 新增：额外功能标签页 ====================
 local ExtraTab = Window:CreateTab("额外", 135443303437470)
