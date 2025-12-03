@@ -28,6 +28,17 @@ local Window = Rayfield:CreateWindow({
     }
 })
 
+-- 在创建窗口后添加主题设置
+Rayfield:SetTheme("Dark")  -- 设置为深色主题
+-- 或者
+Rayfield:SetTheme("Light") -- 设置为浅色主题
+
+-- 自定义颜色
+Rayfield:UpdateTheme({
+    BackgroundColor = Color3.fromRGB(25, 25, 25),
+    AccentColor = Color3.fromRGB(0, 100, 255),
+    TextColor = Color3.fromRGB(240, 240, 240)
+})
 -- 获取服务
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
