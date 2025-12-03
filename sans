@@ -3129,7 +3129,7 @@ CollisionTab:CreateToggle({
 CollisionTab:CreateInput({
     Name = "碰撞箱宽度",
     CurrentValue = tostring(collisionSettings.width),
-    PlaceholderText = "请输入数值",
+    PlaceholderText = "点击输入数字",
     RemoveTextAfterFocusLost = false,
     Flag = "WidthInput",
     Callback = function(Text)
@@ -3151,7 +3151,7 @@ CollisionTab:CreateInput({
 CollisionTab:CreateInput({
     Name = "碰撞箱高度",
     CurrentValue = tostring(collisionSettings.height),
-    PlaceholderText = "请输入数值",
+    PlaceholderText = "点击输入数字",
     RemoveTextAfterFocusLost = false,
     Flag = "HeightInput",
     Callback = function(Text)
@@ -3171,9 +3171,9 @@ CollisionTab:CreateInput({
 })
 
 CollisionTab:CreateInput({
-    Name = "碰撞箱深度",
+    Name = "碰撞箱长度",
     CurrentValue = tostring(collisionSettings.depth),
-    PlaceholderText = "请输入数值",
+    PlaceholderText = "点击输入数字",
     RemoveTextAfterFocusLost = false,
     Flag = "DepthInput",
     Callback = function(Text)
