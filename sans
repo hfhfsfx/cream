@@ -577,21 +577,6 @@ BasicTab:CreateButton({
     end
 })
 
--- 重置为默认值按钮
-BasicTab:CreateButton({
-    Name = "重置为默认尺寸",
-    Callback = function()
-        collisionSettings.width = 2
-        collisionSettings.height = 4
-        collisionSettings.depth = 2
-        collisionSettings.transparency = 1
-        print("[维度融合] 已重置为默认尺寸: 2x4x2")
-        
-        if collisionSettings.enabled then
-            modifyCollisions()
-        end
-    end
-})
 
 -- 创建快速设置按钮（类似Set Fake Ping功能）
 BasicTab:CreateSection("快速设置")
@@ -620,13 +605,6 @@ BasicTab:CreateInput({
     end
 })
 
--- 状态显示
-BasicTab:CreateParagraph({
-    Title = "当前设置状态",
-    Content = "尺寸: " .. collisionSettings.width .. "x" .. collisionSettings.height .. "x" .. collisionSettings.depth .. 
-             " | 透明度: " .. collisionSettings.transparency .. 
-             " | 状态: " .. (collisionSettings.enabled and "已开启" or "已关闭")
-})
 
 -- ==================== 2. 战斗功能标签页 ====================
 local CombatTab = Window:CreateTab("伤害/干扰", 135443303437470)
