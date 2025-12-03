@@ -1,5 +1,5 @@
 -- 加载 Rayfield 库
-local Rayfield = loadstring(game:HttpGet("https://raw.githubusercontent.com/hfhfsfx/tails/main/gui"))()
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 -- 创建主窗口
 local Window = Rayfield:CreateWindow({
