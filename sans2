@@ -1927,7 +1927,7 @@ local morphCharactersList = {
     "Cuphead","Mugman",
     "Sayori","Monika","Yuri",
     "Sans","Frisk","Chara",
-    "Vortex"
+    "Vortex","Gaster
 }
 
 -- Morph 角色选择下拉框
