@@ -1,5 +1,5 @@
 -- 加载 Rayfield 库
-local Rayfield = loadstring(game:HttpGet("https://raw.githubusercontent.com/hfhfsfx/tails/main/ddd"))()
+local Rayfield = loadstring(game:HttpGet("https://raw.githubusercontent.com/hfhfsfx/tails/main/dddd"))()
 
 local Window = Rayfield:CreateWindow({
    Name = "维度融合1.0(原型)",
@@ -14,40 +14,6 @@ local Window = Rayfield:CreateWindow({
    DisableRayfieldPrompts = true, -- 这里保留了原配置
    DisableBuildWarnings = false, -- Prevents Rayfield from warning when the script has a version mismatch with the interface
 
-   -- 添加自定义配色方案
-   ColorOverrides = {
-        TextColor = Color3.fromRGB(255, 255, 255), -- 纯白文字提升可读性
-        Background = Color3.fromRGB(15, 15, 15), -- 深黑底色增强对比度
-        Topbar = Color3.fromRGB(45, 45, 45), -- 深灰顶栏凸显层级
-        Shadow = Color3.fromRGB(10, 10, 10), -- 更暗阴影强化立体感
-        NotificationBackground = Color3.fromRGB(30, 30, 30), -- 稍亮通知背景突出提醒
-        NotificationActionsBackground = Color3.fromRGB(245, 245, 245), -- 亮白操作区提升点击欲望
-        TabBackground = Color3.fromRGB(70, 70, 70), -- 暗灰未选中标签
-        TabStroke = Color3.fromRGB(95, 95, 95), -- 亮灰边框增加精致感
-        TabBackgroundSelected = Color3.fromRGB(0, 160, 255), -- 亮蓝选中标签凸显焦点
-        TabTextColor = Color3.fromRGB(245, 245, 245), -- 亮白未选中文字
-        SelectedTabTextColor = Color3.fromRGB(255, 255, 255), -- 纯白选中文字增强对比
-        ElementBackground = Color3.fromRGB(40, 40, 40), -- 浅深灰元素背景
-        ElementBackgroundHover = Color3.fromRGB(55, 55, 55), -- hover时提亮更明显
-        SecondaryElementBackground = Color3.fromRGB(25, 25, 25), -- 次级元素底色
-        ElementStroke = Color3.fromRGB(65, 65, 65), -- 元素边框加深
-        SecondaryElementStroke = Color3.fromRGB(50, 50, 50), -- 次级元素边框
-        SliderBackground = Color3.fromRGB(60, 60, 60), -- 暗灰滑块背景
-        SliderProgress = Color3.fromRGB(0, 180, 255), -- 亮蓝进度条增强视觉反馈
-        SliderStroke = Color3.fromRGB(80, 180, 255), -- 浅蓝边框提升精致度
-        ToggleBackground = Color3.fromRGB(40, 40, 40), -- 暗灰开关背景
-        ToggleEnabled = Color3.fromRGB(0, 200, 255), -- 亮蓝开启状态
-        ToggleDisabled = Color3.fromRGB(80, 80, 80), -- 深灰关闭状态
-        ToggleEnabledStroke = Color3.fromRGB(50, 210, 255), -- 浅蓝开启边框
-        ToggleDisabledStroke = Color3.fromRGB(110, 110, 110), -- 中灰关闭边框
-        ToggleEnabledOuterStroke = Color3.fromRGB(120, 120, 120), -- 外层边框增强轮廓
-        ToggleDisabledOuterStroke = Color3.fromRGB(70, 70, 70),
-        DropdownSelected = Color3.fromRGB(50, 50, 50), -- 选中下拉框背景
-        DropdownUnselected = Color3.fromRGB(35, 35, 35), -- 未选中下拉框背景
-        InputBackground = Color3.fromRGB(35, 35, 35), -- 输入框底色
-        InputStroke = Color3.fromRGB(75, 75, 75), -- 输入框边框加深
-        PlaceholderColor = Color3.fromRGB(190, 190, 190) -- 占位文字提亮更易识别
-   },
 
    ConfigurationSaving = {
       Enabled = true,
