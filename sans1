@@ -2973,7 +2973,37 @@ AbilityTab:CreateToggle({
 })
 
 
--- 5. 选人围绕Chara挥砍功能（全向动态跟随版）
+-- ==================== 选人围绕Chara挥砍功能（完整版） ====================
+
+-- 创建围绕目标选择下拉框
+local orbitCharaSlashDropdown = AbilityTab:CreateDropdown({
+    Name = "选择围绕Chara挥砍目标玩家",
+    Options = getPlayerNames(),
+    CurrentOption = getPlayerNames()[1] or "无",
+    MultipleOptions = false,
+    Flag = "OrbitCharaSlashTargetDropdown",
+    Callback = function(Options)
+        local name = Options[1]
+        CharaSlash.orbitTargetPlayer = Players:FindFirstChild(name)
+        local targetName = CharaSlash.orbitTargetPlayer and CharaSlash.orbitTargetPlayer.Name or "无"
+        print("[维度融合] 围绕Chara挥砍目标已选中：" .. targetName)
+    end
+})
+
+-- 刷新围绕目标下拉框的函数
+local function refreshOrbitCharaSlashDropdown()
+    orbitCharaSlashDropdown:Refresh(getPlayerNames())
+    if CharaSlash.orbitTargetPlayer and not CharaSlash.orbitTargetPlayer:IsDescendantOf(Players) then
+        CharaSlash.orbitTargetPlayer = nil
+        print("[维度融合] 围绕Chara挥砍目标已离开，已重置")
+    end
+end
+
+-- 监听玩家进出游戏
+Players.PlayerAdded:Connect(refreshOrbitCharaSlashDropdown)
+Players.PlayerRemoving:Connect(refreshOrbitCharaSlashDropdown)
+
+-- 选人围绕Chara挥砍的Toggle开关
 AbilityTab:CreateToggle({
     Name = "『开启/关闭选人围绕Chara挥砍（全向动态跟随）』",
     CurrentValue = false,
@@ -3030,12 +3060,14 @@ AbilityTab:CreateToggle({
             local TweenService = game:GetService("TweenService")
             
             local bodyPosition = Instance.new("BodyPosition")
-            bodyPosition.P = 30000  -- 增加强度确保能跟上快速移动
+            bodyPosition.Name = "CharaOrbitBodyPosition"
+            bodyPosition.P = 30000
             bodyPosition.D = 2000
             bodyPosition.MaxForce = Vector3.new(60000, 60000, 60000)
             bodyPosition.Parent = localRoot
             
             local bodyGyro = Instance.new("BodyGyro")
+            bodyGyro.Name = "CharaOrbitBodyGyro"
             bodyGyro.P = 15000
             bodyGyro.D = 1000
             bodyGyro.MaxTorque = Vector3.new(60000, 60000, 60000)
@@ -3043,31 +3075,36 @@ AbilityTab:CreateToggle({
 
             -- 全向跟随参数
             local orbitConfig = {
-                radius = 100,                    -- 旋转半径
-                secondsPerCircle = 2,           -- 2秒一圈
-                slashInterval = 0.05,           -- 剑气释放间隔
-                heightOffset = 1.5,             -- 相对于目标的高度偏移
-                followSmoothness = 0.4,         -- 位置跟随平滑度（0-1，越大越紧跟）
-                predictiveFactor = 0.2,         -- 预测因子（预测目标移动方向）
-                maxCatchUpSpeed = 50            -- 最大追赶速度
+                radius = 100,
+                secondsPerCircle = 2,
+                slashInterval = 0.05,
+                heightOffset = 1.5,
+                followSmoothness = 0.4,
+                predictiveFactor = 0.2,
+                maxCatchUpSpeed = 50
             }
             
             local lastTime = tick()
             local currentAngle = 0
-            local currentOrbitCenter = targetRoot.Position  -- 当前旋转中心
-            local targetHistory = {}  -- 目标位置历史（用于预测）
-            local historySize = 5     -- 历史记录数量
-            
-            -- 记录初始位置
+            local currentOrbitCenter = targetRoot.Position
+            local targetHistory = {}
+            local historySize = 5
+
+            -- 初始化历史记录
             for i = 1, historySize do
                 targetHistory[i] = targetRoot.Position
             end
 
             -- 全向动态跟随旋转循环
             CharaSlash.orbitLoop = game:GetService("RunService").RenderStepped:Connect(function()
-                if not CharaSlash.isOrbitActive or 
-                   not CharaSlash.orbitTargetPlayer or 
-                   not CharaSlash.orbitTargetPlayer:IsDescendantOf(Players) then
+                if not CharaSlash.isOrbitActive then
+                    return
+                end
+                
+                -- 检查目标是否还在游戏中
+                if not CharaSlash.orbitTargetPlayer or not CharaSlash.orbitTargetPlayer:IsDescendantOf(Players) then
+                    warn("[维度融合] 目标玩家已离开游戏，停止围绕")
+                    CharaSlash.isOrbitActive = false
                     return
                 end
                 
@@ -3083,22 +3120,21 @@ AbilityTab:CreateToggle({
                 
                 local currentTargetPos = latestTargetRoot.Position
                 
-                -- 更新目标位置历史（用于预测移动方向）
+                -- 更新目标位置历史
                 table.remove(targetHistory, 1)
                 table.insert(targetHistory, currentTargetPos)
                 
-                -- 计算目标移动方向和速度（预测）
+                -- 计算目标移动速度和预测位置
                 local targetVelocity = Vector3.new(0, 0, 0)
                 if #targetHistory >= 2 then
                     local recentPos = targetHistory[#targetHistory]
                     local olderPos = targetHistory[1]
-                    local timeSpan = 0.1 * (#targetHistory - 1)  -- 假设每帧间隔0.1秒
+                    local timeSpan = 0.1 * (#targetHistory - 1)
                     if timeSpan > 0 then
                         targetVelocity = (recentPos - olderPos) / timeSpan
                     end
                 end
                 
-                -- 计算预测的目标位置（考虑移动方向）
                 local predictedTargetPos = currentTargetPos + (targetVelocity * orbitConfig.predictiveFactor)
                 
                 -- 计算时间差
@@ -3115,57 +3151,51 @@ AbilityTab:CreateToggle({
                 -- 平滑更新旋转中心（全向跟随）
                 local distanceToTarget = (predictedTargetPos - currentOrbitCenter).Magnitude
                 local catchUpSpeed = math.min(
-                    distanceToTarget * 10,  -- 距离越远，追赶速度越快
+                    distanceToTarget * 10,
                     orbitConfig.maxCatchUpSpeed
                 )
                 
-                -- 计算新的旋转中心（向预测位置移动）
-                local directionToTarget = (predictedTargetPos - currentOrbitCenter).Unit
-                local moveDistance = catchUpSpeed * deltaTime * orbitConfig.followSmoothness
-                
                 if distanceToTarget > 0.1 then
+                    local directionToTarget = (predictedTargetPos - currentOrbitCenter).Unit
+                    local moveDistance = catchUpSpeed * deltaTime * orbitConfig.followSmoothness
                     currentOrbitCenter = currentOrbitCenter + (directionToTarget * math.min(moveDistance, distanceToTarget))
                 else
                     currentOrbitCenter = predictedTargetPos
                 end
                 
-                -- 动态调整高度偏移（如果目标在空中）
+                -- 动态调整高度
                 local targetHeight = predictedTargetPos.Y
                 local desiredHeightOffset = orbitConfig.heightOffset
                 
-                if targetHeight > 15 then  -- 如果目标在空中较高位置
-                    desiredHeightOffset = math.max(orbitConfig.heightOffset, 4)  -- 保持更高高度
-                elseif targetHeight < 5 then  -- 如果目标在地面以下（可能是洞穴）
-                    desiredHeightOffset = math.max(orbitConfig.heightOffset, 0.5)  -- 降低高度
+                if targetHeight > 15 then
+                    desiredHeightOffset = math.max(orbitConfig.heightOffset, 4)
+                elseif targetHeight < 5 then
+                    desiredHeightOffset = math.max(orbitConfig.heightOffset, 0.5)
                 end
                 
-                -- 计算当前旋转位置（基于动态旋转中心）
+                -- 计算玩家当前位置
                 local rad = math.rad(currentAngle)
                 local offsetX = orbitConfig.radius * math.cos(rad)
                 local offsetZ = orbitConfig.radius * math.sin(rad)
                 
-                -- 计算玩家应该瞬移到的位置
                 local teleportPos = Vector3.new(
                     currentOrbitCenter.X + offsetX,
-                    currentOrbitCenter.Y + desiredHeightOffset,  -- 动态高度
+                    currentOrbitCenter.Y + desiredHeightOffset,
                     currentOrbitCenter.Z + offsetZ
                 )
                 
-                -- 创建平滑移动Tween（更快的响应）
+                -- 创建平滑移动Tween
                 local tweenInfo = TweenInfo.new(
-                    0.06,  -- 更短的持续时间，更快响应目标移动
+                    0.06,
                     Enum.EasingStyle.Quad,
-                    Enum.EasingDirection.Out,
-                    0,
-                    false,
-                    0
+                    Enum.EasingDirection.Out
                 )
                 
-                -- 位置Tween（全向跟随目标）
+                -- 位置Tween
                 local positionGoal = {Position = teleportPos}
                 local positionTween = TweenService:Create(bodyPosition, tweenInfo, positionGoal)
                 
-                -- 朝向Tween（始终看向当前目标位置，不是旋转中心）
+                -- 朝向Tween（看向目标）
                 local lookVector = (currentTargetPos - teleportPos).Unit
                 local gyroGoal = {CFrame = CFrame.new(teleportPos, teleportPos + lookVector)}
                 local gyroTween = TweenService:Create(bodyGyro, tweenInfo, gyroGoal)
@@ -3174,12 +3204,12 @@ AbilityTab:CreateToggle({
                 positionTween:Play()
                 gyroTween:Play()
                 
-                -- 向目标当前位置释放剑气
+                -- 向目标释放剑气
                 local slashArgs = {Vector3.new(currentTargetPos.X, currentTargetPos.Y, currentTargetPos.Z)}
                 CharaSlashEvent:FireServer(unpack(slashArgs))
             end)
             
-            -- 剑气释放循环（保持频率）
+            -- 剑气释放循环
             local lastSlashTime = tick()
             CharaSlash.orbitSlashLoop = task.spawn(function()
                 while CharaSlash.isOrbitActive and 
@@ -3192,7 +3222,6 @@ AbilityTab:CreateToggle({
                         local latestTargetRoot = latestTargetChar and latestTargetChar:FindFirstChild("HumanoidRootPart")
                         
                         if latestTargetRoot then
-                            -- 向目标当前位置释放剑气
                             local targetPos = latestTargetRoot.Position
                             local slashArgs = {Vector3.new(
                                 targetPos.X, 
@@ -3245,6 +3274,7 @@ AbilityTab:CreateToggle({
         end
     end
 })
+
 
 -- ==================== Gaster Blaster（龙骨炮）功能 ====================
 local isGasterBlasterActive = false
