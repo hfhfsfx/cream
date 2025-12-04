@@ -3333,48 +3333,13 @@ AbilityTab:CreateToggle({
         end
     end
 })
--- ==================== 选人围绕龙骨炮（实时跟随版） ====================
+
+
+-- ==================== 选人围绕龙骨炮（2秒一圈版） ====================
 local targetOrbitGasterBlasterPlayer = nil
 local isOrbitGasterBlasterActive = false
 local orbitGasterBlasterLoop = nil
-
--- 旋转瞬移核心配置（与围绕混沌矛保持一致）
-local orbitGasterTeleportConfig = {
-    radius = 100, -- 旋转半径
-    angleStep = 1, -- 每步旋转角度
-    teleportInterval = 0.5 / 360 -- 瞬移间隔（0.5秒绕圈）
-}
-local orbitGasterHumanoidRootPart = nil
-local gasterTeleportCenter = nil
-local isGasterOrbitLooping = false
-
--- 角色加载与复活适配
-local function waitForGasterOrbitCharacter()
-    local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    orbitGasterHumanoidRootPart = Character:WaitForChild("HumanoidRootPart", 10)
-    if not orbitGasterHumanoidRootPart then
-        warn("[选人围绕龙骨炮] 未找到角色核心部位，功能禁用！")
-        return false
-    end
-    Character.Humanoid.Died:Connect(function()
-        orbitGasterHumanoidRootPart = nil
-        gasterTeleportCenter = nil
-        waitForGasterOrbitCharacter()
-    end)
-    return true
-end
-
--- 计算旋转瞬移点位（基于实时更新的圆心）
-local function getGasterOrbitTeleportPoint(currentAngle)
-    if not gasterTeleportCenter or not orbitGasterHumanoidRootPart then return nil end
-    local rad = math.rad(currentAngle)
-    local teleportX = gasterTeleportCenter.X + orbitGasterTeleportConfig.radius * math.cos(rad)
-    local teleportZ = gasterTeleportCenter.Z + orbitGasterTeleportConfig.radius * math.sin(rad)
-    local teleportY = gasterTeleportCenter.Y + 1 -- 固定Y轴高度
-    local teleportPos = Vector3.new(teleportX, teleportY, teleportZ)
-    local lookAtCenter = CFrame.lookAt(teleportPos, Vector3.new(gasterTeleportCenter.X, teleportY, gasterTeleportCenter.Z))
-    return teleportPos, lookAtCenter
-end
+local orbitGasterBlasterSlashLoop = nil
 
 -- 创建选人下拉框
 local orbitGasterBlasterDropdown = AbilityTab:CreateDropdown({
@@ -3403,18 +3368,14 @@ end
 Players.PlayerAdded:Connect(refreshOrbitGasterBlasterDropdown)
 Players.PlayerRemoving:Connect(refreshOrbitGasterBlasterDropdown)
 
--- 选人围绕龙骨炮 Toggle（核心：替换为龙骨炮事件）
+-- 选人围绕龙骨炮 Toggle（2秒一圈版）
 AbilityTab:CreateToggle({
-    Name = "『开启/关闭选人围绕龙骨炮』",
+    Name = "『开启/关闭选人围绕龙骨炮（2秒/圈）』",
     CurrentValue = false,
     Flag = "OrbitGasterBlasterToggle",
     Callback = function(Value)
         isOrbitGasterBlasterActive = Value
         if isOrbitGasterBlasterActive then
-            if not waitForGasterOrbitCharacter() then
-                isOrbitGasterBlasterActive = false
-                return
-            end
             if not targetOrbitGasterBlasterPlayer then
                 warn("[维度融合] 请先从下拉框选择围绕龙骨炮目标！")
                 isOrbitGasterBlasterActive = false
@@ -3426,7 +3387,29 @@ AbilityTab:CreateToggle({
                 return
             end
 
-            -- 获取龙骨炮事件（与已有龙骨炮功能保持一致）
+            -- 获取自身角色
+            local localChar = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+            local localRoot = localChar:WaitForChild("HumanoidRootPart")
+            
+            -- 获取目标角色
+            local targetChar = targetOrbitGasterBlasterPlayer.Character
+            if not targetChar then
+                warn("[维度融合] 目标玩家无角色，无法开启！")
+                isOrbitGasterBlasterActive = false
+                return
+            end
+            
+            local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+            if not targetRoot then
+                warn("[维度融合] 目标玩家无HumanoidRootPart，无法开启！")
+                isOrbitGasterBlasterActive = false
+                return
+            end
+
+            print("[维度融合] 选人围绕龙骨炮已开启，目标：" .. targetOrbitGasterBlasterPlayer.Name)
+            print("[维度融合] 旋转速度：2秒/圈")
+            
+            -- 获取龙骨炮事件
             local ReplicatedStorage = game:GetService("ReplicatedStorage")
             local GasterBlasterEvent = ReplicatedStorage:FindFirstChild("PlayerRemoteEvents")
                 and ReplicatedStorage.PlayerRemoteEvents:FindFirstChild("GasterBlasterEvent")
@@ -3437,65 +3420,103 @@ AbilityTab:CreateToggle({
                 return
             end
 
-            -- 初始化圆心位置
-            local targetRoot = targetOrbitGasterBlasterPlayer.Character and targetOrbitGasterBlasterPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if not targetRoot then
-                warn("[维度融合] 目标玩家无角色或核心部位，无法开启！")
-                isOrbitGasterBlasterActive = false
-                return
-            end
-            gasterTeleportCenter = targetRoot.Position
-
-            print("[维度融合] 选人围绕龙骨炮已开启，目标：" .. targetOrbitGasterBlasterPlayer.Name)
-            isGasterOrbitLooping = true
-
-            -- 启动旋转+释放循环（实时更新目标位置）
+            -- 围绕参数配置（2秒一圈）
+            local orbitConfig = {
+                radius = 100,                    -- 旋转半径
+                teleportInterval = 0.05,         -- 瞬移间隔（每0.05秒更新一次位置）
+                blastInterval = 0.1,             -- 龙骨炮释放间隔
+                -- 计算角度增量：360度 ÷ (2秒 ÷ 0.05秒/次) = 360 ÷ 40 = 9度/次
+                angleStep = 9                    -- 每步旋转9度，2秒转完一圈（40步×0.05秒=2秒）
+            }
+            
+            local currentAngle = 0
+            local orbitCenter = targetRoot.Position
+            
+            -- 启动围绕循环
             orbitGasterBlasterLoop = task.spawn(function()
-                local currentAngle = 0
-                while isOrbitGasterBlasterActive and isGasterOrbitLooping and targetOrbitGasterBlasterPlayer:IsDescendantOf(Players) do
+                while isOrbitGasterBlasterActive and 
+                      targetOrbitGasterBlasterPlayer and 
+                      targetOrbitGasterBlasterPlayer:IsDescendantOf(Players) do
+                    
                     -- 实时更新目标位置
-                    local latestTargetRoot = targetOrbitGasterBlasterPlayer.Character and targetOrbitGasterBlasterPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    if latestTargetRoot then
-                        gasterTeleportCenter = latestTargetRoot.Position -- 动态同步目标位置
-                    else
+                    local latestTargetChar = targetOrbitGasterBlasterPlayer.Character
+                    local latestTargetRoot = latestTargetChar and latestTargetChar:FindFirstChild("HumanoidRootPart")
+                    
+                    if not latestTargetRoot then
                         warn("[维度融合] 目标玩家角色消失，停止功能！")
                         break
                     end
-
-                    -- 执行旋转瞬移
-                    local teleportPos, lookAtCenter = getGasterOrbitTeleportPoint(currentAngle)
-                    if teleportPos and lookAtCenter and orbitGasterHumanoidRootPart then
-                        orbitGasterHumanoidRootPart.CFrame = lookAtCenter
+                    
+                    orbitCenter = latestTargetRoot.Position
+                    
+                    -- 计算当前旋转位置
+                    local rad = math.rad(currentAngle)
+                    local offsetX = orbitConfig.radius * math.cos(rad)
+                    local offsetZ = orbitConfig.radius * math.sin(rad)
+                    
+                    -- 计算玩家应该瞬移到的位置
+                    local teleportPos = Vector3.new(
+                        orbitCenter.X + offsetX,
+                        orbitCenter.Y + 1,  -- 稍微提高Y轴高度
+                        orbitCenter.Z + offsetZ
+                    )
+                    
+                    -- 让玩家看向目标
+                    local lookAtCFrame = CFrame.lookAt(teleportPos, Vector3.new(orbitCenter.X, teleportPos.Y, orbitCenter.Z))
+                    
+                    -- 瞬移玩家到围绕位置
+                    if localRoot and localRoot.Parent then
+                        localRoot.CFrame = lookAtCFrame
                     end
-
+                    
                     -- 向目标释放龙骨炮
-                    local targetRoot = targetOrbitGasterBlasterPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    if targetRoot then
-                        local args = {targetRoot.Position}
-                        GasterBlasterEvent:FireServer(unpack(args))
-                    end
-
+                    local blastArgs = {Vector3.new(orbitCenter.X, orbitCenter.Y, orbitCenter.Z)}
+                    GasterBlasterEvent:FireServer(unpack(blastArgs))
+                    
                     -- 更新旋转角度
-                    currentAngle = currentAngle + orbitGasterTeleportConfig.angleStep
-                    if currentAngle >= 360 then currentAngle = 0 end
-
-                    task.wait(orbitGasterTeleportConfig.teleportInterval)
+                    currentAngle = currentAngle + orbitConfig.angleStep
+                    if currentAngle >= 360 then 
+                        currentAngle = 0 
+                        print("[维度融合] 完成一圈旋转")
+                    end
+                    
+                    -- 控制循环速度
+                    task.wait(orbitConfig.teleportInterval)
                 end
-
-                -- 重置状态
-                isGasterOrbitLooping = false
-                gasterTeleportCenter = nil
+                
                 isOrbitGasterBlasterActive = false
                 print("[维度融合] 选人围绕龙骨炮已自动关闭")
             end)
+            
+            -- 额外启动一个龙骨炮释放循环（确保攻击密度）
+            orbitGasterBlasterSlashLoop = task.spawn(function()
+                while isOrbitGasterBlasterActive and 
+                      targetOrbitGasterBlasterPlayer and 
+                      targetOrbitGasterBlasterPlayer:IsDescendantOf(Players) do
+                    
+                    local latestTargetChar = targetOrbitGasterBlasterPlayer.Character
+                    local latestTargetRoot = latestTargetChar and latestTargetChar:FindFirstChild("HumanoidRootPart")
+                    
+                    if latestTargetRoot then
+                        -- 向目标释放龙骨炮
+                        local blastArgs = {Vector3.new(latestTargetRoot.Position.X, latestTargetRoot.Position.Y, latestTargetRoot.Position.Z)}
+                        GasterBlasterEvent:FireServer(unpack(blastArgs))
+                    end
+                    
+                    task.wait(orbitConfig.blastInterval)
+                end
+            end)
+            
         else
             -- 停止功能
-            isGasterOrbitLooping = false
             if orbitGasterBlasterLoop then
                 task.cancel(orbitGasterBlasterLoop)
                 orbitGasterBlasterLoop = nil
             end
-            gasterTeleportCenter = nil
+            if orbitGasterBlasterSlashLoop then
+                task.cancel(orbitGasterBlasterSlashLoop)
+                orbitGasterBlasterSlashLoop = nil
+            end
             print("[维度融合] 选人围绕龙骨炮已关闭")
         end
     end
