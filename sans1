@@ -2794,7 +2794,7 @@ AbilityTab:CreateToggle({
     end
 })
 
--- 3. 对称双线旋转Chara挥砍（平面版）- 修复
+-- 3. 对称双线旋转Chara挥砍（修复旋转版）
 AbilityTab:CreateToggle({
     Name = "『开启/关闭对称双线旋转Chara挥砍』",
     CurrentValue = false,
@@ -2822,55 +2822,61 @@ AbilityTab:CreateToggle({
                 local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
                 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
-                -- 剑气专用参数（平面攻击）
-                local slashCountPerLine = 40  -- 每圈剑气数量（减少密度，更像真实挥砍）
-                local radius = 100             -- 剑气范围半径
-                local height = 5              -- 固定高度（腰部高度）
-                local rotateSpeed = 50       -- 旋转速度
-                local fireDelay = 0         -- 发射间隔
-                local currentAngle = 0
+                -- 剑气专用参数
+                local slashCountPerLine = 40  -- 每条线的剑气数量（保持原参数）
+                local radius = 5              -- 环绕半径
+                local heightOffset = 2        -- 高度偏移（确保是平面）
+                local fireDelay = 0           -- 发射间隔
+                local rotateSpeed = 0.05      -- 旋转速度（较小的值，缓慢旋转）
+                local currentAngle = 0        -- 初始旋转角度
 
                 while getgenv().farm and CharaSlash.isRotatingActive do
-                    task.wait(0.05)
+                    task.wait()
                     
-                    -- 获取玩家当前位置（作为圆心）
+                    -- 获取玩家当前位置
                     local centerPos = humanoidRootPart.Position
                     
-                    -- 计算当前角度的两个对称点（相差180度）
-                    local rad = math.rad(currentAngle)
+                    -- 循环生成两条对称线的发射位置
+                    for i = 1, slashCountPerLine do
+                        if not getgenv().farm or not CharaSlash.isRotatingActive then break end
+                        
+                        -- 计算当前点在圆上的角度（基础角度 + 旋转偏移）
+                        local pointAngle = (i - 1) * (2 * math.pi / slashCountPerLine) + currentAngle
+                        
+                        -- 线1：当前角度位置
+                        local offsetX1 = math.cos(pointAngle) * radius
+                        local offsetZ1 = math.sin(pointAngle) * radius
+                        local targetPos1 = Vector3.new(
+                            centerPos.X + offsetX1,
+                            centerPos.Y + heightOffset,  -- 固定高度，确保平面
+                            centerPos.Z + offsetZ1
+                        )
+                        
+                        -- 线2：对称位置（旋转180度）
+                        local pointAngle2 = pointAngle + math.pi
+                        local offsetX2 = math.cos(pointAngle2) * radius
+                        local offsetZ2 = math.sin(pointAngle2) * radius
+                        local targetPos2 = Vector3.new(
+                            centerPos.X + offsetX2,
+                            centerPos.Y + heightOffset,  -- 同样的高度
+                            centerPos.Z + offsetZ2
+                        )
+                        
+                        -- 同步发射两道对称剑气
+                        local args1 = {targetPos1}
+                        local args2 = {targetPos2}
+                        
+                        CharaSlashEvent:FireServer(unpack(args1))
+                        CharaSlashEvent:FireServer(unpack(args2))
+                        
+                        task.wait(fireDelay)
+                    end
                     
-                    -- 点1：当前角度位置
-                    local offsetX1 = math.cos(rad) * radius
-                    local offsetZ1 = math.sin(rad) * radius
-                    local targetPos1 = Vector3.new(
-                        centerPos.X + offsetX1,
-                        centerPos.Y + height,  -- 固定高度
-                        centerPos.Z + offsetZ1
-                    )
-                    
-                    -- 点2：对称位置（旋转180度）
-                    local rad2 = rad + math.pi  -- 180度对称
-                    local offsetX2 = math.cos(rad2) * radius
-                    local offsetZ2 = math.sin(rad2) * radius
-                    local targetPos2 = Vector3.new(
-                        centerPos.X + offsetX2,
-                        centerPos.Y + height,  -- 固定高度
-                        centerPos.Z + offsetZ2
-                    )
-                    
-                    -- 发射两发对称剑气
-                    local args1 = {targetPos1}
-                    local args2 = {targetPos2}
-                    
-                    CharaSlashEvent:FireServer(unpack(args1))
-                    task.wait(fireDelay / 2)
-                    CharaSlashEvent:FireServer(unpack(args2))
-                    
-                    -- 更新角度
+                    -- 更新旋转角度
                     currentAngle = currentAngle + rotateSpeed
-                    if currentAngle >= 360 then currentAngle = 0 end
-                    
-                    task.wait(fireDelay / 2)
+                    if currentAngle >= 2 * math.pi then 
+                        currentAngle = 0 
+                    end
                 end
                 print("[维度融合] 对称双线旋转Chara挥砍已关闭")
             end)
