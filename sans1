@@ -2972,7 +2972,7 @@ AbilityTab:CreateToggle({
     end
 })
 
--- 5. 选人围绕Chara挥砍功能
+-- 5. 选人围绕Chara挥砍功能（2秒一圈版）
 local orbitCharaSlashDropdown = AbilityTab:CreateDropdown({
     Name = "选择围绕Chara挥砍目标玩家",
     Options = getPlayerNames(),
@@ -2999,7 +2999,7 @@ Players.PlayerAdded:Connect(refreshOrbitCharaSlashDropdown)
 Players.PlayerRemoving:Connect(refreshOrbitCharaSlashDropdown)
 
 AbilityTab:CreateToggle({
-    Name = "『开启/关闭选人围绕Chara挥砍』",
+    Name = "『开启/关闭选人围绕Chara挥砍（2秒/圈）』",
     CurrentValue = false,
     Flag = "OrbitCharaSlashToggle",
     Callback = function(Value)
@@ -3016,71 +3016,141 @@ AbilityTab:CreateToggle({
                 return
             end
 
-            local success, err = pcall(function()
-                -- 获取Chara挥砍事件
-                local ReplicatedStorage = game:GetService("ReplicatedStorage")
-                local CharaSlashEvent = ReplicatedStorage:FindFirstChild("PlayerRemoteEvents")
-                    and ReplicatedStorage.PlayerRemoteEvents:FindFirstChild("Chara")
-                    and ReplicatedStorage.PlayerRemoteEvents.Chara:FindFirstChild("slash")
-                
-                if not CharaSlashEvent then
-                    warn("[维度融合] 未找到 Chara.slash 远程事件！")
-                    CharaSlash.isOrbitActive = false
-                    return
-                end
+            -- 获取自身角色
+            local localChar = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+            local localRoot = localChar:WaitForChild("HumanoidRootPart")
+            
+            -- 获取目标角色
+            local targetChar = CharaSlash.orbitTargetPlayer.Character
+            if not targetChar then
+                warn("[维度融合] 目标玩家无角色，无法开启！")
+                CharaSlash.isOrbitActive = false
+                return
+            end
+            
+            local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+            if not targetRoot then
+                warn("[维度融合] 目标玩家无HumanoidRootPart，无法开启！")
+                CharaSlash.isOrbitActive = false
+                return
+            end
 
-                local orbitConfig = {
-                    radius = 100,
-                    angleStep = 1,
-                    teleportInterval = 0.5 / 360
-                }
-                
-                local currentAngle = 0
-                local orbitCenter = nil
-                
-                print("[维度融合] 选人围绕Chara挥砍已开启，目标：" .. CharaSlash.orbitTargetPlayer.Name)
-                
-                CharaSlash.orbitLoop = task.spawn(function()
-                    while CharaSlash.isOrbitActive and CharaSlash.orbitTargetPlayer and CharaSlash.orbitTargetPlayer:IsDescendantOf(Players) do
-                        local targetRoot = CharaSlash.orbitTargetPlayer.Character and CharaSlash.orbitTargetPlayer.Character:FindFirstChild("HumanoidRootPart")
-                        if targetRoot then
-                            orbitCenter = targetRoot.Position
-                            
-                            local rad = math.rad(currentAngle)
-                            local offsetX = orbitConfig.radius * math.cos(rad)
-                            local offsetZ = orbitConfig.radius * math.sin(rad)
-                            local slashPos = orbitCenter + Vector3.new(offsetX, 1, offsetZ)
-                            
-                            local args = {slashPos}
-                            CharaSlashEvent:FireServer(unpack(args))
-                            
-                            currentAngle = currentAngle + orbitConfig.angleStep
-                            if currentAngle >= 360 then currentAngle = 0 end
-                        end
-                        
-                        task.wait(orbitConfig.teleportInterval)
+            print("[维度融合] 选人围绕Chara挥砍已开启，目标：" .. CharaSlash.orbitTargetPlayer.Name)
+            print("[维度融合] 旋转速度：2秒/圈")
+            
+            -- 获取Chara挥砍事件
+            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+            local CharaSlashEvent = ReplicatedStorage:FindFirstChild("PlayerRemoteEvents")
+                and ReplicatedStorage.PlayerRemoteEvents:FindFirstChild("Chara")
+                and ReplicatedStorage.PlayerRemoteEvents.Chara:FindFirstChild("slash")
+            
+            if not CharaSlashEvent then
+                warn("[维度融合] 未找到 Chara.slash 远程事件！")
+                CharaSlash.isOrbitActive = false
+                return
+            end
+
+            -- 围绕参数配置（2秒一圈）
+            local orbitConfig = {
+                radius = 100,                    -- 旋转半径
+                teleportInterval = 0.05,         -- 瞬移间隔（每0.05秒更新一次位置）
+                slashInterval = 0.1,             -- 剑气释放间隔
+                -- 计算角度增量：360度 ÷ (2秒 ÷ 0.05秒/次) = 360 ÷ 40 = 9度/次
+                angleStep = 9                    -- 每步旋转9度，2秒转完一圈（40步×0.05秒=2秒）
+            }
+            
+            local currentAngle = 0
+            local orbitCenter = targetRoot.Position
+            
+            -- 启动围绕循环
+            CharaSlash.orbitLoop = task.spawn(function()
+                while CharaSlash.isOrbitActive and 
+                      CharaSlash.orbitTargetPlayer and 
+                      CharaSlash.orbitTargetPlayer:IsDescendantOf(Players) do
+                    
+                    -- 实时更新目标位置
+                    local latestTargetChar = CharaSlash.orbitTargetPlayer.Character
+                    local latestTargetRoot = latestTargetChar and latestTargetChar:FindFirstChild("HumanoidRootPart")
+                    
+                    if not latestTargetRoot then
+                        warn("[维度融合] 目标玩家角色消失，停止功能！")
+                        break
                     end
                     
-                    CharaSlash.isOrbitActive = false
-                    print("[维度融合] 选人围绕Chara挥砍已自动关闭")
-                end)
+                    orbitCenter = latestTargetRoot.Position
+                    
+                    -- 计算当前旋转位置
+                    local rad = math.rad(currentAngle)
+                    local offsetX = orbitConfig.radius * math.cos(rad)
+                    local offsetZ = orbitConfig.radius * math.sin(rad)
+                    
+                    -- 计算玩家应该瞬移到的位置
+                    local teleportPos = Vector3.new(
+                        orbitCenter.X + offsetX,
+                        orbitCenter.Y + 1,  -- 稍微提高Y轴高度
+                        orbitCenter.Z + offsetZ
+                    )
+                    
+                    -- 让玩家看向目标
+                    local lookAtCFrame = CFrame.lookAt(teleportPos, Vector3.new(orbitCenter.X, teleportPos.Y, orbitCenter.Z))
+                    
+                    -- 瞬移玩家到围绕位置
+                    if localRoot and localRoot.Parent then
+                        localRoot.CFrame = lookAtCFrame
+                    end
+                    
+                    -- 向目标释放剑气
+                    local slashArgs = {Vector3.new(orbitCenter.X, orbitCenter.Y, orbitCenter.Z)}
+                    CharaSlashEvent:FireServer(unpack(slashArgs))
+                    
+                    -- 更新旋转角度
+                    currentAngle = currentAngle + orbitConfig.angleStep
+                    if currentAngle >= 360 then 
+                        currentAngle = 0 
+                        print("[维度融合] 完成一圈旋转")
+                    end
+                    
+                    -- 控制循环速度
+                    task.wait(orbitConfig.teleportInterval)
+                end
+                
+                CharaSlash.isOrbitActive = false
+                print("[维度融合] 选人围绕Chara挥砍已自动关闭")
             end)
             
-            if not success then
-                warn("[维度融合] 选人围绕Chara挥砍开启失败: " .. tostring(err))
-                CharaSlash.isOrbitActive = false
-            end
+            -- 额外启动一个剑气释放循环（确保剑气密度）
+            CharaSlash.orbitSlashLoop = task.spawn(function()
+                while CharaSlash.isOrbitActive and 
+                      CharaSlash.orbitTargetPlayer and 
+                      CharaSlash.orbitTargetPlayer:IsDescendantOf(Players) do
+                    
+                    local latestTargetChar = CharaSlash.orbitTargetPlayer.Character
+                    local latestTargetRoot = latestTargetChar and latestTargetChar:FindFirstChild("HumanoidRootPart")
+                    
+                    if latestTargetRoot then
+                        -- 向目标释放剑气
+                        local slashArgs = {Vector3.new(latestTargetRoot.Position.X, latestTargetRoot.Position.Y, latestTargetRoot.Position.Z)}
+                        CharaSlashEvent:FireServer(unpack(slashArgs))
+                    end
+                    
+                    task.wait(orbitConfig.slashInterval)
+                end
+            end)
+            
         else
+            -- 停止功能
             if CharaSlash.orbitLoop then
                 task.cancel(CharaSlash.orbitLoop)
                 CharaSlash.orbitLoop = nil
+            end
+            if CharaSlash.orbitSlashLoop then
+                task.cancel(CharaSlash.orbitSlashLoop)
+                CharaSlash.orbitSlashLoop = nil
             end
             print("[维度融合] 选人围绕Chara挥砍已关闭")
         end
     end
 })
-
-print("✅ Chara挥砍技能模块已成功添加（修复版）")
 
 -- ==================== Gaster Blaster（龙骨炮）功能 ====================
 local isGasterBlasterActive = false
