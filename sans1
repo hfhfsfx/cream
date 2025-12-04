@@ -2874,7 +2874,7 @@ AbilityTab:CreateToggle({
                     
                     -- 更新旋转角度
                     currentAngle = currentAngle + rotateSpeed
-                    if currentAngle >= 3.2 * math.pi then 
+                    if currentAngle >= 2.8 * math.pi then 
                         currentAngle = 0 
                     end
                 end
