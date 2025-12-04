@@ -1,5 +1,5 @@
 -- 加载 Rayfield 库
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Rayfield = loadstring(game:HttpGet("https://raw.githubusercontent.com/hfhfsfx/tails/main/dd"))()
 
 local Window = Rayfield:CreateWindow({
    Name = "维度融合1.0(原型)",
