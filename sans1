@@ -2895,7 +2895,7 @@ AbilityTab:CreateToggle({
 local charaSlashDropdown = AbilityTab:CreateDropdown({
     Name = "选择Chara挥砍目标玩家",
     Options = getPlayerNames(),
-    CurrentOption = getPlayerNames()[1] or "无",
+    CurrentOption = "请选择",
     MultipleOptions = false,
     Flag = "CharaSlashTargetDropdown",
     Callback = function(Options)
