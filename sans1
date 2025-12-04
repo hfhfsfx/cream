@@ -2825,7 +2825,7 @@ AbilityTab:CreateToggle({
                 -- 剑气专用参数
                 local slashCountPerLine = 40  -- 每条线的剑气数量（保持原参数）
                 local radius = 5              -- 环绕半径
-                local heightOffset = 4        -- 高度偏移（确保是平面）
+                local heightOffset = 3.1        -- 高度偏移（确保是平面）
                 local fireDelay = 0           -- 发射间隔
                 local rotateSpeed = 0.05      -- 旋转速度（较小的值，缓慢旋转）
                 local currentAngle = 0        -- 初始旋转角度
