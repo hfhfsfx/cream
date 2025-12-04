@@ -2825,8 +2825,8 @@ AbilityTab:CreateToggle({
                 -- 剑气专用参数（平面攻击）
                 local slashCountPerLine = 40  -- 每圈剑气数量（减少密度，更像真实挥砍）
                 local radius = 5             -- 剑气范围半径
-                local height = 2              -- 固定高度（腰部高度）
-                local rotateSpeed = 0       -- 旋转速度
+                local height = 5              -- 固定高度（腰部高度）
+                local rotateSpeed = 10       -- 旋转速度
                 local fireDelay = 0         -- 发射间隔
                 local currentAngle = 0
 
