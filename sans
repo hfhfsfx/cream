@@ -1,5 +1,5 @@
 -- 加载 Rayfield 库
-local Rayfield = loadstring(game:HttpGet("https://raw.githubusercontent.com/hfhfsfx/tails/main/dd"))()
+local Rayfield = loadstring(game:HttpGet("https://raw.githubusercontent.com/hfhfsfx/tails/main/ddd"))()
 
 local Window = Rayfield:CreateWindow({
    Name = "维度融合1.0(原型)",
@@ -11,7 +11,7 @@ local Window = Rayfield:CreateWindow({
    
    ToggleUIKeybind = "K", -- The keybind to toggle the UI visibility (string like "K" or Enum.KeyCode)
 
-   DisableRayfieldPrompts = false, -- 这里保留了原配置
+   DisableRayfieldPrompts = true, -- 这里保留了原配置
    DisableBuildWarnings = false, -- Prevents Rayfield from warning when the script has a version mismatch with the interface
 
    -- 添加自定义配色方案
