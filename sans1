@@ -2972,34 +2972,10 @@ AbilityTab:CreateToggle({
     end
 })
 
--- 5. 选人围绕Chara挥砍功能（2秒一圈版）
-local orbitCharaSlashDropdown = AbilityTab:CreateDropdown({
-    Name = "选择围绕Chara挥砍目标玩家",
-    Options = getPlayerNames(),
-    CurrentOption = getPlayerNames()[1] or "无",
-    MultipleOptions = false,
-    Flag = "OrbitCharaSlashTargetDropdown",
-    Callback = function(Options)
-        local name = Options[1]
-        CharaSlash.orbitTargetPlayer = Players:FindFirstChild(name)
-        local targetName = CharaSlash.orbitTargetPlayer and CharaSlash.orbitTargetPlayer.Name or "无"
-        print("[维度融合] 围绕Chara挥砍目标已选中：" .. targetName)
-    end
-})
 
-local function refreshOrbitCharaSlashDropdown()
-    orbitCharaSlashDropdown:Refresh(getPlayerNames())
-    if CharaSlash.orbitTargetPlayer and not CharaSlash.orbitTargetPlayer:IsDescendantOf(Players) then
-        CharaSlash.orbitTargetPlayer = nil
-        print("[维度融合] 围绕Chara挥砍目标已离开，已重置")
-    end
-end
-
-Players.PlayerAdded:Connect(refreshOrbitCharaSlashDropdown)
-Players.PlayerRemoving:Connect(refreshOrbitCharaSlashDropdown)
-
+-- 5. 选人围绕Chara挥砍功能（全向动态跟随版）
 AbilityTab:CreateToggle({
-    Name = "『开启/关闭选人围绕Chara挥砍（2秒/圈）』",
+    Name = "『开启/关闭选人围绕Chara挥砍（全向动态跟随）』",
     CurrentValue = false,
     Flag = "OrbitCharaSlashToggle",
     Callback = function(Value)
@@ -3036,7 +3012,7 @@ AbilityTab:CreateToggle({
             end
 
             print("[维度融合] 选人围绕Chara挥砍已开启，目标：" .. CharaSlash.orbitTargetPlayer.Name)
-            print("[维度融合] 旋转速度：2秒/圈")
+            print("[维度融合] 模式：全向动态跟随，平滑2秒/圈")
             
             -- 获取Chara挥砍事件
             local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -3050,98 +3026,216 @@ AbilityTab:CreateToggle({
                 return
             end
 
-            -- 围绕参数配置（2秒一圈）
+            -- 创建防掉落物理控制器
+            local TweenService = game:GetService("TweenService")
+            
+            local bodyPosition = Instance.new("BodyPosition")
+            bodyPosition.P = 30000  -- 增加强度确保能跟上快速移动
+            bodyPosition.D = 2000
+            bodyPosition.MaxForce = Vector3.new(60000, 60000, 60000)
+            bodyPosition.Parent = localRoot
+            
+            local bodyGyro = Instance.new("BodyGyro")
+            bodyGyro.P = 15000
+            bodyGyro.D = 1000
+            bodyGyro.MaxTorque = Vector3.new(60000, 60000, 60000)
+            bodyGyro.Parent = localRoot
+
+            -- 全向跟随参数
             local orbitConfig = {
                 radius = 100,                    -- 旋转半径
-                teleportInterval = 0.05,         -- 瞬移间隔（每0.05秒更新一次位置）
-                slashInterval = 0.1,             -- 剑气释放间隔
-                -- 计算角度增量：360度 ÷ (2秒 ÷ 0.05秒/次) = 360 ÷ 40 = 9度/次
-                angleStep = 9                    -- 每步旋转9度，2秒转完一圈（40步×0.05秒=2秒）
+                secondsPerCircle = 2,           -- 2秒一圈
+                slashInterval = 0.05,           -- 剑气释放间隔
+                heightOffset = 1.5,             -- 相对于目标的高度偏移
+                followSmoothness = 0.4,         -- 位置跟随平滑度（0-1，越大越紧跟）
+                predictiveFactor = 0.2,         -- 预测因子（预测目标移动方向）
+                maxCatchUpSpeed = 50            -- 最大追赶速度
             }
             
+            local lastTime = tick()
             local currentAngle = 0
-            local orbitCenter = targetRoot.Position
+            local currentOrbitCenter = targetRoot.Position  -- 当前旋转中心
+            local targetHistory = {}  -- 目标位置历史（用于预测）
+            local historySize = 5     -- 历史记录数量
             
-            -- 启动围绕循环
-            CharaSlash.orbitLoop = task.spawn(function()
-                while CharaSlash.isOrbitActive and 
-                      CharaSlash.orbitTargetPlayer and 
-                      CharaSlash.orbitTargetPlayer:IsDescendantOf(Players) do
-                    
-                    -- 实时更新目标位置
-                    local latestTargetChar = CharaSlash.orbitTargetPlayer.Character
-                    local latestTargetRoot = latestTargetChar and latestTargetChar:FindFirstChild("HumanoidRootPart")
-                    
-                    if not latestTargetRoot then
-                        warn("[维度融合] 目标玩家角色消失，停止功能！")
-                        break
-                    end
-                    
-                    orbitCenter = latestTargetRoot.Position
-                    
-                    -- 计算当前旋转位置
-                    local rad = math.rad(currentAngle)
-                    local offsetX = orbitConfig.radius * math.cos(rad)
-                    local offsetZ = orbitConfig.radius * math.sin(rad)
-                    
-                    -- 计算玩家应该瞬移到的位置
-                    local teleportPos = Vector3.new(
-                        orbitCenter.X + offsetX,
-                        orbitCenter.Y + 1,  -- 稍微提高Y轴高度
-                        orbitCenter.Z + offsetZ
-                    )
-                    
-                    -- 让玩家看向目标
-                    local lookAtCFrame = CFrame.lookAt(teleportPos, Vector3.new(orbitCenter.X, teleportPos.Y, orbitCenter.Z))
-                    
-                    -- 瞬移玩家到围绕位置
-                    if localRoot and localRoot.Parent then
-                        localRoot.CFrame = lookAtCFrame
-                    end
-                    
-                    -- 向目标释放剑气
-                    local slashArgs = {Vector3.new(orbitCenter.X, orbitCenter.Y, orbitCenter.Z)}
-                    CharaSlashEvent:FireServer(unpack(slashArgs))
-                    
-                    -- 更新旋转角度
-                    currentAngle = currentAngle + orbitConfig.angleStep
-                    if currentAngle >= 360 then 
-                        currentAngle = 0 
-                        print("[维度融合] 完成一圈旋转")
-                    end
-                    
-                    -- 控制循环速度
-                    task.wait(orbitConfig.teleportInterval)
+            -- 记录初始位置
+            for i = 1, historySize do
+                targetHistory[i] = targetRoot.Position
+            end
+
+            -- 全向动态跟随旋转循环
+            CharaSlash.orbitLoop = game:GetService("RunService").RenderStepped:Connect(function()
+                if not CharaSlash.isOrbitActive or 
+                   not CharaSlash.orbitTargetPlayer or 
+                   not CharaSlash.orbitTargetPlayer:IsDescendantOf(Players) then
+                    return
                 end
                 
-                CharaSlash.isOrbitActive = false
-                print("[维度融合] 选人围绕Chara挥砍已自动关闭")
+                -- 实时获取目标位置
+                local latestTargetChar = CharaSlash.orbitTargetPlayer.Character
+                local latestTargetRoot = latestTargetChar and latestTargetChar:FindFirstChild("HumanoidRootPart")
+                
+                if not latestTargetRoot or not latestTargetRoot.Parent then
+                    warn("[维度融合] 目标玩家角色消失，停止功能！")
+                    CharaSlash.isOrbitActive = false
+                    return
+                end
+                
+                local currentTargetPos = latestTargetRoot.Position
+                
+                -- 更新目标位置历史（用于预测移动方向）
+                table.remove(targetHistory, 1)
+                table.insert(targetHistory, currentTargetPos)
+                
+                -- 计算目标移动方向和速度（预测）
+                local targetVelocity = Vector3.new(0, 0, 0)
+                if #targetHistory >= 2 then
+                    local recentPos = targetHistory[#targetHistory]
+                    local olderPos = targetHistory[1]
+                    local timeSpan = 0.1 * (#targetHistory - 1)  -- 假设每帧间隔0.1秒
+                    if timeSpan > 0 then
+                        targetVelocity = (recentPos - olderPos) / timeSpan
+                    end
+                end
+                
+                -- 计算预测的目标位置（考虑移动方向）
+                local predictedTargetPos = currentTargetPos + (targetVelocity * orbitConfig.predictiveFactor)
+                
+                -- 计算时间差
+                local currentTime = tick()
+                local deltaTime = currentTime - lastTime
+                lastTime = currentTime
+                
+                -- 更新旋转角度
+                currentAngle = currentAngle + (360 / orbitConfig.secondsPerCircle) * deltaTime
+                if currentAngle >= 360 then 
+                    currentAngle = currentAngle - 360
+                end
+                
+                -- 平滑更新旋转中心（全向跟随）
+                local distanceToTarget = (predictedTargetPos - currentOrbitCenter).Magnitude
+                local catchUpSpeed = math.min(
+                    distanceToTarget * 10,  -- 距离越远，追赶速度越快
+                    orbitConfig.maxCatchUpSpeed
+                )
+                
+                -- 计算新的旋转中心（向预测位置移动）
+                local directionToTarget = (predictedTargetPos - currentOrbitCenter).Unit
+                local moveDistance = catchUpSpeed * deltaTime * orbitConfig.followSmoothness
+                
+                if distanceToTarget > 0.1 then
+                    currentOrbitCenter = currentOrbitCenter + (directionToTarget * math.min(moveDistance, distanceToTarget))
+                else
+                    currentOrbitCenter = predictedTargetPos
+                end
+                
+                -- 动态调整高度偏移（如果目标在空中）
+                local targetHeight = predictedTargetPos.Y
+                local desiredHeightOffset = orbitConfig.heightOffset
+                
+                if targetHeight > 15 then  -- 如果目标在空中较高位置
+                    desiredHeightOffset = math.max(orbitConfig.heightOffset, 4)  -- 保持更高高度
+                elseif targetHeight < 5 then  -- 如果目标在地面以下（可能是洞穴）
+                    desiredHeightOffset = math.max(orbitConfig.heightOffset, 0.5)  -- 降低高度
+                end
+                
+                -- 计算当前旋转位置（基于动态旋转中心）
+                local rad = math.rad(currentAngle)
+                local offsetX = orbitConfig.radius * math.cos(rad)
+                local offsetZ = orbitConfig.radius * math.sin(rad)
+                
+                -- 计算玩家应该瞬移到的位置
+                local teleportPos = Vector3.new(
+                    currentOrbitCenter.X + offsetX,
+                    currentOrbitCenter.Y + desiredHeightOffset,  -- 动态高度
+                    currentOrbitCenter.Z + offsetZ
+                )
+                
+                -- 创建平滑移动Tween（更快的响应）
+                local tweenInfo = TweenInfo.new(
+                    0.06,  -- 更短的持续时间，更快响应目标移动
+                    Enum.EasingStyle.Quad,
+                    Enum.EasingDirection.Out,
+                    0,
+                    false,
+                    0
+                )
+                
+                -- 位置Tween（全向跟随目标）
+                local positionGoal = {Position = teleportPos}
+                local positionTween = TweenService:Create(bodyPosition, tweenInfo, positionGoal)
+                
+                -- 朝向Tween（始终看向当前目标位置，不是旋转中心）
+                local lookVector = (currentTargetPos - teleportPos).Unit
+                local gyroGoal = {CFrame = CFrame.new(teleportPos, teleportPos + lookVector)}
+                local gyroTween = TweenService:Create(bodyGyro, tweenInfo, gyroGoal)
+                
+                -- 执行Tween
+                positionTween:Play()
+                gyroTween:Play()
+                
+                -- 向目标当前位置释放剑气
+                local slashArgs = {Vector3.new(currentTargetPos.X, currentTargetPos.Y, currentTargetPos.Z)}
+                CharaSlashEvent:FireServer(unpack(slashArgs))
             end)
             
-            -- 额外启动一个剑气释放循环（确保剑气密度）
+            -- 剑气释放循环（保持频率）
+            local lastSlashTime = tick()
             CharaSlash.orbitSlashLoop = task.spawn(function()
                 while CharaSlash.isOrbitActive and 
                       CharaSlash.orbitTargetPlayer and 
                       CharaSlash.orbitTargetPlayer:IsDescendantOf(Players) do
                     
-                    local latestTargetChar = CharaSlash.orbitTargetPlayer.Character
-                    local latestTargetRoot = latestTargetChar and latestTargetChar:FindFirstChild("HumanoidRootPart")
-                    
-                    if latestTargetRoot then
-                        -- 向目标释放剑气
-                        local slashArgs = {Vector3.new(latestTargetRoot.Position.X, latestTargetRoot.Position.Y, latestTargetRoot.Position.Z)}
-                        CharaSlashEvent:FireServer(unpack(slashArgs))
+                    local currentTime = tick()
+                    if currentTime - lastSlashTime >= orbitConfig.slashInterval then
+                        local latestTargetChar = CharaSlash.orbitTargetPlayer.Character
+                        local latestTargetRoot = latestTargetChar and latestTargetChar:FindFirstChild("HumanoidRootPart")
+                        
+                        if latestTargetRoot then
+                            -- 向目标当前位置释放剑气
+                            local targetPos = latestTargetRoot.Position
+                            local slashArgs = {Vector3.new(
+                                targetPos.X, 
+                                targetPos.Y, 
+                                targetPos.Z
+                            )}
+                            CharaSlashEvent:FireServer(unpack(slashArgs))
+                            lastSlashTime = currentTime
+                        end
                     end
                     
-                    task.wait(orbitConfig.slashInterval)
+                    task.wait(0.01)
                 end
+                
+                -- 自动关闭
+                CharaSlash.isOrbitActive = false
+                if CharaSlash.orbitLoop and CharaSlash.orbitLoop.Connected then
+                    CharaSlash.orbitLoop:Disconnect()
+                end
+                
+                -- 清理物理控制器
+                if bodyPosition and bodyPosition.Parent then
+                    bodyPosition:Destroy()
+                end
+                if bodyGyro and bodyGyro.Parent then
+                    bodyGyro:Destroy()
+                end
+                
+                print("[维度融合] 选人围绕Chara挥砍已自动关闭")
             end)
             
+            -- 角色死亡监听
+            local humanoid = localChar:FindFirstChild("Humanoid")
+            if humanoid then
+                humanoid.Died:Connect(function()
+                    CharaSlash.isOrbitActive = false
+                end)
+            end
+            
         else
-            -- 停止功能
-            if CharaSlash.orbitLoop then
-                task.cancel(CharaSlash.orbitLoop)
-                CharaSlash.orbitLoop = nil
+            -- 手动关闭
+            if CharaSlash.orbitLoop and CharaSlash.orbitLoop.Connected then
+                CharaSlash.orbitLoop:Disconnect()
             end
             if CharaSlash.orbitSlashLoop then
                 task.cancel(CharaSlash.orbitSlashLoop)
