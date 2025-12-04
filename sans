@@ -5,7 +5,7 @@ local Window = Rayfield:CreateWindow({
    Name = "维度融合1.0(原型)",
    Icon = 135443303437470, -- Icon in Topbar. Can use Lucide Icons (string) or Roblox Image (number). 0 to use no icon (default).
    LoadingTitle = "维度融合",
-   LoadingSubtitle = "👁️👄👁️",
+   LoadingSubtitle = "棍母",
    ShowText = "._。", -- for mobile users to unhide rayfield, change if you'd like
    Theme = "Bloom",-- 选择一个基础主题，后面的ColorOverrides会覆盖它
    
