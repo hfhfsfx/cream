@@ -2473,79 +2473,13 @@ AbilityTab:CreateToggle({
         end
     end
 })
--- ==================== 选人围绕混沌矛（实时跟随版） ====================
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
+
+-- ==================== 选人围绕混沌矛（2秒一圈版） ====================
 local targetOrbitChaosSpearPlayer = nil
 local isOrbitChaosSpearActive = false
 local orbitChaosSpearLoop = nil
-
--- 旋转瞬移核心配置
-local orbitTeleportConfig = {
-    radius = 100, -- 旋转半径
-    angleStep = 1, -- 每步旋转角度
-    teleportInterval = 0.5 / 360 -- 瞬移间隔（0.5秒绕圈）
-}
-local orbitHumanoidRootPart = nil
-local teleportCenter = nil
-local isOrbitLooping = false
-
--- 角色加载与复活适配
-local function waitForOrbitCharacter()
-    local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    orbitHumanoidRootPart = Character:WaitForChild("HumanoidRootPart", 10)
-    if not orbitHumanoidRootPart then
-        warn("[选人围绕混沌矛] 未找到角色核心部位，功能禁用！")
-        return false
-    end
-    Character.Humanoid.Died:Connect(function()
-        orbitHumanoidRootPart = nil
-        teleportCenter = nil
-        waitForOrbitCharacter()
-    end)
-    return true
-end
-
--- 计算旋转瞬移点位（基于实时更新的圆心）
-local function getOrbitTeleportPoint(currentAngle)
-    if not teleportCenter or not orbitHumanoidRootPart then return nil end
-    local rad = math.rad(currentAngle)
-    local teleportX = teleportCenter.X + orbitTeleportConfig.radius * math.cos(rad)
-    local teleportZ = teleportCenter.Z + orbitTeleportConfig.radius * math.sin(rad)
-    local teleportY = teleportCenter.Y + 1 -- 固定Y轴高度
-    local teleportPos = Vector3.new(teleportX, teleportY, teleportZ)
-    local lookAtCenter = CFrame.lookAt(teleportPos, Vector3.new(teleportCenter.X, teleportY, teleportCenter.Z))
-    return teleportPos, lookAtCenter
-end
-
--- 模拟AbilityTab和getPlayerNames（实际使用时需替换为真实对象）
-local AbilityTab = AbilityTab or {
-    CreateDropdown = function(params)
-        local dropdown = {
-            Refresh = function(self, options)
-                self.Options = options
-            end,
-            Options = params.Options,
-            CurrentOption = params.CurrentOption
-        }
-        params.Callback({params.CurrentOption})
-        return dropdown
-    end,
-    CreateToggle = function(params)
-        params.Callback(params.CurrentValue)
-        return {CurrentValue = params.CurrentValue}
-    end
-}
-
-local function getPlayerNames()
-    local names = {}
-    for _, player in ipairs(Players:GetPlayers()) do
-        table.insert(names, player.Name)
-    end
-    return names
-end
+local orbitChaosSpearAttackLoop = nil
 
 -- 创建选人下拉框
 local orbitChaosSpearDropdown = AbilityTab:CreateDropdown({
@@ -2574,18 +2508,14 @@ end
 Players.PlayerAdded:Connect(refreshOrbitChaosSpearDropdown)
 Players.PlayerRemoving:Connect(refreshOrbitChaosSpearDropdown)
 
--- 选人围绕混沌矛 Toggle（核心优化：实时更新目标位置）
+-- 选人围绕混沌矛 Toggle（2秒一圈版）
 AbilityTab:CreateToggle({
-    Name = "『开启/关闭选人围绕混沌矛』",
+    Name = "『开启/关闭选人围绕混沌矛（2秒/圈）』",
     CurrentValue = false,
     Flag = "OrbitChaosSpearToggle",
     Callback = function(Value)
         isOrbitChaosSpearActive = Value
         if isOrbitChaosSpearActive then
-            if not waitForOrbitCharacter() then
-                isOrbitChaosSpearActive = false
-                return
-            end
             if not targetOrbitChaosSpearPlayer then
                 warn("[维度融合] 请先从下拉框选择围绕混沌矛目标！")
                 isOrbitChaosSpearActive = false
@@ -2597,7 +2527,29 @@ AbilityTab:CreateToggle({
                 return
             end
 
-            -- 获取混沌矛事件（实际路径需根据游戏调整）
+            -- 获取自身角色
+            local localChar = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+            local localRoot = localChar:WaitForChild("HumanoidRootPart")
+            
+            -- 获取目标角色
+            local targetChar = targetOrbitChaosSpearPlayer.Character
+            if not targetChar then
+                warn("[维度融合] 目标玩家无角色，无法开启！")
+                isOrbitChaosSpearActive = false
+                return
+            end
+            
+            local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+            if not targetRoot then
+                warn("[维度融合] 目标玩家无HumanoidRootPart，无法开启！")
+                isOrbitChaosSpearActive = false
+                return
+            end
+
+            print("[维度融合] 选人围绕混沌矛已开启，目标：" .. targetOrbitChaosSpearPlayer.Name)
+            print("[维度融合] 旋转速度：2秒/圈")
+            
+            -- 获取混沌矛事件
             local ReplicatedStorage = game:GetService("ReplicatedStorage")
             local ChaosSpearEvent = ReplicatedStorage:FindFirstChild("PlayerRemoteEvents")
                 and ReplicatedStorage.PlayerRemoteEvents:FindFirstChild("Shadow")
@@ -2609,69 +2561,112 @@ AbilityTab:CreateToggle({
                 return
             end
 
-            -- 初始化圆心位置
-            local targetRoot = targetOrbitChaosSpearPlayer.Character and targetOrbitChaosSpearPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if not targetRoot then
-                warn("[维度融合] 目标玩家无角色或核心部位，无法开启！")
-                isOrbitChaosSpearActive = false
-                return
-            end
-            teleportCenter = targetRoot.Position
-
-            print("[维度融合] 选人围绕混沌矛已开启，目标：" .. targetOrbitChaosSpearPlayer.Name)
-            isOrbitLooping = true
-
-            -- 启动旋转+释放循环（实时更新圆心）
+            -- 围绕参数配置（2秒一圈）
+            local orbitConfig = {
+                radius = 100,                    -- 旋转半径
+                teleportInterval = 0.05,         -- 瞬移间隔（每0.05秒更新一次位置）
+                spearInterval = 0.1,             -- 混沌矛释放间隔
+                -- 计算角度增量：360度 ÷ (2秒 ÷ 0.05秒/次) = 360 ÷ 40 = 9度/次
+                angleStep = 9                    -- 每步旋转9度，2秒转完一圈（40步×0.05秒=2秒）
+            }
+            
+            local currentAngle = 0
+            local orbitCenter = targetRoot.Position
+            
+            -- 启动围绕循环
             orbitChaosSpearLoop = task.spawn(function()
-                local currentAngle = 0
-                while isOrbitChaosSpearActive and isOrbitLooping and targetOrbitChaosSpearPlayer:IsDescendantOf(Players) do
-                    -- 实时更新目标位置（核心优化点）
-                    local latestTargetRoot = targetOrbitChaosSpearPlayer.Character and targetOrbitChaosSpearPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    if latestTargetRoot then
-                        teleportCenter = latestTargetRoot.Position -- 动态同步目标位置
-                    else
+                while isOrbitChaosSpearActive and 
+                      targetOrbitChaosSpearPlayer and 
+                      targetOrbitChaosSpearPlayer:IsDescendantOf(Players) do
+                    
+                    -- 实时更新目标位置
+                    local latestTargetChar = targetOrbitChaosSpearPlayer.Character
+                    local latestTargetRoot = latestTargetChar and latestTargetChar:FindFirstChild("HumanoidRootPart")
+                    
+                    if not latestTargetRoot then
                         warn("[维度融合] 目标玩家角色消失，停止功能！")
                         break
                     end
-
-                    -- 执行旋转瞬移
-                    local teleportPos, lookAtCenter = getOrbitTeleportPoint(currentAngle)
-                    if teleportPos and lookAtCenter and orbitHumanoidRootPart then
-                        orbitHumanoidRootPart.CFrame = lookAtCenter
+                    
+                    orbitCenter = latestTargetRoot.Position
+                    
+                    -- 计算当前旋转位置
+                    local rad = math.rad(currentAngle)
+                    local offsetX = orbitConfig.radius * math.cos(rad)
+                    local offsetZ = orbitConfig.radius * math.sin(rad)
+                    
+                    -- 计算玩家应该瞬移到的位置
+                    local teleportPos = Vector3.new(
+                        orbitCenter.X + offsetX,
+                        orbitCenter.Y + 1,  -- 稍微提高Y轴高度
+                        orbitCenter.Z + offsetZ
+                    )
+                    
+                    -- 让玩家看向目标
+                    local lookAtCFrame = CFrame.lookAt(teleportPos, Vector3.new(orbitCenter.X, teleportPos.Y, orbitCenter.Z))
+                    
+                    -- 瞬移玩家到围绕位置
+                    if localRoot and localRoot.Parent then
+                        localRoot.CFrame = lookAtCFrame
                     end
-
+                    
                     -- 向目标释放混沌矛
-                    local targetRoot = targetOrbitChaosSpearPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    if targetRoot then
-                        local targetCFrame = CFrame.new(targetRoot.Position)
-                        ChaosSpearEvent:FireServer(targetCFrame)
-                    end
-
+                    local targetCFrame = CFrame.new(orbitCenter.X, orbitCenter.Y, orbitCenter.Z)
+                    ChaosSpearEvent:FireServer(targetCFrame)
+                    
                     -- 更新旋转角度
-                    currentAngle = currentAngle + orbitTeleportConfig.angleStep
-                    if currentAngle >= 360 then currentAngle = 0 end
-
-                    task.wait(orbitTeleportConfig.teleportInterval)
+                    currentAngle = currentAngle + orbitConfig.angleStep
+                    if currentAngle >= 360 then 
+                        currentAngle = 0 
+                        print("[维度融合] 完成一圈旋转")
+                    end
+                    
+                    -- 控制循环速度
+                    task.wait(orbitConfig.teleportInterval)
                 end
-
-                -- 重置状态
-                isOrbitLooping = false
-                teleportCenter = nil
+                
                 isOrbitChaosSpearActive = false
                 print("[维度融合] 选人围绕混沌矛已自动关闭")
             end)
+            
+            -- 额外启动一个混沌矛释放循环（确保攻击密度）
+            orbitChaosSpearAttackLoop = task.spawn(function()
+                while isOrbitChaosSpearActive and 
+                      targetOrbitChaosSpearPlayer and 
+                      targetOrbitChaosSpearPlayer:IsDescendantOf(Players) do
+                    
+                    local latestTargetChar = targetOrbitChaosSpearPlayer.Character
+                    local latestTargetRoot = latestTargetChar and latestTargetChar:FindFirstChild("HumanoidRootPart")
+                    
+                    if latestTargetRoot then
+                        -- 向目标释放混沌矛
+                        local targetCFrame = CFrame.new(
+                            latestTargetRoot.Position.X, 
+                            latestTargetRoot.Position.Y, 
+                            latestTargetRoot.Position.Z
+                        )
+                        ChaosSpearEvent:FireServer(targetCFrame)
+                    end
+                    
+                    task.wait(orbitConfig.spearInterval)
+                end
+            end)
+            
         else
             -- 停止功能
-            isOrbitLooping = false
             if orbitChaosSpearLoop then
                 task.cancel(orbitChaosSpearLoop)
                 orbitChaosSpearLoop = nil
             end
-            teleportCenter = nil
+            if orbitChaosSpearAttackLoop then
+                task.cancel(orbitChaosSpearAttackLoop)
+                orbitChaosSpearAttackLoop = nil
+            end
             print("[维度融合] 选人围绕混沌矛已关闭")
         end
     end
 })
+
 
 -- ==================== Chara挥砍技能（修复版） ====================
 -- 添加到角色技能标签页的合适位置（在已有功能之后）
