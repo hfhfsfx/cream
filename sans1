@@ -2972,7 +2972,35 @@ AbilityTab:CreateToggle({
     end
 })
 
--- 5. 选人围绕Chara挥砍功能（完整修复版）
+-----5.围绕选人挥砍-------
+-- 创建围绕目标选择下拉框
+local orbitCharaSlashDropdown = AbilityTab:CreateDropdown({
+    Name = "选择围绕Chara挥砍目标玩家",
+    Options = getPlayerNames(),
+    CurrentOption = getPlayerNames()[1] or "无",
+    MultipleOptions = false,
+    Flag = "OrbitCharaSlashTargetDropdown",
+    Callback = function(Options)
+        local name = Options[1]
+        CharaSlash.orbitTargetPlayer = Players:FindFirstChild(name)
+        local targetName = CharaSlash.orbitTargetPlayer and CharaSlash.orbitTargetPlayer.Name or "无"
+        print("[维度融合] 围绕Chara挥砍目标已选中：" .. targetName)
+    end
+})
+
+-- 刷新围绕目标下拉框的函数
+local function refreshOrbitCharaSlashDropdown()
+    orbitCharaSlashDropdown:Refresh(getPlayerNames())
+    if CharaSlash.orbitTargetPlayer and not CharaSlash.orbitTargetPlayer:IsDescendantOf(Players) then
+        CharaSlash.orbitTargetPlayer = nil
+        print("[维度融合] 围绕Chara挥砍目标已离开，已重置")
+    end
+end
+
+-- 监听玩家进出游戏
+Players.PlayerAdded:Connect(refreshOrbitCharaSlashDropdown)
+Players.PlayerRemoving:Connect(refreshOrbitCharaSlashDropdown)
+
 AbilityTab:CreateToggle({
     Name = "『开启/关闭选人围绕Chara挥砍（穿墙+全向跟随）』",
     CurrentValue = false,
