@@ -2973,11 +2973,11 @@ AbilityTab:CreateToggle({
 })
 
 
--- ==================== 选人围绕Chara挥砍功能（终极穿墙版） ====================
+-- 5.==================== 选人围绕Chara挥砍功能 ====================
 
--- 选择下拉框（保持不变）
+-- 选人围绕Chara挥砍功能（2秒一圈版）
 local orbitCharaSlashDropdown = AbilityTab:CreateDropdown({
-    Name = "选择围绕目标",
+    Name = "选择围绕Chara挥砍目标玩家",
     Options = getPlayerNames(),
     CurrentOption = "请选择",
     MultipleOptions = false,
@@ -2985,35 +2985,36 @@ local orbitCharaSlashDropdown = AbilityTab:CreateDropdown({
     Callback = function(Options)
         local name = Options[1]
         CharaSlash.orbitTargetPlayer = Players:FindFirstChild(name)
-        print("[维度融合] 已选择目标: " .. (name or "无"))
+        local targetName = CharaSlash.orbitTargetPlayer and CharaSlash.orbitTargetPlayer.Name or "无"
+        print("[维度融合] 围绕Chara挥砍目标已选中：" .. targetName)
     end
 })
 
--- 刷新玩家列表（保持不变）
 local function refreshOrbitCharaSlashDropdown()
     orbitCharaSlashDropdown:Refresh(getPlayerNames())
+    if CharaSlash.orbitTargetPlayer and not CharaSlash.orbitTargetPlayer:IsDescendantOf(Players) then
+        CharaSlash.orbitTargetPlayer = nil
+        print("[维度融合] 围绕Chara挥砍目标已离开，已重置")
+    end
 end
+
 Players.PlayerAdded:Connect(refreshOrbitCharaSlashDropdown)
 Players.PlayerRemoving:Connect(refreshOrbitCharaSlashDropdown)
 
--- 主开关（增强穿墙版）
 AbilityTab:CreateToggle({
-    Name = "『开启/关闭选人围绕Chara挥砍（终极穿墙）』",
+    Name = "『开启/关闭选人围绕Chara挥砍（2秒/圈）』",
     CurrentValue = false,
     Flag = "OrbitCharaSlashToggle",
     Callback = function(Value)
         CharaSlash.isOrbitActive = Value
-        
         if CharaSlash.isOrbitActive then
-            -- ========== 开启逻辑 ==========
             if not CharaSlash.orbitTargetPlayer then
-                warn("[维度融合] 请先选择目标玩家！")
+                warn("[维度融合] 请先从下拉框选择围绕Chara挥砍目标！")
                 CharaSlash.isOrbitActive = false
                 return
             end
-            
             if CharaSlash.orbitTargetPlayer == LocalPlayer then
-                warn("[维度融合] 不能围绕自己！")
+                warn("[维度融合] 不能围绕自己释放！")
                 CharaSlash.isOrbitActive = false
                 return
             end
@@ -3025,20 +3026,20 @@ AbilityTab:CreateToggle({
             -- 获取目标角色
             local targetChar = CharaSlash.orbitTargetPlayer.Character
             if not targetChar then
-                warn("[维度融合] 目标玩家无角色！")
+                warn("[维度融合] 目标玩家无角色，无法开启！")
                 CharaSlash.isOrbitActive = false
                 return
             end
             
             local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
             if not targetRoot then
-                warn("[维度融合] 目标玩家无HumanoidRootPart！")
+                warn("[维度融合] 目标玩家无HumanoidRootPart，无法开启！")
                 CharaSlash.isOrbitActive = false
                 return
             end
 
-            print("[维度融合] 开始围绕目标: " .. CharaSlash.orbitTargetPlayer.Name)
-            print("[维度融合] 终极穿墙模式已启用")
+            print("[维度融合] 选人围绕Chara挥砍已开启，目标：" .. CharaSlash.orbitTargetPlayer.Name)
+            print("[维度融合] 旋转速度：2秒/圈")
             
             -- 获取Chara挥砍事件
             local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -3047,236 +3048,113 @@ AbilityTab:CreateToggle({
                 and ReplicatedStorage.PlayerRemoteEvents.Chara:FindFirstChild("slash")
             
             if not CharaSlashEvent then
-                warn("[维度融合] 未找到Chara.slash事件！")
+                warn("[维度融合] 未找到 Chara.slash 远程事件！")
                 CharaSlash.isOrbitActive = false
                 return
             end
 
-            -- ========== 终极穿墙系统 ==========
-            local originalProperties = {}
-            local originalGravity = workspace.Gravity
-            
-            -- 方法1: 完全禁用物理
-            for _, part in ipairs(localChar:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    -- 保存原始属性
-                    originalProperties[part] = {
-                        CanCollide = part.CanCollide,
-                        CanTouch = part.CanTouch,
-                        Anchored = part.Anchored,
-                        Transparency = part.Transparency,
-                        AssemblyLinearVelocity = part.AssemblyLinearVelocity,
-                        AssemblyAngularVelocity = part.AssemblyAngularVelocity
-                    }
-                    
-                    -- 完全禁用物理
-                    part.CanCollide = false
-                    part.CanTouch = false
-                    part.Anchored = true  -- 关键：锁定部件，完全无视物理
-                    part.Transparency = 0.2
-                    
-                    -- 清除所有物理
-                    part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                    part.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-                end
-            end
-            
-            -- 方法2: 修改碰撞组
-            local PhysicsService = game:GetService("PhysicsService")
-            local originalCollisionGroups = {}
-            
-            -- 创建无碰撞组
-            pcall(function()
-                PhysicsService:RegisterCollisionGroup("NoCollisionGroup")
-                PhysicsService:CollisionGroupSetCollidable("NoCollisionGroup", "NoCollisionGroup", false)
-                PhysicsService:CollisionGroupSetCollidable("NoCollisionGroup", "Default", false)
-                
-                for _, part in ipairs(localChar:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        originalCollisionGroups[part] = part.CollisionGroupId
-                        part.CollisionGroup = "NoCollisionGroup"
-                    end
-                end
-            end)
-            
-            -- 方法3: 创建力场（防止伤害和状态效果）
-            local forceField = Instance.new("ForceField")
-            forceField.Visible = false
-            forceField.Parent = localChar
-            
-            -- 方法4: 直接传送（绕过所有物理）
-            local function directTeleport(position, lookAt)
-                if localRoot and localRoot.Parent then
-                    -- 完全绕过物理引擎
-                    localRoot.CFrame = CFrame.lookAt(position, lookAt)
-                    
-                    -- 立即执行，不给物理引擎反应时间
-                    game:GetService("RunService").Heartbeat:Wait()
-                end
-            end
-            
-            -- 方法5: 预检测和绕过障碍物
-            local function getSafePosition(targetPos, radius, angle)
-                local rad = math.rad(angle)
-                local basePos = Vector3.new(
-                    targetPos.X + (math.cos(rad) * radius),
-                    targetPos.Y + 2,
-                    targetPos.Z + (math.sin(rad) * radius)
-                )
-                
-                -- 检查当前位置是否被阻挡
-                local raycastParams = RaycastParams.new()
-                raycastParams.FilterDescendantsInstances = {localChar}
-                raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-                
-                local raycastResult = workspace:Raycast(targetPos, (basePos - targetPos).Unit * radius, raycastParams)
-                
-                if raycastResult then
-                    -- 被阻挡，尝试从上方绕过
-                    return Vector3.new(basePos.X, basePos.Y + 10, basePos.Z)
-                end
-                
-                return basePos
-            end
-
-            -- ========== 围绕逻辑 ==========
+            -- 围绕参数配置（2秒一圈）
             local orbitConfig = {
-                radius = 100,
-                secondsPerCircle = 2,
-                slashInterval = 0.05,
-                heightOffset = 2
+                radius = 100,                    -- 旋转半径
+                teleportInterval = 0.05,         -- 瞬移间隔（每0.05秒更新一次位置）
+                slashInterval = 0.1,             -- 剑气释放间隔
+                -- 计算角度增量：360度 ÷ (2秒 ÷ 0.05秒/次) = 360 ÷ 40 = 9度/次
+                angleStep = 9                    -- 每步旋转9度，2秒转完一圈（40步×0.05秒=2秒）
             }
             
-            local lastTime = tick()
             local currentAngle = 0
-            local currentOrbitCenter = targetRoot.Position
-
-            -- 围绕循环（使用直接传送）
-            CharaSlash.orbitLoop = game:GetService("RunService").Heartbeat:Connect(function()
-                if not CharaSlash.isOrbitActive then return end
-                
-                -- 检查目标
-                if not CharaSlash.orbitTargetPlayer or not CharaSlash.orbitTargetPlayer:IsDescendantOf(Players) then
-                    warn("[维度融合] 目标玩家已离开")
-                    CharaSlash.isOrbitActive = false
-                    return
+            local orbitCenter = targetRoot.Position
+            
+            -- 启动围绕循环
+            CharaSlash.orbitLoop = task.spawn(function()
+                while CharaSlash.isOrbitActive and 
+                      CharaSlash.orbitTargetPlayer and 
+                      CharaSlash.orbitTargetPlayer:IsDescendantOf(Players) do
+                    
+                    -- 实时更新目标位置
+                    local latestTargetChar = CharaSlash.orbitTargetPlayer.Character
+                    local latestTargetRoot = latestTargetChar and latestTargetChar:FindFirstChild("HumanoidRootPart")
+                    
+                    if not latestTargetRoot then
+                        warn("[维度融合] 目标玩家角色消失，停止功能！")
+                        break
+                    end
+                    
+                    orbitCenter = latestTargetRoot.Position
+                    
+                    -- 计算当前旋转位置
+                    local rad = math.rad(currentAngle)
+                    local offsetX = orbitConfig.radius * math.cos(rad)
+                    local offsetZ = orbitConfig.radius * math.sin(rad)
+                    
+                    -- 计算玩家应该瞬移到的位置
+                    local teleportPos = Vector3.new(
+                        orbitCenter.X + offsetX,
+                        orbitCenter.Y + 1,  -- 稍微提高Y轴高度
+                        orbitCenter.Z + offsetZ
+                    )
+                    
+                    -- 让玩家看向目标
+                    local lookAtCFrame = CFrame.lookAt(teleportPos, Vector3.new(orbitCenter.X, teleportPos.Y, orbitCenter.Z))
+                    
+                    -- 瞬移玩家到围绕位置
+                    if localRoot and localRoot.Parent then
+                        localRoot.CFrame = lookAtCFrame
+                    end
+                    
+                    -- 向目标释放剑气
+                    local slashArgs = {Vector3.new(orbitCenter.X, orbitCenter.Y, orbitCenter.Z)}
+                    CharaSlashEvent:FireServer(unpack(slashArgs))
+                    
+                    -- 更新旋转角度
+                    currentAngle = currentAngle + orbitConfig.angleStep
+                    if currentAngle >= 360 then 
+                        currentAngle = 0 
+                        print("[维度融合] 完成一圈旋转")
+                    end
+                    
+                    -- 控制循环速度
+                    task.wait(orbitConfig.teleportInterval)
                 end
                 
-                -- 获取目标位置
-                local latestTargetChar = CharaSlash.orbitTargetPlayer.Character
-                local latestTargetRoot = latestTargetChar and latestTargetChar:FindFirstChild("HumanoidRootPart")
-                
-                if not latestTargetRoot then
-                    warn("[维度融合] 目标玩家角色消失")
-                    CharaSlash.isOrbitActive = false
-                    return
-                end
-                
-                local targetPos = latestTargetRoot.Position
-                
-                -- 更新时间和角度
-                local currentTime = tick()
-                local deltaTime = currentTime - lastTime
-                lastTime = currentTime
-                
-                currentAngle = currentAngle + (360 / orbitConfig.secondsPerCircle) * deltaTime
-                if currentAngle >= 360 then currentAngle = currentAngle - 360 end
-                
-                -- 更新旋转中心
-                currentOrbitCenter = targetPos
-                
-                -- 获取安全位置（尝试绕过障碍）
-                local safePos = getSafePosition(currentOrbitCenter, orbitConfig.radius, currentAngle)
-                
-                -- 直接传送（终极穿墙）
-                directTeleport(safePos, Vector3.new(targetPos.X, safePos.Y, targetPos.Z))
-                
-                -- 释放剑气
-                local slashArgs = {Vector3.new(targetPos.X, targetPos.Y, targetPos.Z)}
-                CharaSlashEvent:FireServer(unpack(slashArgs))
+                CharaSlash.isOrbitActive = false
+                print("[维度融合] 选人围绕Chara挥砍已自动关闭")
             end)
             
-            -- 剑气释放循环
-            local lastSlashTime = tick()
+            -- 额外启动一个剑气释放循环（确保剑气密度）
             CharaSlash.orbitSlashLoop = task.spawn(function()
-                while CharaSlash.isOrbitActive do
-                    local currentTime = tick()
-                    if currentTime - lastSlashTime >= orbitConfig.slashInterval then
-                        local latestTargetChar = CharaSlash.orbitTargetPlayer.Character
-                        local latestTargetRoot = latestTargetChar and latestTargetChar:FindFirstChild("HumanoidRootPart")
-                        
-                        if latestTargetRoot then
-                            local targetPos = latestTargetRoot.Position
-                            local slashArgs = {Vector3.new(targetPos.X, targetPos.Y, targetPos.Z)}
-                            CharaSlashEvent:FireServer(unpack(slashArgs))
-                            lastSlashTime = currentTime
-                        end
+                while CharaSlash.isOrbitActive and 
+                      CharaSlash.orbitTargetPlayer and 
+                      CharaSlash.orbitTargetPlayer:IsDescendantOf(Players) do
+                    
+                    local latestTargetChar = CharaSlash.orbitTargetPlayer.Character
+                    local latestTargetRoot = latestTargetChar and latestTargetChar:FindFirstChild("HumanoidRootPart")
+                    
+                    if latestTargetRoot then
+                        -- 向目标释放剑气
+                        local slashArgs = {Vector3.new(latestTargetRoot.Position.X, latestTargetRoot.Position.Y, latestTargetRoot.Position.Z)}
+                        CharaSlashEvent:FireServer(unpack(slashArgs))
                     end
-                    task.wait(0.01)
+                    
+                    task.wait(orbitConfig.slashInterval)
                 end
             end)
-            
-            -- ========== 恢复函数 ==========
-            CharaSlash.restoreFunction = function()
-                print("[维度融合] 恢复原始物理属性...")
-                
-                -- 1. 恢复部件属性
-                for part, properties in pairs(originalProperties) do
-                    if part and part.Parent then
-                        pcall(function()
-                            part.CanCollide = properties.CanCollide
-                            part.CanTouch = properties.CanTouch
-                            part.Anchored = properties.Anchored
-                            part.Transparency = properties.Transparency
-                            part.AssemblyLinearVelocity = properties.AssemblyLinearVelocity
-                            part.AssemblyAngularVelocity = properties.AssemblyAngularVelocity
-                        end)
-                    end
-                end
-                
-                -- 2. 恢复碰撞组
-                for part, groupId in pairs(originalCollisionGroups) do
-                    if part and part.Parent then
-                        pcall(function()
-                            part.CollisionGroupId = groupId
-                        end)
-                    end
-                end
-                
-                -- 3. 清理力场
-                if forceField then
-                    forceField:Destroy()
-                end
-                
-                -- 4. 恢复重力
-                workspace.Gravity = originalGravity
-                
-                print("[维度融合] 物理属性已完全恢复")
-            end
             
         else
-            -- ========== 关闭逻辑 ==========
-            print("[维度融合] 停止围绕")
-            
-            -- 停止循环
+            -- 停止功能
             if CharaSlash.orbitLoop then
-                CharaSlash.orbitLoop:Disconnect()
+                task.cancel(CharaSlash.orbitLoop)
+                CharaSlash.orbitLoop = nil
             end
             if CharaSlash.orbitSlashLoop then
                 task.cancel(CharaSlash.orbitSlashLoop)
                 CharaSlash.orbitSlashLoop = nil
             end
-            
-            -- 恢复属性
-            if CharaSlash.restoreFunction then
-                CharaSlash.restoreFunction()
-                CharaSlash.restoreFunction = nil
-            end
+            print("[维度融合] 选人围绕Chara挥砍已关闭")
         end
     end
 })
 
-print("✅ 选人围绕Chara挥砍功能已添加（终极穿墙版）")
 
 -- ==================== Gaster Blaster（龙骨炮）功能 ====================
 local isGasterBlasterActive = false
