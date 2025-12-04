@@ -7,6 +7,7 @@ local Window = Rayfield:CreateWindow({
    LoadingTitle = "维度融合",
    LoadingSubtitle = "作者:91兔子",
    ShowText = "Rayfield", -- for mobile users to unhide rayfield, change if you'd like
+   Theme = "Ocean",
    {
     TextColor = Color3.fromRGB(255, 255, 255), -- 纯白文字提升可读性
 
