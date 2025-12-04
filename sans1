@@ -1927,14 +1927,14 @@ local morphCharactersList = {
     "Cuphead","Mugman",
     "Sayori","Monika","Yuri",
     "Sans","Frisk","Chara",
-    "Sonic.exe"
+    "Vortex"
 }
 
 -- Morph 角色选择下拉框
 local morphDropdown = CharacterTab:CreateDropdown({
     Name = "选择 视觉模型 ",
     Options = morphCharactersList,
-    CurrentOption = morphCharactersList[1],
+    CurrentOption = "请选择",
     MultipleOptions = false,
     Flag = "MorphCharacterDropdown",
     Callback = function(Options)
