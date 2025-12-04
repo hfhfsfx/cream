@@ -11,7 +11,7 @@ local Window = Rayfield:CreateWindow({
    
    ToggleUIKeybind = "K", -- The keybind to toggle the UI visibility (string like "K" or Enum.KeyCode)
 
-   DisableRayfieldPrompts = true, -- 这里保留了原配置
+   DisableRayfieldPrompts = false, -- 这里保留了原配置
    DisableBuildWarnings = false, -- Prevents Rayfield from warning when the script has a version mismatch with the interface
 
 
