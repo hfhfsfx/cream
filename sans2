@@ -705,7 +705,7 @@ Players.PlayerRemoving:Connect(refreshHomingDropdown)
 -- 选择定人开关
 CombatTab:CreateToggle({
     Name = "『开启/关闭选择定人』",
-    CurrentValue = false,
+    CurrentValue = true,
     Flag = "TargetHomingToggle",
     Callback = function(Value)
         isTargetHomingActive = Value
