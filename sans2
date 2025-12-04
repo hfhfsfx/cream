@@ -679,7 +679,7 @@ local homingDropdown = CombatTab:CreateDropdown({
     Name = "选择定人目标玩家",
     Options = getPlayerNames(),
     CurrentOption = "请选择",
-    MultipleOptions = false,
+    MultipleOptions = true,
     Flag = "HomingTargetDropdown",
     Callback = function(Options)
         local name = Options[1]
@@ -705,7 +705,7 @@ Players.PlayerRemoving:Connect(refreshHomingDropdown)
 -- 选择定人开关
 CombatTab:CreateToggle({
     Name = "『开启/关闭选择定人』",
-    CurrentValue = true,
+    CurrentValue = false,
     Flag = "TargetHomingToggle",
     Callback = function(Value)
         isTargetHomingActive = Value
