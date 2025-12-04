@@ -2972,168 +2972,48 @@ AbilityTab:CreateToggle({
     end
 })
 
+-- ==================== 选人围绕Chara挥砍功能（完整结合版） ====================
 
-
--- ==================== 选人围绕Chara挥砍功能（完整版，包含选择按钮） ====================
-
--- 1. 首先创建目标选择下拉框（必须在Toggle之前）
-AbilityTab:CreateSection("选人围绕Chara挥砍")
-
--- 创建围绕目标选择下拉框
+-- 创建选择下拉框
 local orbitCharaSlashDropdown = AbilityTab:CreateDropdown({
-    Name = "📌 选择围绕Chara挥砍目标玩家",
+    Name = "选择围绕目标",
     Options = getPlayerNames(),
-    CurrentOption = getPlayerNames()[1] or "无",
+    CurrentOption = "请选择",
     MultipleOptions = false,
     Flag = "OrbitCharaSlashTargetDropdown",
     Callback = function(Options)
         local name = Options[1]
         CharaSlash.orbitTargetPlayer = Players:FindFirstChild(name)
-        local targetName = CharaSlash.orbitTargetPlayer and CharaSlash.orbitTargetPlayer.Name or "无"
-        print("[维度融合] 围绕Chara挥砍目标已选中：" .. targetName)
+        print("[维度融合] 已选择目标: " .. (name or "无"))
     end
 })
 
--- 刷新围绕目标下拉框的函数
+-- 刷新玩家列表
 local function refreshOrbitCharaSlashDropdown()
     orbitCharaSlashDropdown:Refresh(getPlayerNames())
-    if CharaSlash.orbitTargetPlayer and not CharaSlash.orbitTargetPlayer:IsDescendantOf(Players) then
-        CharaSlash.orbitTargetPlayer = nil
-        print("[维度融合] 围绕Chara挥砍目标已离开，已重置")
-    end
 end
 
--- 监听玩家进出游戏
 Players.PlayerAdded:Connect(refreshOrbitCharaSlashDropdown)
 Players.PlayerRemoving:Connect(refreshOrbitCharaSlashDropdown)
 
--- 2. 创建信息显示按钮
-AbilityTab:CreateButton({
-    Name = "📊 显示当前选中目标信息",
-    Callback = function()
-        if not CharaSlash.orbitTargetPlayer then
-            warn("[维度融合] 请先选择目标玩家！")
-            return
-        end
-        
-        local target = CharaSlash.orbitTargetPlayer
-        local char = target.Character
-        local hasChar = char ~= nil
-        local isAlive = false
-        
-        if hasChar then
-            local humanoid = char:FindFirstChild("Humanoid")
-            isAlive = humanoid and humanoid.Health > 0
-        end
-        
-        print("======= 当前选中目标信息 =======")
-        print("🎯 目标名称: " .. target.Name)
-        print("👥 目标队伍: " .. (target.Team and target.Team.Name or "无队伍"))
-        print("🧍 是否有角色: " .. (hasChar and "✅ 有" or "❌ 无"))
-        print("❤️ 角色状态: " .. (isAlive and "✅ 存活" or "❌ 死亡/不存在"))
-        
-        if hasChar and char:FindFirstChild("HumanoidRootPart") then
-            local pos = char.HumanoidRootPart.Position
-            print("📍 当前位置: X=" .. math.floor(pos.X) .. ", Y=" .. math.floor(pos.Y) .. ", Z=" .. math.floor(pos.Z))
-        end
-        
-        print("================================")
-    end
-})
-
--- 3. 创建快速选择当前玩家按钮（可选功能）
-AbilityTab:CreateButton({
-    Name = "⚡ 快速选择最近玩家",
-    Callback = function()
-        local localPlayer = Players.LocalPlayer
-        local localChar = localPlayer.Character
-        local localPos = localChar and localChar:FindFirstChild("HumanoidRootPart") and localChar.HumanoidRootPart.Position
-        
-        if not localPos then
-            warn("[维度融合] 无法获取自身位置")
-            return
-        end
-        
-        local closestPlayer = nil
-        local closestDistance = math.huge
-        
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= localPlayer and player.Character then
-                local char = player.Character
-                local root = char:FindFirstChild("HumanoidRootPart")
-                
-                if root then
-                    local distance = (root.Position - localPos).Magnitude
-                    if distance < closestDistance then
-                        closestDistance = distance
-                        closestPlayer = player
-                    end
-                end
-            end
-        end
-        
-        if closestPlayer then
-            CharaSlash.orbitTargetPlayer = closestPlayer
-            orbitCharaSlashDropdown:Set({closestPlayer.Name})
-            print("[维度融合] 已选择最近玩家: " .. closestPlayer.Name .. " (距离: " .. math.floor(closestDistance) .. " 单位)")
-        else
-            warn("[维度融合] 未找到其他玩家")
-        end
-    end
-})
-
--- 4. 创建开启/关闭Toggle（完整功能）
+-- 创建主开关
 AbilityTab:CreateToggle({
-    Name = "『开启/关闭选人围绕Chara挥砍（穿墙+全向跟随）』",
+    Name = "『开启/关闭选人围绕Chara挥砍』",
     CurrentValue = false,
     Flag = "OrbitCharaSlashToggle",
     Callback = function(Value)
         CharaSlash.isOrbitActive = Value
+        
         if CharaSlash.isOrbitActive then
-            -- 检查是否已选择目标
+            -- ========== 开启逻辑 ==========
             if not CharaSlash.orbitTargetPlayer then
-                warn("[维度融合] ❌ 请先从下拉框选择围绕Chara挥砍目标！")
+                warn("[维度融合] 请先选择目标玩家！")
                 CharaSlash.isOrbitActive = false
-                
-                -- 尝试自动选择最近玩家
-                task.spawn(function()
-                    local localPlayer = Players.LocalPlayer
-                    local localChar = localPlayer.Character
-                    local localPos = localChar and localChar:FindFirstChild("HumanoidRootPart") and localChar.HumanoidRootPart.Position
-                    
-                    if localPos then
-                        local closestPlayer = nil
-                        local closestDistance = math.huge
-                        
-                        for _, player in ipairs(Players:GetPlayers()) do
-                            if player ~= localPlayer and player.Character then
-                                local char = player.Character
-                                local root = char:FindFirstChild("HumanoidRootPart")
-                                
-                                if root then
-                                    local distance = (root.Position - localPos).Magnitude
-                                    if distance < closestDistance then
-                                        closestDistance = distance
-                                        closestPlayer = player
-                                    end
-                                end
-                            end
-                        end
-                        
-                        if closestPlayer then
-                            CharaSlash.orbitTargetPlayer = closestPlayer
-                            orbitCharaSlashDropdown:Set({closestPlayer.Name})
-                            print("[维度融合] ✅ 已自动选择最近玩家: " .. closestPlayer.Name)
-                            print("[维度融合] 🔄 请重新开启功能")
-                        end
-                    end
-                end)
-                
                 return
             end
             
             if CharaSlash.orbitTargetPlayer == LocalPlayer then
-                warn("[维度融合] ❌ 不能围绕自己释放！")
+                warn("[维度融合] 不能围绕自己！")
                 CharaSlash.isOrbitActive = false
                 return
             end
@@ -3142,61 +3022,22 @@ AbilityTab:CreateToggle({
             local localChar = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
             local localRoot = localChar:WaitForChild("HumanoidRootPart")
             
-            -- 保存原始属性以便恢复
-            local originalProperties = {
-                canCollide = {},
-                anchored = {},
-                transparency = {}
-            }
-            
-            -- 启用穿墙：临时修改角色所有部件的物理属性
-            for _, part in ipairs(localChar:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    -- 保存原始属性
-                    originalProperties.canCollide[part] = part.CanCollide
-                    originalProperties.anchored[part] = part.Anchored
-                    originalProperties.transparency[part] = part.Transparency
-                    
-                    -- 设置穿墙属性
-                    part.CanCollide = false  -- 关键：禁用碰撞
-                    part.Transparency = 0.3  -- 半透明，方便观察穿墙效果
-                    part.Anchored = false    -- 不锁定，让物理控制器控制
-                    
-                    -- 清除速度和旋转
-                    part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                    part.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-                end
-            end
-            
-            -- 处理Humanoid
-            local humanoid = localChar:FindFirstChild("Humanoid")
-            if humanoid then
-                humanoid.WalkSpeed = 0
-                humanoid.JumpPower = 0
-            end
-
             -- 获取目标角色
             local targetChar = CharaSlash.orbitTargetPlayer.Character
             if not targetChar then
-                warn("[维度融合] ❌ 目标玩家无角色，无法开启！")
-                -- 恢复属性
-                restoreOriginalProperties(originalProperties, localChar)
+                warn("[维度融合] 目标玩家无角色！")
                 CharaSlash.isOrbitActive = false
                 return
             end
             
             local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
             if not targetRoot then
-                warn("[维度融合] ❌ 目标玩家无HumanoidRootPart，无法开启！")
-                restoreOriginalProperties(originalProperties, localChar)
+                warn("[维度融合] 目标玩家无HumanoidRootPart！")
                 CharaSlash.isOrbitActive = false
                 return
             end
 
-            print("[维度融合] ✅ 选人围绕Chara挥砍已开启")
-            print("🎯 目标: " .. CharaSlash.orbitTargetPlayer.Name)
-            print("🔄 模式: 穿墙+全向动态跟随，平滑2秒/圈")
-            print("⚠️ 注意: 功能开启期间可以穿墙，关闭后恢复正常")
+            print("[维度融合] 开始围绕目标: " .. CharaSlash.orbitTargetPlayer.Name)
             
             -- 获取Chara挥砍事件
             local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -3205,207 +3046,120 @@ AbilityTab:CreateToggle({
                 and ReplicatedStorage.PlayerRemoteEvents.Chara:FindFirstChild("slash")
             
             if not CharaSlashEvent then
-                warn("[维度融合] ❌ 未找到 Chara.slash 远程事件！")
-                restoreOriginalProperties(originalProperties, localChar)
+                warn("[维度融合] 未找到Chara.slash事件！")
                 CharaSlash.isOrbitActive = false
                 return
             end
 
-            -- 创建防掉落物理控制器
+            -- 创建物理控制器
             local TweenService = game:GetService("TweenService")
             
             local bodyPosition = Instance.new("BodyPosition")
             bodyPosition.Name = "CharaOrbitBodyPosition"
-            bodyPosition.P = 35000
-            bodyPosition.D = 2500
-            bodyPosition.MaxForce = Vector3.new(70000, 70000, 70000)
+            bodyPosition.P = 30000
+            bodyPosition.D = 2000
+            bodyPosition.MaxForce = Vector3.new(60000, 60000, 60000)
             bodyPosition.Parent = localRoot
             
             local bodyGyro = Instance.new("BodyGyro")
             bodyGyro.Name = "CharaOrbitBodyGyro"
-            bodyGyro.P = 18000
-            bodyGyro.D = 1200
-            bodyGyro.MaxTorque = Vector3.new(70000, 70000, 70000)
+            bodyGyro.P = 15000
+            bodyGyro.D = 1000
+            bodyGyro.MaxTorque = Vector3.new(60000, 60000, 60000)
             bodyGyro.Parent = localRoot
 
-            -- 全向跟随参数
+            -- 设置穿墙
+            local originalProperties = {}
+            for _, part in ipairs(localChar:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    originalProperties[part] = {
+                        CanCollide = part.CanCollide,
+                        Transparency = part.Transparency
+                    }
+                    part.CanCollide = false
+                    part.Transparency = 0.3
+                end
+            end
+
+            -- 围绕参数
             local orbitConfig = {
                 radius = 100,
                 secondsPerCircle = 2,
                 slashInterval = 0.05,
-                heightOffset = 1.5,
-                followSmoothness = 0.5,
-                predictiveFactor = 0.3,
-                maxCatchUpSpeed = 80,
-                wallPenetrationForce = 1.2
+                heightOffset = 1.5
             }
             
             local lastTime = tick()
             local currentAngle = 0
             local currentOrbitCenter = targetRoot.Position
-            local targetHistory = {}
-            local historySize = 5
 
-            -- 初始化历史记录
-            for i = 1, historySize do
-                targetHistory[i] = targetRoot.Position
-            end
-
-            -- 定义恢复函数
-            local function restoreOriginalProperties(properties, character)
-                -- 恢复部件的原始属性
-                for part, canCollide in pairs(properties.canCollide) do
-                    if part and part.Parent then
-                        pcall(function()
-                            part.CanCollide = canCollide
-                            part.Transparency = properties.transparency[part] or 0
-                            part.Anchored = properties.anchored[part] or false
-                        end)
-                    end
-                end
-                
-                -- 恢复Humanoid属性
-                local hum = character:FindFirstChild("Humanoid")
-                if hum then
-                    hum.WalkSpeed = 16
-                    hum.JumpPower = 50
-                end
-                
-                -- 清理物理控制器
-                if bodyPosition and bodyPosition.Parent then
-                    bodyPosition:Destroy()
-                end
-                if bodyGyro and bodyGyro.Parent then
-                    bodyGyro:Destroy()
-                end
-                
-                print("[维度融合] ✅ 已恢复角色原始物理属性")
-            end
-
-            -- 全向动态跟随旋转循环
+            -- 围绕循环
             CharaSlash.orbitLoop = game:GetService("RunService").RenderStepped:Connect(function()
-                if not CharaSlash.isOrbitActive then
-                    return
-                end
+                if not CharaSlash.isOrbitActive then return end
                 
-                -- 检查目标是否还在游戏中
+                -- 检查目标
                 if not CharaSlash.orbitTargetPlayer or not CharaSlash.orbitTargetPlayer:IsDescendantOf(Players) then
-                    warn("[维度融合] ⚠️ 目标玩家已离开游戏，停止围绕")
+                    warn("[维度融合] 目标玩家已离开")
                     CharaSlash.isOrbitActive = false
                     return
                 end
                 
-                -- 实时获取目标位置
+                -- 获取目标位置
                 local latestTargetChar = CharaSlash.orbitTargetPlayer.Character
                 local latestTargetRoot = latestTargetChar and latestTargetChar:FindFirstChild("HumanoidRootPart")
                 
-                if not latestTargetRoot or not latestTargetRoot.Parent then
-                    warn("[维度融合] ⚠️ 目标玩家角色消失，停止功能！")
+                if not latestTargetRoot then
+                    warn("[维度融合] 目标玩家角色消失")
                     CharaSlash.isOrbitActive = false
                     return
                 end
                 
-                local currentTargetPos = latestTargetRoot.Position
+                local targetPos = latestTargetRoot.Position
                 
-                -- 更新目标位置历史
-                table.remove(targetHistory, 1)
-                table.insert(targetHistory, currentTargetPos)
-                
-                -- 计算目标移动速度和预测位置
-                local targetVelocity = Vector3.new(0, 0, 0)
-                if #targetHistory >= 2 then
-                    local recentPos = targetHistory[#targetHistory]
-                    local olderPos = targetHistory[1]
-                    local timeSpan = 0.1 * (#targetHistory - 1)
-                    if timeSpan > 0 then
-                        targetVelocity = (recentPos - olderPos) / timeSpan
-                    end
-                end
-                
-                local predictedTargetPos = currentTargetPos + (targetVelocity * orbitConfig.predictiveFactor)
-                
-                -- 计算时间差
+                -- 更新时间和角度
                 local currentTime = tick()
                 local deltaTime = currentTime - lastTime
                 lastTime = currentTime
                 
-                -- 更新旋转角度
                 currentAngle = currentAngle + (360 / orbitConfig.secondsPerCircle) * deltaTime
-                if currentAngle >= 360 then 
-                    currentAngle = currentAngle - 360
-                end
+                if currentAngle >= 360 then currentAngle = currentAngle - 360 end
                 
-                -- 平滑更新旋转中心
-                local distanceToTarget = (predictedTargetPos - currentOrbitCenter).Magnitude
-                local catchUpSpeed = math.min(
-                    distanceToTarget * 12 * orbitConfig.wallPenetrationForce,
-                    orbitConfig.maxCatchUpSpeed
-                )
+                -- 更新旋转中心
+                currentOrbitCenter = targetPos
                 
-                if distanceToTarget > 0.1 then
-                    local directionToTarget = (predictedTargetPos - currentOrbitCenter).Unit
-                    local moveDistance = catchUpSpeed * deltaTime * orbitConfig.followSmoothness
-                    currentOrbitCenter = currentOrbitCenter + (directionToTarget * math.min(moveDistance, distanceToTarget))
-                else
-                    currentOrbitCenter = predictedTargetPos
-                end
-                
-                -- 动态调整高度
-                local targetHeight = predictedTargetPos.Y
-                local desiredHeightOffset = orbitConfig.heightOffset
-                
-                if targetHeight > 15 then
-                    desiredHeightOffset = math.max(orbitConfig.heightOffset, 4)
-                elseif targetHeight < 5 then
-                    desiredHeightOffset = math.max(orbitConfig.heightOffset, 0.5)
-                end
-                
-                -- 计算玩家当前位置
+                -- 计算当前位置
                 local rad = math.rad(currentAngle)
                 local offsetX = orbitConfig.radius * math.cos(rad)
                 local offsetZ = orbitConfig.radius * math.sin(rad)
                 
                 local teleportPos = Vector3.new(
                     currentOrbitCenter.X + offsetX,
-                    currentOrbitCenter.Y + desiredHeightOffset,
+                    currentOrbitCenter.Y + orbitConfig.heightOffset,
                     currentOrbitCenter.Z + offsetZ
                 )
                 
-                -- 创建平滑移动Tween
-                local tweenInfo = TweenInfo.new(
-                    0.05,
-                    Enum.EasingStyle.Linear,
-                    Enum.EasingDirection.Out
-                )
+                -- 平滑移动
+                local tweenInfo = TweenInfo.new(0.06, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
                 
-                -- 位置Tween
                 local positionGoal = {Position = teleportPos}
                 local positionTween = TweenService:Create(bodyPosition, tweenInfo, positionGoal)
                 
-                -- 朝向Tween
-                local lookVector = (currentTargetPos - teleportPos).Unit
+                local lookVector = (targetPos - teleportPos).Unit
                 local gyroGoal = {CFrame = CFrame.new(teleportPos, teleportPos + lookVector)}
                 local gyroTween = TweenService:Create(bodyGyro, tweenInfo, gyroGoal)
                 
-                -- 执行Tween
                 positionTween:Play()
                 gyroTween:Play()
                 
-                -- 强制更新位置（确保穿墙）
-                bodyPosition.Position = teleportPos
-                
-                -- 向目标释放剑气
-                local slashArgs = {Vector3.new(currentTargetPos.X, currentTargetPos.Y, currentTargetPos.Z)}
+                -- 释放剑气
+                local slashArgs = {Vector3.new(targetPos.X, targetPos.Y, targetPos.Z)}
                 CharaSlashEvent:FireServer(unpack(slashArgs))
             end)
             
             -- 剑气释放循环
             local lastSlashTime = tick()
             CharaSlash.orbitSlashLoop = task.spawn(function()
-                while CharaSlash.isOrbitActive and 
-                      CharaSlash.orbitTargetPlayer and 
-                      CharaSlash.orbitTargetPlayer:IsDescendantOf(Players) do
-                    
+                while CharaSlash.isOrbitActive do
                     local currentTime = tick()
                     if currentTime - lastSlashTime >= orbitConfig.slashInterval then
                         local latestTargetChar = CharaSlash.orbitTargetPlayer.Character
@@ -3418,43 +3172,33 @@ AbilityTab:CreateToggle({
                             lastSlashTime = currentTime
                         end
                     end
-                    
                     task.wait(0.01)
                 end
-                
-                -- 自动关闭时的清理
-                CharaSlash.isOrbitActive = false
-                if CharaSlash.orbitLoop and CharaSlash.orbitLoop.Connected then
-                    CharaSlash.orbitLoop:Disconnect()
-                end
-                
-                -- 恢复原始属性
-                restoreOriginalProperties(originalProperties, localChar)
-                
-                print("[维度融合] ✅ 选人围绕Chara挥砍已自动关闭")
             end)
-            
-            -- 角色死亡监听
-            if humanoid then
-                humanoid.Died:Connect(function()
-                    if CharaSlash.isOrbitActive then
-                        CharaSlash.isOrbitActive = false
-                        if CharaSlash.orbitLoop and CharaSlash.orbitLoop.Connected then
-                            CharaSlash.orbitLoop:Disconnect()
-                        end
-                        restoreOriginalProperties(originalProperties, localChar)
-                    end
-                end)
-            end
             
             -- 保存恢复函数
             CharaSlash.restoreFunction = function()
-                restoreOriginalProperties(originalProperties, localChar)
+                -- 恢复属性
+                for part, properties in pairs(originalProperties) do
+                    if part and part.Parent then
+                        pcall(function()
+                            part.CanCollide = properties.CanCollide
+                            part.Transparency = properties.Transparency
+                        end)
+                    end
+                end
+                
+                -- 清理物理控制器
+                if bodyPosition then bodyPosition:Destroy() end
+                if bodyGyro then bodyGyro:Destroy() end
             end
             
         else
-            -- 手动关闭时的清理
-            if CharaSlash.orbitLoop and CharaSlash.orbitLoop.Connected then
+            -- ========== 关闭逻辑 ==========
+            print("[维度融合] 停止围绕")
+            
+            -- 停止循环
+            if CharaSlash.orbitLoop then
                 CharaSlash.orbitLoop:Disconnect()
             end
             if CharaSlash.orbitSlashLoop then
@@ -3462,18 +3206,17 @@ AbilityTab:CreateToggle({
                 CharaSlash.orbitSlashLoop = nil
             end
             
-            -- 调用恢复函数
+            -- 恢复属性
             if CharaSlash.restoreFunction then
                 CharaSlash.restoreFunction()
                 CharaSlash.restoreFunction = nil
             end
-            
-            print("[维度融合] ✅ 选人围绕Chara挥砍已关闭（已恢复重力效果）")
         end
     end
 })
 
-print("✅ 选人围绕Chara挥砍功能已完整添加（包含选择按钮）")
+print("✅ 选人围绕Chara挥砍功能已添加")
+
 
 -- ==================== Gaster Blaster（龙骨炮）功能 ====================
 local isGasterBlasterActive = false
