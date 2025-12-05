@@ -2373,7 +2373,6 @@ local SkinTab = Window:CreateTab("角色皮肤", 135443303437470)
 
 
 -- ==================== 角色皮肤功能 ====================
-SkinTab:CreateSection("角色皮肤选择")
 
 -- 获取Dummys文件夹中的所有模型
 local function getDummyModels()
@@ -2440,15 +2439,6 @@ local morphSkinDropdown = SkinTab:CreateDropdown({
     Callback = function(Options)
         selectedMorphSkin = Options[1]
         print("[维度融合] 已选择角色皮肤：" .. selectedMorphSkin)
-    end
-})
-
--- 刷新角色皮肤列表按钮
-SkinTab:CreateButton({
-    Name = "刷新角色皮肤列表",
-    Callback = function()
-        morphSkinDropdown:Refresh(getDisplayOptions())
-        print("[维度融合] 已刷新角色皮肤列表")
     end
 })
 
@@ -2557,7 +2547,7 @@ end
 
 -- 确认应用角色皮肤按钮
 SkinTab:CreateButton({
-    Name = "确认应用角色皮肤",
+    Name = "确认皮肤",
     Callback = function()
         if not selectedMorphSkin then
             warn("[维度融合] 请先从下拉框选择角色皮肤！")
@@ -2576,69 +2566,6 @@ SkinTab:CreateButton({
     end
 })
 
--- ==================== 自动应用角色皮肤功能 ====================
-local isAutoApplySkinActive = false
-local autoApplySkinConnection = nil
-local autoApplySkinModel = nil
-
--- 自动应用角色皮肤下拉框
-local autoMorphSkinDropdown = SkinTab:CreateDropdown({
-    Name = "选择自动应用角色皮肤",
-    Options = getDisplayOptions(),
-    CurrentOption = "请选择",
-    MultipleOptions = false,
-    Flag = "AutoMorphSkinDropdown",
-    Callback = function(Options)
-        autoApplySkinModel = Options[1]
-        print("[维度融合] 已选择自动应用角色皮肤：" .. autoApplySkinModel)
-    end
-})
-
--- 自动应用角色皮肤开关
-SkinTab:CreateToggle({
-    Name = "『开启/关闭自动应用角色皮肤』",
-    CurrentValue = false,
-    Flag = "AutoApplySkinToggle",
-    Callback = function(Value)
-        isAutoApplySkinActive = Value
-        if isAutoApplySkinActive then
-            if not autoApplySkinModel then
-                warn("[维度融合] 请先选择自动应用的角色皮肤！")
-                isAutoApplySkinActive = false
-                return
-            end
-            
-            -- 立即应用一次
-            local actualModelName = findActualModelName(autoApplySkinModel)
-            local success = morphToSkin(actualModelName)
-            
-            if success then
-                print("[维度融合] 自动应用角色皮肤已开启：" .. autoApplySkinModel)
-            else
-                warn("[维度融合] 自动应用角色皮肤失败，功能关闭")
-                isAutoApplySkinActive = false
-                return
-            end
-            
-            -- 监听角色重生，重新应用皮肤
-            autoApplySkinConnection = LocalPlayer.CharacterAdded:Connect(function(character)
-                task.wait(1) -- 等待角色完全加载
-                local actualModelName = findActualModelName(autoApplySkinModel)
-                local success = morphToSkin(actualModelName)
-                if success then
-                    print("[维度融合] 角色重生，已重新应用皮肤：" .. autoApplySkinModel)
-                end
-            end)
-            
-        else
-            if autoApplySkinConnection then
-                autoApplySkinConnection:Disconnect()
-                autoApplySkinConnection = nil
-            end
-            print("[维度融合] 自动应用角色皮肤已关闭")
-        end
-    end
-})
 
 -- ==================== 随机角色皮肤功能 ====================
 local function getRandomDummyModel()
@@ -2651,7 +2578,7 @@ local function getRandomDummyModel()
 end
 
 SkinTab:CreateButton({
-    Name = "随机选择角色皮肤",
+    Name = "随机切换皮肤",
     Callback = function()
         local randomModel = getRandomDummyModel()
         if randomModel then
@@ -2672,7 +2599,7 @@ SkinTab:CreateButton({
 
 -- ==================== 重置角色皮肤功能 ====================
 SkinTab:CreateButton({
-    Name = "重置角色皮肤（恢复原模型）",
+    Name = "重置皮肤",
     Callback = function()
         local char = LocalPlayer.Character
         if char then
