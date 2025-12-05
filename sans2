@@ -398,7 +398,7 @@ end
 
 -- 创建自动救人Toggle开关
 BasicTab:CreateToggle({
-    Name = "『开启/关闭自动救人（监控所有其他玩家）』",
+    Name = "『开启/关闭禁止救人(如果开启时有人倒地再关闭是没办法救那个人的)』",
     CurrentValue = false,
     Flag = "AutoReviveAllToggle",
     Callback = function(Value)
@@ -406,7 +406,7 @@ BasicTab:CreateToggle({
         
         if isAutoReviveAllActive then
             -- 开启功能
-            print("[维度融合] 自动救人功能已开启")
+            print("[维度融合] 禁止救人功能已开启")
             
             -- 为现有所有玩家（除了自己）设置监听
             for _, player in ipairs(Players:GetPlayers()) do
@@ -434,7 +434,7 @@ BasicTab:CreateToggle({
             
         else
             -- 关闭功能
-            print("[维度融合] 自动救人功能已关闭")
+            print("[维度融合] 禁止救人功能已关闭")
             
             -- 清理所有监听连接
             for playerId, connections in pairs(autoReviveConnections) do
