@@ -283,9 +283,22 @@ BasicTab:CreateToggle({
         end
     end
 })
+
+
 -- ==================== 新增：自动救人功能（监控所有其他玩家倒地状态） ====================
 local isAutoReviveAllActive = false
 local autoReviveConnections = {} -- 存储所有玩家的监听连接
+
+-- 检查是否在允许的队伍中
+local function isAllowedTeam()
+    local currentTeam = LocalPlayer.Team
+    if not currentTeam then return false end
+    
+    local survivorTeam = game:GetService("Teams").Survivor
+    local exeTeam = game:GetService("Teams").Exe
+    
+    return currentTeam == survivorTeam or currentTeam == exeTeam
+end
 
 -- 核心复活函数（为每个玩家执行一次复活）
 local function revivePlayer(player)
@@ -386,7 +399,7 @@ end
 
 -- 监听新玩家加入
 local function onPlayerAdded(player)
-    if isAutoReviveAllActive then
+    if isAutoReviveAllActive and isAllowedTeam() then
         setupPlayerReviveListener(player)
     end
 end
@@ -396,17 +409,27 @@ local function onPlayerRemoving(player)
     cleanupPlayerReviveListener(player.UserId)
 end
 
+-- 队伍变化监听器
+local teamChangeConnection = nil
+
 -- 创建自动救人Toggle开关
-BasicTab:CreateToggle({
-    Name = "『开启/关闭禁止救人(如果开启时有人倒地再关闭是没办法救那个人的)』",
+local autoReviveToggle = BasicTab:CreateToggle({
+    Name = "『开启/关闭自动救人(只能在幸存者或者杀手阵营用)』",
     CurrentValue = false,
     Flag = "AutoReviveAllToggle",
     Callback = function(Value)
+        -- 检查队伍权限
+        if Value and not isAllowedTeam() then
+            warn("[维度融合] 自动救人功能只能在 Survivor 或 Exe 队伍中使用！")
+            autoReviveToggle:Set(false) -- 强制关闭开关
+            return
+        end
+        
         isAutoReviveAllActive = Value
         
         if isAutoReviveAllActive then
             -- 开启功能
-            print("[维度融合] 禁止救人功能已开启")
+            print("[维度融合] 自动救人功能已开启（队伍限制：Survivor/Exe）")
             
             -- 为现有所有玩家（除了自己）设置监听
             for _, player in ipairs(Players:GetPlayers()) do
@@ -421,6 +444,16 @@ BasicTab:CreateToggle({
             -- 监听玩家离开
             Players.PlayerRemoving:Connect(onPlayerRemoving)
             
+            -- 设置队伍变化监听器
+            if not teamChangeConnection then
+                teamChangeConnection = LocalPlayer:GetPropertyChangedSignal("Team"):Connect(function()
+                    if not isAllowedTeam() and isAutoReviveAllActive then
+                        print("[维度融合] 队伍已变更，自动关闭自动救人功能")
+                        autoReviveToggle:Set(false)
+                    end
+                end)
+            end
+            
             -- 立即检查一次所有玩家的状态
             task.spawn(function()
                 for _, player in ipairs(Players:GetPlayers()) do
@@ -434,16 +467,34 @@ BasicTab:CreateToggle({
             
         else
             -- 关闭功能
-            print("[维度融合] 禁止救人功能已关闭")
+            print("[维度融合] 自动救人功能已关闭")
             
             -- 清理所有监听连接
             for playerId, connections in pairs(autoReviveConnections) do
                 cleanupPlayerReviveListener(playerId)
             end
             autoReviveConnections = {}
+            
+            -- 移除全局监听
+            -- 注意：这里我们需要小心处理，因为其他功能可能也在使用这些事件
+            -- 在实际应用中，可能需要更精细的管理
         end
     end
 })
+
+-- 添加功能说明
+BasicTab:CreateParagraph({
+    Title = "自动救人功能说明：",
+    Content = "开启后会自动监控所有其他玩家的倒地状态，当检测到玩家有Downed对象时，执行一次复活。由于游戏规则每人只能复活一次，所以每个玩家每次倒地只会触发一次复活，除非重置。\n\n注意：此功能仅在 Survivor（幸存者）或 Exe（执行者）队伍中可用。"
+})
+
+-- 初始检查：如果不在允许的队伍中，禁用开关
+task.spawn(function()
+    task.wait(2) -- 等待游戏完全加载
+    if not isAllowedTeam() then
+        print("[维度融合] 当前队伍不支持自动救人功能")
+    end
+end)
 
 -- ==================== 新增：增加杀手和仆从普攻范围 ====================
 local isAttackRangeIncreased = false
