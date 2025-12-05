@@ -283,6 +283,167 @@ BasicTab:CreateToggle({
         end
     end
 })
+-- ==================== 新增：自动救人功能（监控所有其他玩家倒地状态） ====================
+local isAutoReviveAllActive = false
+local autoReviveConnections = {} -- 存储所有玩家的监听连接
+
+-- 核心复活函数（为每个玩家执行一次复活）
+local function revivePlayer(player)
+    if player and player:IsDescendantOf(Players) then
+        local success, err = pcall(function()
+            local args = {player}
+            local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
+            local CharacterFolder = Remotes and Remotes:FindFirstChild("Character")
+            local reviveEvent = CharacterFolder and CharacterFolder:FindFirstChild("reviveEvent")
+            
+            if reviveEvent then
+                reviveEvent:FireServer(unpack(args))
+                print("[维度融合] 已执行复活玩家：" .. player.Name)
+                return true
+            else
+                warn("[维度融合] 未找到复活事件")
+                return false
+            end
+        end)
+        
+        if not success then
+            warn("[维度融合] 复活玩家 " .. player.Name .. " 失败：" .. err)
+        end
+    end
+    return false
+end
+
+-- 设置单个玩家的倒地监听
+local function setupPlayerReviveListener(player)
+    if player == LocalPlayer then return end -- 排除自己
+    
+    -- 监听玩家角色添加事件
+    local function onCharacterAdded(character)
+        -- 等待角色完全加载
+        task.wait(1)
+        
+        -- 初始检查：如果角色已经有Downed对象，执行一次复活
+        if character:FindFirstChild("Downed") then
+            revivePlayer(player)
+        end
+        
+        -- 监听Downed对象创建（玩家倒地）
+        local downedConnection = character.ChildAdded:Connect(function(child)
+            if child.Name == "Downed" then
+                -- 当检测到Downed对象时，执行一次复活
+                revivePlayer(player)
+            end
+        end)
+        
+        -- 存储连接，以便清理
+        if not autoReviveConnections[player.UserId] then
+            autoReviveConnections[player.UserId] = {}
+        end
+        
+        autoReviveConnections[player.UserId].downedConnection = downedConnection
+        
+        -- 监听角色被移除（玩家死亡或重置）
+        autoReviveConnections[player.UserId].characterConnection = character:GetPropertyChangedSignal("Parent"):Connect(function()
+            if not character.Parent then
+                -- 角色被移除时，清理downed连接
+                if autoReviveConnections[player.UserId] and autoReviveConnections[player.UserId].downedConnection then
+                    autoReviveConnections[player.UserId].downedConnection:Disconnect()
+                    autoReviveConnections[player.UserId].downedConnection = nil
+                end
+            end
+        end)
+    end
+    
+    -- 如果玩家已有角色，立即设置监听
+    if player.Character then
+        onCharacterAdded(player.Character)
+    end
+    
+    -- 监听玩家角色变化
+    local characterAddedConnection = player.CharacterAdded:Connect(onCharacterAdded)
+    
+    -- 存储连接
+    autoReviveConnections[player.UserId] = autoReviveConnections[player.UserId] or {}
+    autoReviveConnections[player.UserId].characterAddedConnection = characterAddedConnection
+end
+
+-- 清理单个玩家的所有监听
+local function cleanupPlayerReviveListener(playerId)
+    local connections = autoReviveConnections[playerId]
+    if connections then
+        if connections.characterAddedConnection then
+            connections.characterAddedConnection:Disconnect()
+        end
+        if connections.downedConnection then
+            connections.downedConnection:Disconnect()
+        end
+        if connections.characterConnection then
+            connections.characterConnection:Disconnect()
+        end
+        autoReviveConnections[playerId] = nil
+    end
+end
+
+-- 监听新玩家加入
+local function onPlayerAdded(player)
+    if isAutoReviveAllActive then
+        setupPlayerReviveListener(player)
+    end
+end
+
+-- 监听玩家离开
+local function onPlayerRemoving(player)
+    cleanupPlayerReviveListener(player.UserId)
+end
+
+-- 创建自动救人Toggle开关
+BasicTab:CreateToggle({
+    Name = "『开启/关闭自动救人（监控所有其他玩家）』",
+    CurrentValue = false,
+    Flag = "AutoReviveAllToggle",
+    Callback = function(Value)
+        isAutoReviveAllActive = Value
+        
+        if isAutoReviveAllActive then
+            -- 开启功能
+            print("[维度融合] 自动救人功能已开启")
+            
+            -- 为现有所有玩家（除了自己）设置监听
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer then
+                    setupPlayerReviveListener(player)
+                end
+            end
+            
+            -- 监听新玩家加入
+            Players.PlayerAdded:Connect(onPlayerAdded)
+            
+            -- 监听玩家离开
+            Players.PlayerRemoving:Connect(onPlayerRemoving)
+            
+            -- 立即检查一次所有玩家的状态
+            task.spawn(function()
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer and player.Character then
+                        if player.Character:FindFirstChild("Downed") then
+                            revivePlayer(player)
+                        end
+                    end
+                end
+            end)
+            
+        else
+            -- 关闭功能
+            print("[维度融合] 自动救人功能已关闭")
+            
+            -- 清理所有监听连接
+            for playerId, connections in pairs(autoReviveConnections) do
+                cleanupPlayerReviveListener(playerId)
+            end
+            autoReviveConnections = {}
+        end
+    end
+})
 
 -- ==================== 新增：增加杀手和仆从普攻范围 ====================
 local isAttackRangeIncreased = false
