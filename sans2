@@ -2368,8 +2368,340 @@ CharacterTab:CreateToggle({
     end
 })
 
+-- ==================== 8. 角色皮肤标签页 ====================
+local SkinTab = Window:CreateTab("角色皮肤", 135443303437470)
 
 
+-- ==================== 角色皮肤功能 ====================
+SkinTab:CreateSection("角色皮肤选择")
+
+-- 获取Dummys文件夹中的所有模型
+local function getDummyModels()
+    local dummysFolder = ReplicatedStorage:FindFirstChild("Dummys")
+    local modelList = {}
+    
+    if dummysFolder then
+        for _, model in pairs(dummysFolder:GetChildren()) do
+            if model:IsA("Model") then
+                -- 将名字转换为首字母大写格式
+                local modelName = model.Name
+                local formattedName = string.gsub(modelName, "^%l", string.upper)
+                table.insert(modelList, {
+                    displayName = formattedName,
+                    actualName = modelName
+                })
+            end
+        end
+        
+        -- 按显示名排序
+        table.sort(modelList, function(a, b)
+            return a.displayName < b.displayName
+        end)
+    else
+        warn("[维度融合] 未找到 Dummys 文件夹")
+    end
+    
+    return modelList
+end
+
+-- 生成显示选项列表
+local function getDisplayOptions()
+    local dummyModels = getDummyModels()
+    local displayOptions = {}
+    
+    for _, modelInfo in ipairs(dummyModels) do
+        table.insert(displayOptions, modelInfo.displayName)
+    end
+    
+    return displayOptions
+end
+
+-- 查找实际模型名
+local function findActualModelName(displayName)
+    local dummyModels = getDummyModels()
+    for _, modelInfo in ipairs(dummyModels) do
+        if modelInfo.displayName == displayName then
+            return modelInfo.actualName
+        end
+    end
+    return displayName -- 如果找不到，返回原显示名
+end
+
+-- 选中的角色（存储显示名）
+local selectedMorphSkin = nil
+
+-- 创建下拉选择框
+local morphSkinDropdown = SkinTab:CreateDropdown({
+    Name = "选择角色皮肤",
+    Options = getDisplayOptions(),
+    CurrentOption = "请选择",
+    MultipleOptions = false,
+    Flag = "MorphSkinDropdown",
+    Callback = function(Options)
+        selectedMorphSkin = Options[1]
+        print("[维度融合] 已选择角色皮肤：" .. selectedMorphSkin)
+    end
+})
+
+-- 刷新角色皮肤列表按钮
+SkinTab:CreateButton({
+    Name = "刷新角色皮肤列表",
+    Callback = function()
+        morphSkinDropdown:Refresh(getDisplayOptions())
+        print("[维度融合] 已刷新角色皮肤列表")
+    end
+})
+
+-- ==================== 核心Morph功能（与视觉模型相同） ====================
+local function safeFindDummy(name)
+    local dummysFolder = ReplicatedStorage:FindFirstChild("Dummys")
+    if not dummysFolder then return nil end
+    return dummysFolder:FindFirstChild(name) or dummysFolder:FindFirstChild(name:lower()) or dummysFolder:FindFirstChild(name:upper())
+end
+
+local function copySpecialFoldersAndAnimations(sourceModel, targetCharacter)
+    if not sourceModel or not targetCharacter then return end
+    local specialFolders = {"CharacterFolder", "HitFolder"}
+    for _, folderName in ipairs(specialFolders) do
+        local sourceFolder = sourceModel:FindFirstChild(folderName)
+        local targetFolder = targetCharacter:FindFirstChild(folderName)
+        if sourceFolder then
+            if targetFolder then targetFolder:Destroy() end
+            sourceFolder:Clone().Parent = targetCharacter
+        end
+    end
+    local sourceAnimate = sourceModel:FindFirstChild("Animate")
+    local targetAnimate = targetCharacter:FindFirstChild("Animate")
+    if sourceAnimate then
+        if targetAnimate then targetAnimate:Destroy() end
+        sourceAnimate:Clone().Parent = targetCharacter
+    end
+end
+
+local function setupHeadFollow(headPart)
+    if not headPart then return end
+    local camera = workspace.CurrentCamera
+    local conn
+    conn = RunService.RenderStepped:Connect(function()
+        if not headPart or not headPart.Parent then
+            if conn then conn:Disconnect() end
+            return
+        end
+        headPart.CFrame = CFrame.new(headPart.Position, camera.CFrame.Position)
+    end)
+end
+
+local function weldToRoot(rootPart, modelRoot)
+    if not (rootPart and modelRoot) then return end
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = rootPart
+    weld.Part1 = modelRoot
+    weld.Parent = modelRoot
+end
+
+local function morphToSkin(characterName)
+    local dummyTemplate = safeFindDummy(characterName)
+    if not dummyTemplate then
+        warn("[维度融合] 未找到 Morph 模型："..tostring(characterName))
+        return false
+    end
+
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart")
+    if not rootPart then return false end
+
+    -- 销毁旧 Morph 模型
+    for _, c in ipairs(char:GetChildren()) do
+        if c.Name == "CharacterModel" then c:Destroy() end
+    end
+
+    -- 隐藏原角色模型（仅视觉）
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            part.Transparency = 1
+        end
+    end
+
+    -- 复制动画和特殊文件夹
+    copySpecialFoldersAndAnimations(dummyTemplate, char)
+
+    -- 克隆 Morph 模型
+    local clone = dummyTemplate:Clone()
+    clone.Name = "CharacterModel"
+    local dummyHum = clone:FindFirstChildOfClass("Humanoid")
+    if dummyHum then dummyHum:Destroy() end
+
+    local dummyRoot = clone:FindFirstChild("HumanoidRootPart") or clone.PrimaryPart
+    if not dummyRoot then
+        for _, p in ipairs(clone:GetDescendants()) do
+            if p:IsA("BasePart") then dummyRoot = p break end
+        end
+    end
+
+    -- 焊接到角色根部件
+    if dummyRoot then
+        clone.Parent = char
+        clone.PrimaryPart = dummyRoot
+        clone:SetPrimaryPartCFrame(rootPart.CFrame)
+        weldToRoot(rootPart, dummyRoot)
+    else clone.Parent = char end
+
+    -- 头部跟随相机
+    for _, name in ipairs({"Head","head"}) do
+        local headPart = clone:FindFirstChild(name, true)
+        if headPart and headPart:IsA("BasePart") then setupHeadFollow(headPart) break end
+    end
+
+    return true
+end
+
+-- 确认应用角色皮肤按钮
+SkinTab:CreateButton({
+    Name = "确认应用角色皮肤",
+    Callback = function()
+        if not selectedMorphSkin then
+            warn("[维度融合] 请先从下拉框选择角色皮肤！")
+            return
+        end
+        
+        -- 查找实际模型名
+        local actualModelName = findActualModelName(selectedMorphSkin)
+        
+        local success = morphToSkin(actualModelName)
+        if success then
+            print("[维度融合] 成功应用角色皮肤：" .. selectedMorphSkin .. " (实际模型: " .. actualModelName .. ")")
+        else
+            warn("[维度融合] 应用角色皮肤失败：" .. selectedMorphSkin)
+        end
+    end
+})
+
+-- ==================== 自动应用角色皮肤功能 ====================
+local isAutoApplySkinActive = false
+local autoApplySkinConnection = nil
+local autoApplySkinModel = nil
+
+-- 自动应用角色皮肤下拉框
+local autoMorphSkinDropdown = SkinTab:CreateDropdown({
+    Name = "选择自动应用角色皮肤",
+    Options = getDisplayOptions(),
+    CurrentOption = "请选择",
+    MultipleOptions = false,
+    Flag = "AutoMorphSkinDropdown",
+    Callback = function(Options)
+        autoApplySkinModel = Options[1]
+        print("[维度融合] 已选择自动应用角色皮肤：" .. autoApplySkinModel)
+    end
+})
+
+-- 自动应用角色皮肤开关
+SkinTab:CreateToggle({
+    Name = "『开启/关闭自动应用角色皮肤』",
+    CurrentValue = false,
+    Flag = "AutoApplySkinToggle",
+    Callback = function(Value)
+        isAutoApplySkinActive = Value
+        if isAutoApplySkinActive then
+            if not autoApplySkinModel then
+                warn("[维度融合] 请先选择自动应用的角色皮肤！")
+                isAutoApplySkinActive = false
+                return
+            end
+            
+            -- 立即应用一次
+            local actualModelName = findActualModelName(autoApplySkinModel)
+            local success = morphToSkin(actualModelName)
+            
+            if success then
+                print("[维度融合] 自动应用角色皮肤已开启：" .. autoApplySkinModel)
+            else
+                warn("[维度融合] 自动应用角色皮肤失败，功能关闭")
+                isAutoApplySkinActive = false
+                return
+            end
+            
+            -- 监听角色重生，重新应用皮肤
+            autoApplySkinConnection = LocalPlayer.CharacterAdded:Connect(function(character)
+                task.wait(1) -- 等待角色完全加载
+                local actualModelName = findActualModelName(autoApplySkinModel)
+                local success = morphToSkin(actualModelName)
+                if success then
+                    print("[维度融合] 角色重生，已重新应用皮肤：" .. autoApplySkinModel)
+                end
+            end)
+            
+        else
+            if autoApplySkinConnection then
+                autoApplySkinConnection:Disconnect()
+                autoApplySkinConnection = nil
+            end
+            print("[维度融合] 自动应用角色皮肤已关闭")
+        end
+    end
+})
+
+-- ==================== 随机角色皮肤功能 ====================
+local function getRandomDummyModel()
+    local dummyModels = getDummyModels()
+    if #dummyModels > 0 then
+        local randomIndex = math.random(1, #dummyModels)
+        return dummyModels[randomIndex]
+    end
+    return nil
+end
+
+SkinTab:CreateButton({
+    Name = "随机选择角色皮肤",
+    Callback = function()
+        local randomModel = getRandomDummyModel()
+        if randomModel then
+            morphSkinDropdown:Set({randomModel.displayName})
+            selectedMorphSkin = randomModel.displayName
+            
+            local success = morphToSkin(randomModel.actualName)
+            if success then
+                print("[维度融合] 已随机应用角色皮肤：" .. randomModel.displayName)
+            else
+                warn("[维度融合] 随机应用角色皮肤失败")
+            end
+        else
+            warn("[维度融合] 未找到可用的角色皮肤")
+        end
+    end
+})
+
+-- ==================== 重置角色皮肤功能 ====================
+SkinTab:CreateButton({
+    Name = "重置角色皮肤（恢复原模型）",
+    Callback = function()
+        local char = LocalPlayer.Character
+        if char then
+            -- 销毁所有Morph模型
+            for _, child in ipairs(char:GetChildren()) do
+                if child.Name == "CharacterModel" then 
+                    child:Destroy()
+                end
+            end
+            
+            -- 恢复原模型可见性
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then 
+                    part.Transparency = 0 
+                end
+            end
+            
+            print("[维度融合] 已重置角色皮肤，恢复原模型")
+        else
+            warn("[维度融合] 当前无角色，无法重置皮肤")
+        end
+    end
+})
+
+-- 添加说明
+SkinTab:CreateParagraph({
+    Title = "角色皮肤功能说明：",
+    Content = "1. 从Dummys文件夹中读取所有可用模型\n2. 模型名称自动转换为首字母大写格式显示\n3. 应用皮肤后，原角色模型将被隐藏，仅显示皮肤模型\n4. 随机功能会随机选择一个可用皮肤并立即应用\n5. 自动应用功能会在角色重生时自动重新应用皮肤"
+})
 -- ==================== 7. 角色技能标签页 ====================
 local AbilityTab = Window:CreateTab("角色技能", 135443303437470)
 
