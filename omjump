@@ -1,0 +1,31 @@
+local Players = game:GetService("Players")
+local StarterGui = game:GetService("StarterGui")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local lp = Players.LocalPlayer
+
+task.spawn(function()
+    while task.wait(0.1) do
+        pcall(function()
+            StarterGui:SetCore("JumpButtonEnabled", true)
+            StarterGui:SetCore("JumpButtonVisible", true)
+        end)
+    end
+end)
+
+local function setupChar(char)
+    local hum = char:WaitForChild("Humanoid")
+
+    RunService.RenderStepped:Connect(function()
+        if hum then
+            hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+            hum.AutoJumpEnabled = false
+        end
+    end)
+end
+
+if lp.Character then
+    setupChar(lp.Character)
+end
+lp.CharacterAdded:Connect(setupChar)
