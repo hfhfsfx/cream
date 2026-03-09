@@ -1,0 +1,161 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local char = nil
+local humanoid = nil
+
+local toggle = false
+local flyConnection = nil
+
+local function StopFly()
+	toggle = false
+	if flyConnection then
+		flyConnection:Disconnect()
+		flyConnection = nil
+	end
+	if char then
+		local hrp = char:FindFirstChild("HumanoidRootPart")
+		if hrp and hrp:FindFirstChild("flies") then
+			hrp.flies:Destroy()
+		end
+	end
+end
+
+local function StartFly()
+	if not char or not humanoid then return end
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	if not hrp then return end
+
+	local bodyVel = Instance.new("BodyVelocity")
+	bodyVel.Name = "flies"
+	bodyVel.MaxForce = Vector3.new(1,1,1) * math.huge
+	bodyVel.Velocity = hrp.CFrame.LookVector * 140
+	bodyVel.Parent = hrp
+
+	flyConnection = RunService.Heartbeat:Connect(function()
+		char = player.Character
+		if not char then StopFly() return end
+
+		humanoid = char:FindFirstChild("Humanoid")
+		hrp = char:FindFirstChild("HumanoidRootPart")
+
+		if not humanoid or not hrp or humanoid.Health <= 0 then
+			StopFly()
+			return
+		end
+
+		local lookVector = Workspace.CurrentCamera.CFrame.LookVector
+
+		if humanoid:GetState() ~= Enum.HumanoidStateType.Physics then
+			hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + lookVector * 5)
+		end
+
+		local rayParams = RaycastParams.new()
+		rayParams.FilterType = Enum.RaycastFilterType.Exclude
+		rayParams.FilterDescendantsInstances = {char}
+
+		local ray = Workspace:Raycast(hrp.Position, lookVector * 3, rayParams)
+
+		if ray and ray.Instance and ray.Instance.CanCollide then
+			bodyVel.Velocity = Vector3.new(0,0,0)
+		else
+			bodyVel.Velocity = lookVector * 90
+		end
+	end)
+end
+
+local function ApplyToggle()
+	if toggle then
+		StartFly()
+	else
+		StopFly()
+	end
+end
+
+local function OnCharacterAdded(newChar)
+	StopFly()
+	char = newChar
+	humanoid = newChar:WaitForChild("Humanoid")
+	if toggle then
+		task.wait(0.3)
+		StartFly()
+	end
+end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "Fake11xChargeButtonGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local button = Instance.new("TextButton")
+button.Name = "Fake11xChargeButton"
+button.Size = UDim2.new(0, 55, 0, 55)
+button.Position = UDim2.new(0, 25, 0.5, -30)
+button.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+button.BackgroundTransparency = 0.25
+button.BorderSizePixel = 0
+button.Text = "✈(搬运的老外的)"
+button.TextSize = 28
+button.Font = Enum.Font.GothamBold
+button.TextColor3 = Color3.new(1, 1, 1)
+button.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 14)
+corner.Parent = button
+
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+button.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = button.Position
+	end
+end)
+
+button.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - dragStart
+		button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+button.MouseButton1Click:Connect(function()
+	toggle = not toggle
+	if toggle then
+		button.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+	else
+		button.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	end
+	ApplyToggle()
+end)
+
+if player.Character then
+	OnCharacterAdded(player.Character)
+end
+player.CharacterAdded:Connect(OnCharacterAdded)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.KeyCode == Enum.KeyCode.C then
+		toggle = not toggle
+		if toggle then
+			button.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+		else
+			button.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+		end
+		ApplyToggle()
+	end
+end)
