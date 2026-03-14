@@ -1,0 +1,190 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local TARGETS = {
+	["2011x"] = true,
+	["fleetway"] = true,
+	["tailsdoll"] = true,
+	["kolossos"] = true
+}
+
+local lockEnabled = false
+
+local CAM_HEIGHT = 3.7
+local CAM_DISTANCE = 13
+local BODY_LERP = 0.9
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "CameraLockGui"
+gui.ResetOnSpawn = false
+gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0,170,0,90)
+frame.Position = UDim2.new(0, 20, 0.5, -45)
+frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+frame.Parent = gui
+
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 8)
+frameCorner.Parent = frame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,30)
+title.BackgroundTransparency = 1
+title.Text = "光标锁定"
+title.TextColor3 = Color3.new(1,1,1)
+title.TextScaled = true
+title.Parent = frame
+
+local titleStroke = Instance.new("UIStroke")
+titleStroke.Thickness = 2
+titleStroke.Color = Color3.fromRGB(255, 255, 255)
+titleStroke.Transparency = 0.5
+titleStroke.Parent = title
+
+local titleGlow = Instance.new("UIGradient")
+titleGlow.Rotation = 45
+titleGlow.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(200, 200, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))
+})
+titleGlow.Parent = title
+
+local toggle = Instance.new("TextButton")
+toggle.Size = UDim2.new(1,-10,0,40)
+toggle.Position = UDim2.new(0,5,0,40)
+toggle.BackgroundColor3 = Color3.fromRGB(0,200,0)
+toggle.TextColor3 = Color3.new(1,1,1)
+toggle.Text = "点击开启"
+toggle.Parent = frame
+
+local buttonCorner = Instance.new("UICorner")
+buttonCorner.CornerRadius = UDim.new(0, 6)
+buttonCorner.Parent = toggle
+
+local buttonStroke = Instance.new("UIStroke")
+buttonStroke.Thickness = 2
+buttonStroke.Color = Color3.fromRGB(255, 255, 255)
+buttonStroke.Transparency = 0.3
+buttonStroke.Parent = toggle
+
+local dragging = false
+local dragStart
+local startPos
+
+title.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+	or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = frame.Position
+	end
+end)
+
+title.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+	or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+	or input.UserInputType == Enum.UserInputType.Touch) then
+		
+		local delta = input.Position - dragStart
+		
+		frame.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+local function getNearestTarget()
+	local myChar = LocalPlayer.Character
+	if not myChar then return nil end
+
+	local myRoot = myChar:FindFirstChild("HumanoidRootPart")
+	if not myRoot then return nil end
+
+	local nearest = nil
+	local shortest = math.huge
+
+	for _, plr in pairs(Players:GetPlayers()) do
+		if plr ~= LocalPlayer and plr.Character then
+			local attr = plr.Character:GetAttribute("Character")
+			if attr and TARGETS[string.lower(attr)] then
+				local root = plr.Character:FindFirstChild("HumanoidRootPart")
+				if root then
+					local dist = (root.Position - myRoot.Position).Magnitude
+					if dist < shortest then
+						shortest = dist
+						nearest = root
+					end
+				end
+			end
+		end
+	end
+
+	return nearest
+end
+
+RunService.RenderStepped:Connect(function()
+	if not lockEnabled then return end
+
+	local char = LocalPlayer.Character
+	if not char then return end
+
+	local root = char:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+
+	local targetRoot = getNearestTarget()
+	if not targetRoot then return end
+
+	Camera.CameraType = Enum.CameraType.Scriptable
+
+	local eye = root.Position + Vector3.new(0, CAM_HEIGHT, 0)
+	local dir = (targetRoot.Position - eye).Unit
+	local camPos = eye - dir * CAM_DISTANCE
+
+	Camera.CFrame = CFrame.lookAt(camPos, targetRoot.Position)
+
+	local flat = Vector3.new(
+		targetRoot.Position.X,
+		root.Position.Y,
+		targetRoot.Position.Z
+	)
+
+	root.CFrame = root.CFrame:Lerp(
+		CFrame.new(root.Position, flat),
+		BODY_LERP
+	)
+end)
+
+toggle.MouseButton1Click:Connect(function()
+	lockEnabled = not lockEnabled
+
+	if lockEnabled then
+		toggle.Text = "点击关闭"
+		toggle.BackgroundColor3 = Color3.fromRGB(200,0,0)
+	else
+		toggle.Text = "点击开启"
+		toggle.BackgroundColor3 = Color3.fromRGB(0,200,0)
+		Camera.CameraType = Enum.CameraType.Custom
+	end
+end)
+
+LocalPlayer.CharacterAdded:Connect(function()
+	if not lockEnabled then
+		Camera.CameraType = Enum.CameraType.Custom
+	end
+end)
