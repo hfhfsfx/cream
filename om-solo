@@ -1,0 +1,521 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
+
+local player = Players.LocalPlayer
+print("hola")
+
+local songLyrics = {
+	["SonicSolo"] = {
+		{ time = 27.76, text = "以音速四处翻滚驰骋" },
+		{ time = 30.06, text = "你好奇是什么呼啸而过！" },
+		{ time = 32.61, text = "电光石火！" },
+		{ time = 35.31, text = "喔！喔！" },
+		{ time = 37.66, text = "打破规则，看来我得切换节奏！" },
+		{ time = 40.26, text = "生命中有些事物你无法取代" },
+		{ time = 42.61, text = "哦不！" },
+		{ time = 44.91, text = "你无法取代，绝不！" },
+		{ time = 48.31, text = "你想把我的头颅踩在脚下" },
+		{ time = 52.46, text = "但最终你会发现" },
+		{ time = 54.61, text = "已经没有任何花招能骗得了我！" },
+		{ time = 60.31, text = "为自由而战！" },
+		{ time = 63.46, text = "而我总是思考着" },
+		{ time = 65.41, text = "领先两步之遥！" },
+		{ time = 67.71, text = "不在乎谁挡我的路" },
+		{ time = 70.36, text = "我永不改变真我本色！" },
+		{ time = 73.11, text = "为了他们所信仰的我，逼我继续向前！" },
+		{ time = 77.76, text = "横冲直撞直到破晓" },
+		{ time = 80.46, text = "与那些早已消逝的" },
+		{ time = 82.41, text = "条件抗争" },
+		{ time = 85.01, text = "消逝，消逝，消——逝！" },
+		{ time = 86.20, text = " " },
+		{ time = 108.56, text = "我不会让犹豫拖慢我的脚步！" },
+		{ time = 111.36, text = "或是让我自我怀疑！" },
+		{ time = 114.06, text = "我会自己铺平前路" },
+		{ time = 116.56, text = "并收拾这片烂摊子！" },
+		{ time = 119.31, text = "必须继续翻滚（继续翻滚！）" },
+		{ time = 122.06, text = "必须继续高唱我的歌！（没错！）" },
+		{ time = 125.21, text = "如果你自认比我更快" },
+		{ time = 129.91, text = "那就证明我错了！" },
+		{ time = 133.31, text = "失去一切" },
+		{ time = 134.41, text = "我仍屹立不倒" },
+		{ time = 135.56, text = "无论何种境况，我绝不会死在你手里！" },
+		{ time = 140.66, text = "凭借烙印在脑海中的力量" },
+		{ time = 143.41, text = "放马过来，我绝不手下留情！" },
+		{ time = 145.76, text = "你无法扭曲我的感受" },
+		{ time = 148.16, text = "我会继续前进！" },
+		{ time = 141.20, text = " " },
+		{ time = 172.31, text = "再也不需要克制了" },
+		{ time = 174.56, text = "所有你玩弄过的灵魂" },
+		{ time = 177.11, text = "都站在暴力一边" },
+		{ time = 179.06, text = "这不正是你对我的期望吗？！" },
+		{ time = 182.26, text = "再也没有怜悯可言" },
+		{ time = 184.66, text = "逝者已矣，无法挽回" },
+		{ time = 186.86, text = "就算你速度再快" },
+		{ time = 188.81, text = "你也跑不过我！" },
+		{ time = 190.06, text = "不！不！" },
+		{ time = 192.16, text = "切断所有扭曲的游戏！" },
+		{ time = 194.61, text = "我将挣脱枷锁！" },
+		{ time = 197.06, text = "那阻止我向你展示我真本事的束缚！" },
+		{ time = 202.06, text = "我会活着见到那一天！" },
+		{ time = 204.41, text = "我会逃离这个地方！" },
+		{ time = 207.06, text = "这就是我" },
+		{ time = 209.56, text = "反抗命运的大师" },
+		{ time = 210.10, text = " " },
+		{ time = 212.41, text = "反抗命运！" },
+		{ time = 214.91, text = " " },
+		{ time = 221.31, text = "（你的极限就在这里！）" },
+		{ time = 224.06, text = "我要活出自己的路！" },
+		{ time = 226.16, text = "遵从自己的规则！" },
+		{ time = 228.56, text = "复制我的脸，但你偷不走我的信念，对吧？" },
+		{ time = 232.41, text = "不！" },
+		{ time = 233.61, text = "别退缩，忍受痛苦！" },
+		{ time = 236.21, text = "如飓风般带来雷霆万钧！" },
+		{ time = 238.71, text = "活到老学到老！" },
+		{ time = 241.31, text = "悬在明天的边缘！" },
+		{ time = 244.16, text = "绝不走你的老路！" },
+		{ time = 245.61, text = "所以别眨眼！" },
+		{ time = 248.10, text = " " },
+	},
+	["BlazeSolo"] = {
+		{ time = 0.74, text = "延续我的光芒" },
+		{ time = 2.39, text = "注定永恒" },
+		{ time = 4.28, text = "为了证明当群星都陨落之后" },
+		{ time = 8.5, text = "一团孤火" },
+		{ time = 10.0, text = "仍能炽烈燃烧" },
+		{ time = 12.0, text = " " },
+		{ time = 34.4, text = "而太阳依旧明亮" },
+		{ time = 36.5, text = "你夺不走属于我的东西" },
+		{ time = 37.9, text = "我的火焰是天赋神权" },
+		{ time = 39.4, text = "如此神圣" },
+		{ time = 40.4, text = "我知道我拥有自己的火花" },
+		{ time = 43.1, text = "那火焰" },
+		{ time = 44.5, text = "就是依旧燃烧的太阳" },
+		{ time = 46.9, text = " " },
+		{ time = 47.4, text = "依旧燃烧的太阳" },
+		{ time = 56.0, text = "哦" },
+		{ time = 57.3, text = "背靠背" },
+		{ time = 58.0, text = "无人可依" },
+		{ time = 58.98, text = "背靠背" },
+		{ time = 59.78, text = "我双手<font color='#00FFFF'>冰冷</font>" },
+		{ time = 60.68, text = "背靠背" },
+		{ time = 61.48, text = "无人可依" },
+		{ time = 62.38, text = "背靠背" },
+		{ time = 63.08, text = "我双手<font color='#00FFFF'>冰冷</font>" },
+		{ time = 64.08, text = "背靠背" },
+		{ time = 64.78, text = "无人可依" },
+		{ time = 65.78, text = "背靠背" },
+		{ time = 67.18, text = "背靠背" },
+		{ time = 67.88, text = "背靠背" },
+		{ time = 68.58, text = "我双手<font color='#00FFFF'>冰冷</font>" },
+		{ time = 69.58, text = "背靠背" },
+		{ time = 70.28, text = "背靠背" },
+		{ time = 70.98, text = "我双手<font color='#00FFFF'>冰冷</font>" },
+		{ time = 71.98, text = "背靠背" },
+		{ time = 72.68, text = "背靠背" },
+		{ time = 73.38, text = "我双手<font color='#00FFFF'>冰冷</font>" },
+		{ time = 74.38, text = "背靠背" },
+		{ time = 75.08, text = "我双手" },
+		{ time = 76.28, text = "背靠背" },
+		{ time = 76.98, text = "背靠背" },
+		{ time = 77.68, text = "背靠背" },
+		{ time = 78.38, text = "背靠背" },
+		{ time = 79.58, text = "背靠背" },
+		{ time = 80.28, text = " " },
+		{ time = 114.7, text = "背靠背" },
+		{ time = 115.3, text = "背靠背" },
+		{ time = 115.9, text = "背靠背" },
+		{ time = 116.5, text = "背靠背" },
+		{ time = 117.1, text = "背靠背" },
+		{ time = 117.7, text = "背靠背" },
+		{ time = 118.3, text = "背靠背" },
+		{ time = 118.9, text = "背靠背" },
+		{ time = 119.5, text = "背靠背" },
+		{ time = 120.1, text = "背靠背" },
+		{ time = 120.7, text = "背靠背" },
+		{ time = 121.3, text = "背靠背" },
+		{ time = 121.9, text = "背靠背" },
+		{ time = 122.5, text = "背靠背" },
+		{ time = 123.1, text = "背靠背" },
+		{ time = 123.7, text = "背靠背" },
+		{ time = 124.3, text = "背靠背" },
+		{ time = 124.9, text = "背靠背" },
+		{ time = 124.11, text = " " },
+	},
+	["AmySolo"] = {
+		{ time = 62.13, text = "你刚说什么？" },
+		{ time = 64.13, text = "因为每次听到你说话" },
+		{ time = 66.63, text = "我就会走神" },
+		{ time = 69.13, text = "产生幻觉" },
+		{ time = 71.63, text = "你刚说什么？" },
+		{ time = 73.63, text = "因为每次听到你说话" },
+		{ time = 76.13, text = "我就会走神" },
+		{ time = 78.63, text = "产生幻觉" },
+		{ time = 81.33, text = "听着" },
+		{ time = 82.83, text = "我有个秘密" },
+		{ time = 85.53, text = "我能保证" },
+		{ time = 88.03, text = "你能保守它吗？" },
+		{ time = 91.03, text = "但要是" },
+		{ time = 92.73, text = "你敢说出去" },
+		{ time = 95.43, text = "我会让你吞下" },
+		{ time = 98.03, text = "一千根针" },
+		{ time = 100.03, text = " " },
+	},
+	["KnucklesSolo"] = {
+		{ time = 11.02, text = "来吧！放马过来！" },
+		{ time = 13.02, text = " " },
+		{ time = 35.45, text = "（嘿，嘿）" },
+		{ time = 37.3, text = "我在拖地" },
+		{ time = 38.69, text = "不代表我会让它保持干净" },
+		{ time = 39.95, text = "当我锁喉时" },
+		{ time = 40.91, text = "因为我随波逐流" },
+		{ time = 41.73, text = "然后这流动会指引我的拳头" },
+		{ time = 42.74, text = "当我这样押韵，就像，哇哦" },
+		{ time = 44.2, text = "你就喜欢惹麻烦" },
+		{ time = 45.18, text = "但对我来说不算什么，我毫不费力" },
+		{ time = 46.4, text = "我不屈服，不，我绝不弯腰" },
+		{ time = 47.7, text = "当他们呼唤强者时" },
+		{ time = 48.81, text = "咚咚，纳克鲁斯驾到" },
+		{ time = 50.11, text = "（哇哦，哇哦）" },
+		{ time = 51.91, text = "（哇哦）" },
+		{ time = 54.43, text = "上前一步我就把你打趴下" },
+		{ time = 56.51, text = "（哇哦）" },
+		{ time = 57.51, text = "你明白我的意思了吧，伙计？" },
+		{ time = 59.41, text = "（哇哦）" },
+		{ time = 60.61, text = "近身格斗你就完蛋了" },
+		{ time = 62.11, text = "该死" },
+		{ time = 62.93, text = "而当我背靠墙壁" },
+		{ time = 65.95, text = "我的火焰才燃烧得更旺" },
+		{ time = 68.76, text = "虽然看似我已失去一切" },
+		{ time = 71.85, text = "但我仍有战斗的意志" },
+		{ time = 75.54, text = "它照亮你想让我盲目前行的路" },
+		{ time = 80.91, text = "一旦我将此境界抛在身后" },
+		{ time = 84.31, text = "他们会找到你——" },
+		{ time = 86.54, text = "（粉碎）" },
+		{ time = 87.1, text = "向我挑衅" },
+		{ time = 87.73, text = "你会被" },
+		{ time = 88.4, text = "（粉碎）" },
+		{ time = 88.9, text = "挥出一拳" },
+		{ time = 89.62, text = "我会让你" },
+		{ time = 90.22, text = "（粉碎）" },
+		{ time = 90.72, text = "试试运气" },
+		{ time = 91.42, text = "我会让你求我给你个痛快" },
+		{ time = 93.02, text = "（粉碎）" },
+		{ time = 93.52, text = "挥拳落空" },
+		{ time = 94.22, text = "你会被" },
+		{ time = 94.82, text = "（粉碎）" },
+		{ time = 95.32, text = "惹毛我了？" },
+		{ time = 96.02, text = "你会被" },
+		{ time = 96.62, text = "（粉碎）" },
+		{ time = 97.22, text = "敢冒风险" },
+		{ time = 97.72, text = "你就会为了我朋友们的性命而流血（朋友们）" },
+		{ time = 99.72, text = "没时间胡闹了" },
+		{ time = 100.82, text = "我要把这冒牌货埋进土里" },
+		{ time = 102.22, text = "我知道他们在看着（借我）" },
+		{ time = 103.32, text = "我把怪物们打得落花流水（你的力量）" },
+		{ time = 105.32, text = "左，右，左，右，左，右，下（你的力量）" },
+		{ time = 107.32, text = "左，右，左，右，左，右，下（最后一次）" },
+		{ time = 108.72, text = "你要是觉得我会让他们失望" },
+		{ time = 109.82, text = "那你可就大错特错了" },
+		{ time = 112.02, text = " " },
+	},
+}
+
+local fleetwayLyrics = {
+	{ time = 7.50,  text = "（你可能不懂，但你的诡计拦不住我！）" },
+	{ time = 11.66, text = "明知必倒还想站起来？" },
+	{ time = 13.68, text = "你的命运由我主宰！" },
+	{ time = 14.99, text = "命悬一线了吗？" },
+	{ time = 16.89, text = "滴答，你没时间了！" },
+	{ time = 17.94, text = "我想看你挣扎" },
+	{ time = 19.64, text = "我要听你哀嚎" },
+	{ time = 20.73, text = "还紧抓着边缘不放吗？" },
+	{ time = 22.56, text = "让我再说一遍" },
+	{ time = 23.63, text = "（冲！冲！超级索尼克！）" },
+	{ time = 25.04, text = "纯粹的力量，原始而狂乱！" },
+	{ time = 26.54, text = "（冲！冲！超级索尼克！）" },
+	{ time = 28.10, text = "我感到极度狂热！" },
+	{ time = 29.58, text = "（冲！冲！超级索尼克！）" },
+	{ time = 31.06, text = "我想看你挣扎" },
+	{ time = 32.55, text = "（冲！冲！超级索尼克！）" },
+	{ time = 34.02, text = "我想看你惊慌失措！" },
+	{ time = 35.40, text = "目标更高" },
+	{ time = 36.43, text = "全力全开" },
+	{ time = 37.78, text = "超越光速疾驰" },
+	{ time = 42.36, text = "见证这股力量！" },
+	{ time = 43.76, text = "比群星更炽烈燃烧" },
+	{ time = 47.88, text = "我就是你战斗的终结" },
+	{ time = 49.46, text = "吞噬你的恐惧" },
+	{ time = 54.00, text = "我在混沌中狂欢！" },
+	{ time = 55.51, text = "我会让你见识我的手段" },
+	{ time = 59.61, text = "并让你付出代价！" },
+	{ time = 62.10, text = " " },
+	{ time = 66.88, text = "（再来，再来！伤我更重些，那只会让我更强！）" },
+	{ time = 73.38, text = " " },
+	{ time = 74.28, text = "永不停歇，保持超级索尼克状态" },
+	{ time = 75.90, text = "攻击、撕咬、热爱这战斗" },
+	{ time = 77.50, text = "狂躁而错乱，恐惧令人兴奋" },
+	{ time = 79.24, text = "你所缺乏的正是我的力量" },
+	{ time = 80.57, text = "世界在颤抖，大地在震动" },
+	{ time = 82.20, text = "瞧瞧你终于冒的风险" },
+	{ time = 83.70, text = "失足？绝不，我更聪明更优秀" },
+	{ time = 85.43, text = "我会扭断你的脖子，挣断一切束缚" },
+	{ time = 86.49, text = "（冲！冲！超级索尼克！）" },
+	{ time = 87.99, text = "纯粹的力量，原始而狂乱！" },
+	{ time = 89.49, text = "（冲！冲！超级索尼克！）" },
+	{ time = 91.06, text = "我已超越狂热！" },
+	{ time = 92.55, text = "（冲！冲！超级索尼克！）" },
+	{ time = 94.02, text = "继续流血继续挣扎吧！" },
+	{ time = 95.50, text = "（冲！冲！超级索尼克！）" },
+	{ time = 97.00, text = "我会让你惊慌失措！" },
+	{ time = 98.38, text = "目标更高" },
+	{ time = 99.40, text = "全力全开" },
+	{ time = 100.75, text = "超越光速疾驰" },
+	{ time = 104.80, text = "我即力量！" },
+	{ time = 106.19, text = "比群星更炽烈燃烧" },
+	{ time = 110.31, text = "我要将你化为灰烬！" },
+	{ time = 111.87, text = "吞噬你的恐惧" },
+	{ time = 116.40, text = "我在混沌中狂欢！" },
+	{ time = 117.90, text = "我会让你见识我的手段" },
+	{ time = 122.00, text = "现在你必须付出代价！" },
+	{ time = 126.99, text = " " },
+	{ time = 127.82, text = "（现在别表现得太惊讶！）" },
+	{ time = 130.67, text = "（你真以为我会轻易倒下吗？）" },
+	{ time = 133.47, text = "（可悲的蠢货！）" },
+	{ time = 136.32, text = "（现在）" },
+	{ time = 137.67, text = "（准备迎接我的愤怒吧！）" },
+	{ time = 139.67, text = "超越光速疾驰" },
+	{ time = 144.00, text = "吞噬这股力量！" },
+	{ time = 145.40, text = "比群星更炽烈燃烧" },
+	{ time = 149.74, text = "我要让你在眼前消失！" },
+	{ time = 151.14, text = "超越光速疾驰" },
+	{ time = 155.30, text = "吞噬这股力量！" },
+	{ time = 156.69, text = "比群星更炽烈燃烧" },
+	{ time = 160.90, text = "我要让你在眼前消失！" },
+	{ time = 165.89, text = "明知必倒还想站起来？" },
+	{ time = 167.88, text = "你的命运由我主宰！" },
+	{ time = 169.20, text = "现在知道命悬一线了？" },
+	{ time = 171.09, text = "你的时间所剩无几！" },
+	{ time = 172.14, text = "我想看你挣扎" },
+	{ time = 173.84, text = "我要听你哀嚎" },
+	{ time = 174.93, text = "还紧抓着不放吗？" },
+	{ time = 176.76, text = "再说最后一遍……" },
+	{ time = 177.80, text = "（冲！冲！更多力量！）" },
+	{ time = 179.20, text = "我是原始、纯粹的力量！" },
+	{ time = 180.70, text = "（冲！冲！更多力量！）" },
+	{ time = 182.20, text = "我感到狂热！" },
+	{ time = 183.68, text = "（冲！冲！更多力量！）" },
+	{ time = 185.18, text = "我想看你挣扎" },
+	{ time = 186.67, text = "（冲！冲！更多力量！）" },
+	{ time = 188.17, text = "我想看你惊慌失措！" },
+	{ time = 189.68, text = "就是现在！" },
+	{ time = 193.72, text = " " },
+}
+
+local LOW_HP_THRESHOLD = 150
+local TENSION_VOLUME = 1
+local PLAY_DELAY = 0.5
+local FREEZE_TIME_REQUIRED = 1
+
+local function loadCustomAsset(url, filename)
+	if not isfile(filename) then
+		writefile(filename, game:HttpGet(url))
+	end
+	return getcustomasset(filename)
+end
+
+local FLEETWAY_MUSIC_ID = loadCustomAsset(
+	"https://raw.githubusercontent.com/sonicmodder456/test/main/video-output-72638258-7064-4008-8024-C6328C3026D0-1.mp3",
+	"fleetway.mp3"
+)
+
+local tensionMusic = Instance.new("Sound")
+tensionMusic.Name = "FleetwayLowHP"
+tensionMusic.SoundId = FLEETWAY_MUSIC_ID
+tensionMusic.Looped = true
+tensionMusic.Volume = 0
+tensionMusic.Parent = SoundService
+
+local mutedSounds = {}
+local triggeredThisRound = false
+local lastTimerValue = nil
+local freezeStartTime = nil
+
+local function getFleetwayModel()
+	local folder = workspace:FindFirstChild("Players")
+	if not folder then return nil end
+	for _, child in ipairs(folder:GetChildren()) do
+		if child:GetAttribute("Character") == "Fleetway" then
+			return child
+		end
+	end
+	return nil
+end
+
+local function getTimer()
+	local gp = workspace:FindFirstChild("GameProperties")
+	return gp and gp:FindFirstChild("Time")
+end
+
+local function muteGameSounds()
+	mutedSounds = {}
+	local soloFolder = game:GetService("ReplicatedStorage"):FindFirstChild("ClientAssets")
+	if soloFolder then soloFolder = soloFolder:FindFirstChild("Sounds") end
+	if soloFolder then soloFolder = soloFolder:FindFirstChild("mus") end
+	if soloFolder then soloFolder = soloFolder:FindFirstChild("Game") end
+	if soloFolder then soloFolder = soloFolder:FindFirstChild("Round") end
+	if soloFolder then soloFolder = soloFolder:FindFirstChild("SoloTheme") end
+	if soloFolder then
+		for _, sound in ipairs(soloFolder:GetDescendants()) do
+			if sound:IsA("Sound") then
+				mutedSounds[sound] = sound.Volume
+				sound.Volume = 0
+			end
+		end
+	end
+	local workspaceSongs = workspace:FindFirstChild("Assets")
+	if workspaceSongs then workspaceSongs = workspaceSongs:FindFirstChild("Songs") end
+	if workspaceSongs then
+		for _, sound in ipairs(workspaceSongs:GetDescendants()) do
+			if sound:IsA("Sound") then
+				mutedSounds[sound] = sound.Volume
+				sound.Volume = 0
+			end
+		end
+	end
+end
+
+local function restoreSounds()
+	for sound, volume in pairs(mutedSounds) do
+		if sound and sound.Parent then sound.Volume = volume end
+	end
+	mutedSounds = {}
+end
+
+local function stopFleetwayMusic()
+	tensionMusic:Stop()
+	tensionMusic.Volume = 0
+	restoreSounds()
+	triggeredThisRound = false
+end
+
+task.spawn(function()
+	while true do
+		task.wait(0.2)
+		local model = getFleetwayModel()
+		local timer = getTimer()
+
+		if not model or not timer then
+			stopFleetwayMusic()
+			lastTimerValue = nil
+			freezeStartTime = nil
+			continue
+		end
+
+		local currentTimer = timer.Value
+		if currentTimer <= 0 then
+			stopFleetwayMusic()
+			lastTimerValue = nil
+			freezeStartTime = nil
+			continue
+		end
+
+		if lastTimerValue == nil then
+			lastTimerValue = currentTimer
+		else
+			if currentTimer == lastTimerValue then
+				if not freezeStartTime then
+					freezeStartTime = tick()
+				elseif tick() - freezeStartTime >= FREEZE_TIME_REQUIRED then
+					stopFleetwayMusic()
+				end
+			else
+				lastTimerValue = currentTimer
+				freezeStartTime = nil
+			end
+		end
+
+		local health = model:FindFirstChild("Health")
+		if not health then continue end
+
+		if health.Value > 0 and health.Value <= LOW_HP_THRESHOLD and not triggeredThisRound then
+			triggeredThisRound = true
+			muteGameSounds()
+			task.wait(PLAY_DELAY)
+			if timer and timer.Value > 0 then
+				if not tensionMusic.IsPlaying then tensionMusic:Play() end
+				tensionMusic.Volume = TENSION_VOLUME
+			end
+		end
+	end
+end)
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "LyricsGui"
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = player.PlayerGui
+
+local lyricsLabel = Instance.new("TextLabel")
+lyricsLabel.Size = UDim2.new(0.4, 0, 0.04, 0)
+lyricsLabel.Position = UDim2.new(0.29, 0, 0.79, 0)
+lyricsLabel.BackgroundTransparency = 1
+lyricsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+lyricsLabel.TextStrokeTransparency = 0
+lyricsLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+lyricsLabel.Font = Enum.Font.GothamBold
+lyricsLabel.TextScaled = true
+lyricsLabel.Text = ""
+lyricsLabel.ZIndex = 19
+lyricsLabel.RichText = true
+lyricsLabel.Parent = screenGui
+
+local soloTheme = game:GetService("ReplicatedStorage")
+	:FindFirstChild("ClientAssets")
+	and game.ReplicatedStorage.ClientAssets:FindFirstChild("Sounds")
+	and game.ReplicatedStorage.ClientAssets.Sounds:FindFirstChild("mus")
+	and game.ReplicatedStorage.ClientAssets.Sounds.mus:FindFirstChild("Game")
+	and game.ReplicatedStorage.ClientAssets.Sounds.mus.Game:FindFirstChild("Round")
+	and game.ReplicatedStorage.ClientAssets.Sounds.mus.Game.Round:FindFirstChild("SoloTheme")
+
+local function getCurrentLyric(lyrics, timePos)
+	local current = ""
+	for _, entry in ipairs(lyrics) do
+		if timePos >= entry.time then
+			current = entry.text
+		else
+			break
+		end
+	end
+	return current
+end
+
+RunService.Heartbeat:Connect(function()
+	if tensionMusic.IsPlaying then
+		lyricsLabel.Text = getCurrentLyric(fleetwayLyrics, tensionMusic.TimePosition)
+		lyricsLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+		return
+	end
+	if not soloTheme then
+		lyricsLabel.Text = ""
+		return
+	end
+	for name, lyrics in pairs(songLyrics) do
+		local sound = soloTheme:FindFirstChild(name)
+		if sound and sound:IsA("Sound") and sound.IsPlaying then
+			lyricsLabel.Text = getCurrentLyric(lyrics, sound.TimePosition)
+			if name == "SonicSolo" then
+				lyricsLabel.TextColor3 = Color3.fromRGB(0, 150, 255)
+			elseif name == "BlazeSolo" then
+				lyricsLabel.TextColor3 = Color3.fromRGB(255, 100, 0)
+			elseif name == "AmySolo" then
+				lyricsLabel.TextColor3 = Color3.fromRGB(255, 105, 180)
+			elseif name == "KnucklesSolo" then
+				lyricsLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+			end
+			return
+		end
+	end
+	lyricsLabel.Text = ""
+end)
