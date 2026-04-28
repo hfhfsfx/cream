@@ -1,0 +1,1690 @@
+--2011X
+local ANIMATIONS = {
+	Idle = {id = "rbxassetid://120091415341260", track = nil, shouldLoop = true},
+	Walk = {id = "rbxassetid://118996575101255", track = nil, shouldLoop = true},
+	Run = {id = "rbxassetid://18564900441", track = nil, shouldLoop = true},
+	SuperRun = {id = "rbxassetid://18564900441", track = nil, shouldLoop = true},
+	Jump = {id = "rbxassetid://18543033295", track = nil, shouldLoop = false},
+	Fall = {id = "rbxassetid://18541933800", track = nil, shouldLoop = true},
+	PeelCharge = {id = "rbxassetid://105631783293718", track = nil, shouldLoop = true},
+	Special = {id = "rbxassetid://80815841218994", track = nil, shouldLoop = true}
+}
+local function loadAsset(id)
+	local ok, objects = pcall(game.GetObjects, game, "rbxassetid://" .. id)
+	if not ok or not objects or #objects == 0 then return nil end
+	return objects[1]:Clone()
+end
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local workspace = Workspace
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+local isScriptActive = false
+local animationConnections = {}
+local meshReplacementConnection = nil
+local SPINDASH_ASSET_ID = 112213641317656
+local ASSET_ID = 100222738085555
+local currentSpindashModel = nil
+local spindashSpinConnection = nil
+local spindashSpeedBoostConnection = nil
+local isSpindashActive = false
+local spindashSpeedBoost = 1
+local spindashTargetSpeed = 1
+local SPINDASH_BASELINE = 0.1
+local SPINDASH_MAX = 1.5
+local SPINDASH_RAMP_TIME = 1
+local spindashSpeedRate = (SPINDASH_MAX - SPINDASH_BASELINE) / SPINDASH_RAMP_TIME
+local isPeelOutActive = false
+local isHoldingPeelOut = false
+local isPeelOutReleasing = false
+local isDropDashActive = false
+local lastImageRectOffset = Vector2.new(0, 0)
+local dropDashCheckConnection = nil
+local isHoldingInput = false
+local isSpecialAnimationActive = false
+local specialAnimationCooldown = false
+local specialButton = nil
+local specialGui = nil
+local originalTransparency = {}
+local function onInputBegan(input, gp)
+	if gp then return end
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		isHoldingInput = true
+		if isPeelOutActive then
+			isHoldingPeelOut = true
+		end
+	end
+end
+local function onInputEnded(input, gp)
+	if gp then return end
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		isHoldingInput = false
+		isHoldingPeelOut = false
+	end
+end
+UserInputService.InputBegan:Connect(onInputBegan)
+UserInputService.InputEnded:Connect(onInputEnded)
+local function setCharacterSpeedBoost(value)
+	if character and character.Parent then
+		character:SetAttribute("SpeedBoost", value)
+	end
+end
+local function stopSpindashSpeedBoost()
+	isSpindashActive = false
+	if spindashSpeedBoostConnection then
+		spindashSpeedBoostConnection:Disconnect()
+		spindashSpeedBoostConnection = nil
+	end
+	setCharacterSpeedBoost(1)
+end
+local function startSpindashSpeedBoost()
+	if spindashSpeedBoostConnection then return end
+	isSpindashActive = true
+	spindashSpeedBoost = SPINDASH_BASELINE
+	spindashTargetSpeed = SPINDASH_BASELINE
+	setCharacterSpeedBoost(spindashSpeedBoost)
+	spindashSpeedBoostConnection = RunService.Heartbeat:Connect(function(delta)
+		if not isSpindashActive then
+			if spindashSpeedBoostConnection then
+				spindashSpeedBoostConnection:Disconnect()
+				spindashSpeedBoostConnection = nil
+			end
+			return
+		end
+		if isPeelOutActive then 
+			stopSpindashSpeedBoost()
+			return 
+		end
+		local holding = isHoldingInput or UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+		if holding then
+			spindashTargetSpeed = SPINDASH_MAX
+		else
+			spindashTargetSpeed = SPINDASH_BASELINE
+		end
+		if spindashSpeedBoost < spindashTargetSpeed then
+			spindashSpeedBoost = math.min(spindashSpeedBoost + (spindashSpeedRate * delta), spindashTargetSpeed)
+		elseif spindashSpeedBoost > spindashTargetSpeed then
+			spindashSpeedBoost = math.max(spindashSpeedBoost - (spindashSpeedRate * delta), spindashTargetSpeed)
+		end
+		if not isPeelOutActive then
+			setCharacterSpeedBoost(spindashSpeedBoost)
+		end
+	end)
+end
+local function stopSpindashFollow()
+	if spindashSpinConnection then
+		spindashSpinConnection:Disconnect()
+		spindashSpinConnection = nil
+	end
+	if currentSpindashModel then
+		currentSpindashModel:Destroy()
+		currentSpindashModel = nil
+	end
+	local playersFolder = workspace:FindFirstChild("Players")
+	if playersFolder then
+		local playerFolder = playersFolder:FindFirstChild(player.Name)
+		if playerFolder then
+			local spindashFolder = playerFolder:FindFirstChild("Spindash")
+			if spindashFolder then
+				local spindashPart = spindashFolder:FindFirstChild("Spindash")
+				if spindashPart then
+					spindashPart.Transparency = 0
+				end
+			end
+		end
+	end
+	stopSpindashSpeedBoost()
+end
+local function stopPeelOutSpeedBoost() end
+local function startPeelOutSpeedBoost() end
+
+local function freezePlayer()
+	setCharacterSpeedBoost(0)
+	humanoid.WalkSpeed = 0
+end
+local function unfreezePlayer()
+	humanoid.WalkSpeed = 16
+end
+local stopPeelOut = nil
+local monitorPeelOutSounds = nil
+local function detectDropDash()
+	local playerGui = player:WaitForChild("PlayerGui", 5)
+	if not playerGui then return end
+	local roundGui = playerGui:WaitForChild("Round", 5)
+	if not roundGui then return end
+	local gameGui = roundGui:WaitForChild("Game", 5)
+	if not gameGui then return end
+	local abilityGui = gameGui:WaitForChild("Ability", 5)
+	if not abilityGui then return end
+	local barGui = abilityGui:WaitForChild("Bar", 5)
+	if not barGui then return end
+	local ab1Gui = barGui:WaitForChild("AB1", 5)
+	if not ab1Gui then return end
+	local imgGui = ab1Gui:WaitForChild("iMG", 5)
+	if not imgGui then return end
+	dropDashCheckConnection = RunService.Heartbeat:Connect(function()
+		if imgGui and imgGui.ImageRectOffset then
+			local currentOffset = imgGui.ImageRectOffset
+			if currentOffset ~= lastImageRectOffset and currentOffset ~= Vector2.new(0, 0) then
+				isDropDashActive = true
+				if isPeelOutActive and stopPeelOut then
+					stopPeelOut()
+				end
+			elseif currentOffset == Vector2.new(0, 0) then
+				isDropDashActive = false
+			end
+			lastImageRectOffset = currentOffset
+		end
+	end)
+end
+local function replacePlayerFrame()
+	local playerGui = player:WaitForChild("PlayerGui", 5)
+	if not playerGui then return end
+	local roundGui = playerGui:WaitForChild("Round", 5)
+	if not roundGui then return end
+	local gameGui = roundGui:WaitForChild("Game", 5)
+	if not gameGui then return end
+	local teamsGui = gameGui:WaitForChild("Teams", 5)
+	if not teamsGui then return end
+	local playerFrame = teamsGui:FindFirstChild(player.Name)
+	if not playerFrame then
+		teamsGui.ChildAdded:Wait()
+		playerFrame = teamsGui:FindFirstChild(player.Name)
+	end
+	if playerFrame and playerFrame:FindFirstChild("Frame") then
+		local frame = playerFrame.Frame
+		if frame and frame:FindFirstChild("Character") then
+			local characterContainer = frame.Character
+			characterContainer:ClearAllChildren()
+			local success, objects = pcall(game.GetObjects, game, "rbxassetid://92590542810151")
+			if success and #objects > 0 then
+				local asset = objects[1]
+				for _, obj in asset:GetChildren() do
+					obj:Clone().Parent = characterContainer
+				end
+				if characterContainer:IsA("GuiObject") then
+					characterContainer.BackgroundTransparency = 1
+				end
+			end
+		end
+	end
+end
+local function startSpindashFollow()
+	if not currentSpindashModel then return end
+	local spindashFolder = currentSpindashModel.Parent
+	local spindashPart = spindashFolder and spindashFolder:FindFirstChild("Spindash")
+	if not spindashPart then return end
+	if spindashSpinConnection then
+		spindashSpinConnection:Disconnect()
+	end
+	spindashSpinConnection = RunService.Heartbeat:Connect(function()
+		if not currentSpindashModel or not currentSpindashModel.Parent or not spindashPart or not spindashPart.Parent then
+			if spindashSpinConnection then
+				spindashSpinConnection:Disconnect()
+				spindashSpinConnection = nil
+			end
+			currentSpindashModel = nil
+			stopSpindashFollow()
+			return
+		end
+		local liftOffset = Vector3.new(0, 0, 0)
+		if currentSpindashModel:IsA("BasePart") then
+			currentSpindashModel.CFrame = spindashPart.CFrame * CFrame.new(liftOffset)
+		else
+			local primary = currentSpindashModel.PrimaryPart or currentSpindashModel:FindFirstChildWhichIsA("BasePart")
+			if primary then
+				primary.CFrame = spindashPart.CFrame * CFrame.new(liftOffset)
+			end
+		end
+	end)
+end
+local function replaceSpindashMesh()
+	local playersFolder = workspace:FindFirstChild("Players")
+	if not playersFolder then return end
+	local playerFolder = playersFolder:FindFirstChild(player.Name)
+	if not playerFolder then return end
+	local spindashFolder = playerFolder:FindFirstChild("Spindash")
+	if not spindashFolder then return end
+	local spindashPart = spindashFolder:FindFirstChild("Spindash")
+	if spindashPart and spindashPart:IsA("BasePart") and not currentSpindashModel then
+		local ok, objects = pcall(game.GetObjects, game, "rbxassetid://" .. SPINDASH_ASSET_ID)
+		if ok and objects and #objects > 0 then
+			local newMesh = objects[1]:Clone()
+			local inserted = nil
+			if newMesh:IsA("BasePart") then
+				inserted = newMesh
+				newMesh.Parent = spindashPart.Parent
+			else
+				newMesh.Parent = spindashPart.Parent
+				inserted = newMesh.PrimaryPart or newMesh:FindFirstChildWhichIsA("BasePart")
+			end
+			if inserted then
+				inserted.CFrame = spindashPart.CFrame * CFrame.new(0, 5, 0)
+				inserted.Anchored = false
+				inserted.CanCollide = false
+				currentSpindashModel = newMesh
+				spindashPart.Transparency = 1
+				for _, descendant in ipairs(spindashPart:GetDescendants()) do
+					if descendant:IsA("BasePart") then
+						descendant.Transparency = 1
+					elseif descendant:IsA("PointLight") or descendant:IsA("SpotLight") then
+						descendant.Enabled = false
+					elseif descendant:IsA("ParticleEmitter") or descendant:IsA("Trail") then
+						descendant.Enabled = false
+					end
+				end
+				startSpindashFollow()
+				startSpindashSpeedBoost()
+			else
+				newMesh:Destroy()
+			end
+		end
+	end
+end
+
+local function monitorSpindashMesh()
+	local function checkAndReplace()
+		if isScriptActive then
+			replaceSpindashMesh()
+		end
+	end
+	checkAndReplace()
+	local playersFolder = workspace:FindFirstChild("Players")
+	if playersFolder then
+		local playerFolder = playersFolder:FindFirstChild(player.Name)
+		if playerFolder then
+			local spindashFolder = playerFolder:FindFirstChild("Spindash")
+			if spindashFolder then
+				spindashFolder.DescendantAdded:Connect(function(descendant)
+					if descendant.Name == "Spindash" and descendant:IsA("BasePart") and not currentSpindashModel then
+						checkAndReplace()
+					end
+				end)
+				spindashFolder.DescendantRemoving:Connect(function(descendant)
+					if descendant.Name == "Spindash" and descendant:IsA("BasePart") then
+						if not (spindashFolder:FindFirstChild("Spindash")) then
+							stopSpindashFollow()
+						end
+					end
+				end)
+			else
+				playerFolder.ChildAdded:Connect(function(child)
+					if child.Name == "Spindash" then
+						child.DescendantAdded:Connect(function(descendant)
+							if descendant.Name == "Spindash" and descendant:IsA("BasePart") and not currentSpindashModel then
+								checkAndReplace()
+							end
+						end)
+					end
+				end)
+			end
+		else
+			playersFolder.ChildAdded:Connect(function(child)
+				if child.Name == player.Name then
+					child.ChildAdded:Connect(function(spindashChild)
+						if spindashChild.Name == "Spindash" then
+							spindashChild.DescendantAdded:Connect(function(descendant)
+								if descendant.Name == "Spindash" and descendant:IsA("BasePart") and not currentSpindashModel then
+									checkAndReplace()
+								end
+							end)
+						end
+					end)
+				end
+			end)
+		end
+	end
+	if meshReplacementConnection then
+		meshReplacementConnection:Disconnect()
+		meshReplacementConnection = nil
+	end
+	meshReplacementConnection = RunService.Heartbeat:Connect(function()
+		if isScriptActive and tick() % 0.5 < 0.1 then
+			checkAndReplace()
+		end
+	end)
+end
+
+local function setupSonicViewport()
+	local ok, viewportFrame = pcall(function()
+		return player.PlayerGui
+			:WaitForChild("Round", 30)
+			:WaitForChild("Game", 30)
+			:WaitForChild("SurvivorHP", 30)
+			:WaitForChild("ViewportFrame", 30)
+	end)
+	if not ok or not viewportFrame then return end
+	local viewportModel = viewportFrame
+		:WaitForChild("WorldModel", 30)
+		:WaitForChild("Default", 30)
+	local assetId = "140348017868432"
+	local function replaceViewportModel()
+		local ok2, objects = pcall(game.GetObjects, game, "rbxassetid://" .. assetId)
+		if not ok2 or #objects == 0 then return end
+		local newModel = objects[1]:Clone()
+		for _, part in ipairs(viewportModel:GetDescendants()) do
+			if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+				part.Transparency = 1
+			end
+		end
+		newModel.Parent = viewportModel
+		local newHumanoid = newModel:FindFirstChildOfClass("Humanoid")
+		if newHumanoid then newHumanoid:Destroy() end
+		local viewportRootPart = viewportModel:FindFirstChild("HumanoidRootPart")
+		if viewportRootPart then
+			newModel:PivotTo(viewportRootPart.CFrame * CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-175), math.rad(35), math.rad(180)))
+			local primaryPart = newModel.PrimaryPart or newModel:FindFirstChildWhichIsA("BasePart")
+			if primaryPart then
+				local weld = Instance.new("WeldConstraint")
+				weld.Part0 = viewportRootPart
+				weld.Part1 = primaryPart
+				weld.Parent = viewportRootPart
+			end
+		end
+	end
+	replaceViewportModel()
+	local viewportHumanoid = viewportModel:FindFirstChild("Humanoid")
+	local currentViewportAnimation = nil
+	local viewportAnimations = {
+		Idle = {id = "rbxassetid://110780885330379", track = nil, shouldLoop = true},
+		Walk = {id = "rbxassetid://107677322186127", track = nil, shouldLoop = true},
+		Run = {id = "rbxassetid://106255779252375", track = nil, shouldLoop = true},
+		SuperRun = {id = "rbxassetid://106255779252375", track = nil, shouldLoop = true},
+		Jump = {id = "rbxassetid://130471055694932", track = nil, shouldLoop = false},
+		Fall = {id = "rbxassetid://93377527148920", track = nil, shouldLoop = true}
+	}
+	local function loadViewportAnimation(animName)
+		local animData = viewportAnimations[animName]
+		if not animData or not viewportHumanoid then return nil end
+		local animation = Instance.new("Animation")
+		animation.AnimationId = animData.id
+		local track = viewportHumanoid:LoadAnimation(animation)
+		track.Looped = animData.shouldLoop
+		animData.track = track
+		return track
+	end
+	local function playViewportAnimation(animName)
+		if not viewportHumanoid then return end
+		for _, animData in pairs(viewportAnimations) do
+			if animData.track and animData.track.IsPlaying then
+				animData.track:Stop()
+			end
+		end
+		local animData = viewportAnimations[animName]
+		if animData then
+			if not animData.track then loadViewportAnimation(animName) end
+			if animData.track then animData.track:Play() end
+		end
+	end
+	local lastViewportUpdate = 0
+	local viewportUpdateInterval = 0.1
+	local function updateViewportAnimations()
+		local currentTime = tick()
+		if currentTime - lastViewportUpdate < viewportUpdateInterval then
+			return
+		end
+		lastViewportUpdate = currentTime
+
+		local newAnimation = "Idle"
+		if viewportHumanoid then
+			if viewportHumanoid.MoveDirection.Magnitude > 0.1 then
+				if viewportHumanoid:GetState() == Enum.HumanoidStateType.Running then
+					if viewportHumanoid.WalkSpeed > 16 then
+						newAnimation = "Run"
+					else
+						newAnimation = "Walk"
+					end
+				end
+			else
+				local state = viewportHumanoid:GetState()
+				if state == Enum.HumanoidStateType.Jumping then
+					newAnimation = "Jump"
+				elseif state == Enum.HumanoidStateType.Freefall then
+					newAnimation = "Fall"
+				else
+					newAnimation = "Idle"
+				end
+			end
+		end
+		if newAnimation ~= currentViewportAnimation then
+			playViewportAnimation(newAnimation)
+			currentViewportAnimation = newAnimation
+		end
+	end
+	RunService.Heartbeat:Connect(updateViewportAnimations)
+	local viewportModelDescendantConnection = nil
+	viewportModelDescendantConnection = viewportModel.DescendantAdded:Connect(function() 
+		if viewportModelDescendantConnection then
+			viewportModelDescendantConnection:Disconnect()
+			viewportModelDescendantConnection = nil
+		end
+		task.spawn(function()
+			task.wait(0.5)
+			replaceViewportModel()
+		end)
+	end)
+end
+
+local function loadCustomAsset(url, filename)
+	if not isfile(filename) then
+		writefile(filename, game:HttpGet(url))
+	end
+	return getcustomasset(filename)
+end
+
+local DEFAULT_MUSIC = loadCustomAsset(
+	"https://github.com/makinmaking/noise/raw/refs/heads/main/SUBTERFUGE%20WITH%20LYRICS%20FNF%20SONIC%20LEGACY%20Cover.mp3",
+	"2017X.mp3"
+)
+
+local function setupSonicMusic()
+	if not isScriptActive then return end
+	local theme = game:GetService("ReplicatedStorage")
+		:FindFirstChild("ClientAssets")
+		and game.ReplicatedStorage.ClientAssets:FindFirstChild("Sounds")
+		and game.ReplicatedStorage.ClientAssets.Sounds:FindFirstChild("mus")
+		and game.ReplicatedStorage.ClientAssets.Sounds.mus:FindFirstChild("Game")
+		and game.ReplicatedStorage.ClientAssets.Sounds.mus.Game:FindFirstChild("Round")
+		and game.ReplicatedStorage.ClientAssets.Sounds.mus.Game.Round:FindFirstChild("SoloTheme")
+		and game.ReplicatedStorage.ClientAssets.Sounds.mus.Game.Round.SoloTheme:FindFirstChild("SonicSolo")
+	if theme then
+		theme.Looped = true
+		theme.Volume = 2
+		theme.SoundId = DEFAULT_MUSIC
+	end
+end
+
+local playerModelCache = nil
+local isCurrentlySonic = false
+local playersFolderCache = nil
+local lastSonicCheckTime = 0
+local sonicCheckInterval = 0.5
+
+local function getPlayersFolder()
+	if not playersFolderCache or not playersFolderCache.Parent then
+		playersFolderCache = workspace:FindFirstChild("Players")
+	end
+	return playersFolderCache
+end
+
+local function getPlayerModel()
+	if not playerModelCache or not playerModelCache.Parent then
+		local playersFolder = getPlayersFolder()
+		if playersFolder then
+			playerModelCache = playersFolder:FindFirstChild(player.Name)
+		end
+	end
+	return playerModelCache
+end
+
+local function isLastLife()
+	local model = getPlayerModel()
+	return model and model:GetAttribute("LastLife") == true
+end
+local function setupCharacter(char)
+	if not isScriptActive then return end
+	local originalParts = {}
+	for _, v in ipairs(char:GetDescendants()) do
+		if v:IsA("BasePart") then table.insert(originalParts, v) end
+	end
+	for _, part in ipairs(originalParts) do part.Transparency = 1 end
+	local playersFolder = workspace:FindFirstChild("Players")
+	local oldVisual = playersFolder and playersFolder:FindFirstChild(player.Name)
+	if oldVisual then
+		for _, v in ipairs(oldVisual:GetDescendants()) do
+			if v:IsA("BasePart") then v.Transparency = 1 end
+		end
+	end
+	local mdl = loadAsset(ASSET_ID)
+	if not mdl then return end
+	if oldVisual then mdl.Parent = oldVisual else mdl.Parent = char end
+
+	task.wait(0.5)
+
+	local lastLifeActive = isLastLife()
+	if lastLifeActive then
+		local brokenFolder = mdl:FindFirstChild("Broken")
+		if brokenFolder then
+			for _, part in ipairs(brokenFolder:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.Transparency = 0
+				end
+			end
+		end
+		local circularFolder = mdl:FindFirstChild("Circular")
+		if circularFolder then
+			for _, part in ipairs(circularFolder:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.Transparency = 1
+				end
+			end
+		end
+	end
+
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	local newHrp = mdl:FindFirstChild("HumanoidRootPart")
+	if not hrp or not newHrp then mdl:Destroy() return end
+	newHrp.Anchored = true
+	newHrp.Transparency = 1
+	local existingHum = mdl:FindFirstChildOfClass("Humanoid")
+	if existingHum then existingHum:Destroy() end
+	local existingAnim = mdl:FindFirstChildOfClass("Animator")
+	if existingAnim then existingAnim:Destroy() end
+	local originalTransparency = {}
+	for _, v in ipairs(mdl:GetDescendants()) do
+		if v:IsA("BasePart") then
+			originalTransparency[v] = v.Transparency
+			v.CanCollide = false
+		end
+	end
+	newHrp.CFrame = hrp.CFrame
+	task.wait(0.1)
+	newHrp.Transparency = 1
+	local syncConn
+	syncConn = RunService.Stepped:Connect(function()
+		if not char.Parent or not hrp.Parent or not newHrp.Parent then
+			if syncConn then syncConn:Disconnect() end
+			return
+		end
+		newHrp.CFrame = hrp.CFrame * CFrame.new(0, 1.1, 0)
+	end)
+	local animateScript = char:FindFirstChild("Animate")
+	if animateScript then animateScript.Disabled = true end
+
+	local function monitorLastLife()
+		while char and char.Parent do
+			local lastLifeActive = isLastLife()
+			local brokenFolder = mdl:FindFirstChild("Broken")
+			local circularFolder = mdl:FindFirstChild("Circular")
+
+			if lastLifeActive then
+				if brokenFolder then
+					for _, part in ipairs(brokenFolder:GetDescendants()) do
+						if part:IsA("BasePart") then
+							part.Transparency = 0
+						end
+					end
+				end
+				if circularFolder then
+					for _, part in ipairs(circularFolder:GetDescendants()) do
+						if part:IsA("BasePart") then
+							part.Transparency = 1
+						end
+					end
+				end
+			else
+				if brokenFolder then
+					for _, part in ipairs(brokenFolder:GetDescendants()) do
+						if part:IsA("BasePart") then
+							part.Transparency = 1
+						end
+					end
+				end
+				if circularFolder then
+					for _, part in ipairs(circularFolder:GetDescendants()) do
+						if part:IsA("BasePart") then
+							part.Transparency = 0
+						end
+					end
+				end
+			end
+
+			task.wait(0.5)
+		end
+	end
+
+	task.spawn(monitorLastLife)
+end
+local function startScript()
+	if isScriptActive then return end
+	task.wait(3)
+	isScriptActive = true
+	task.spawn(setupSonicViewport)
+	setupSonicMusic()
+	monitorPeelOutSounds()
+	detectDropDash()
+	replacePlayerFrame()
+	if character then
+		setupCharacter(character)
+	end
+end
+local function showWaitingNotification()
+	local StarterGui = game:GetService("StarterGui")
+	StarterGui:SetCore("SendNotification", {
+		Title = "hi";
+		Text = "noise... HOLD LEFT CLICK TO SPEED DROPDASH, THIS IS AN INTENDED FEATURE";
+		Duration = 20;
+	})
+end
+
+local function stopScript()
+	if not isScriptActive then return end
+	isScriptActive = false
+	showWaitingNotification()
+	for _, animData in pairs(ANIMATIONS) do
+		if animData.track and animData.track.IsPlaying then
+			animData.track:Stop()
+		end
+	end
+	stopSpindashFollow()
+	if stopPeelOut then stopPeelOut() end
+	if dropDashCheckConnection then
+		dropDashCheckConnection:Disconnect()
+		dropDashCheckConnection = nil
+	end
+	for _, connection in ipairs(animationConnections) do
+		if connection then
+			connection:Disconnect()
+		end
+	end
+	animationConnections = {}
+	if meshReplacementConnection then
+		meshReplacementConnection:Disconnect()
+		meshReplacementConnection = nil
+	end
+	if stopPeelOut then stopPeelOut() end
+	task.spawn(function()
+		task.wait(10)
+		local theme = game:GetService("ReplicatedStorage")
+			:FindFirstChild("ClientAssets")
+			and game.ReplicatedStorage.ClientAssets:FindFirstChild("Sounds")
+			and game.ReplicatedStorage.ClientAssets.Sounds:FindFirstChild("mus")
+			and game.ReplicatedStorage.ClientAssets.Sounds.mus:FindFirstChild("Game")
+			and game.ReplicatedStorage.ClientAssets.Sounds.mus.Game:FindFirstChild("Round")
+			and game.ReplicatedStorage.ClientAssets.Sounds.mus.Game.Round:FindFirstChild("SoloTheme")
+			and game.ReplicatedStorage.ClientAssets.Sounds.mus.Game.Round.SoloTheme:FindFirstChild("SonicSolo")
+		if theme then
+			theme:Stop()
+		end
+	end)
+end
+local function isSonic()
+	local model = getPlayerModel()
+	return model and model:GetAttribute("Character") == "Blaze"
+end
+local function onHeartbeat()
+	local currentTime = tick()
+	if currentTime - lastSonicCheckTime >= sonicCheckInterval then
+		lastSonicCheckTime = currentTime
+		local sonicCheck = isSonic()
+		if sonicCheck ~= isCurrentlySonic then
+			isCurrentlySonic = sonicCheck
+			if isCurrentlySonic then
+				startScript()
+			else
+				stopScript()
+			end
+		end
+	end
+end
+local function checkCharacterAttribute() end
+local function monitorCharacterAttribute() end
+local currentAnimation = nil
+local animationsToDisable = {
+	"rbxassetid://106608035337434343447",
+	"rbxassetid://9191426583290243434",
+	"rbxassetid://1381145986434514343434",
+	"rbxassetid://12355823787878779758443434",
+	"rbxassetid://12830070429117134343434",
+	"rbxassetid://8308909881303234343434",
+	"rbxassetid://1246987295976683434343343",
+	"rbxassetid://7622317178271243434343434"
+}
+local jumpStartTime = 0
+local jumpAnimationDuration = 0.6
+local runStartTime = 0
+local isRunning = false
+local speedBoostRate = (4 - 1) / 1.25
+local lastWalkSpeed = 16
+local speedChangeThreshold = 2
+local isSpeedBoostActive = false
+local lastSpeedCheckTime = 0
+local speedCheckInterval = 0.1
+local function loadAnimation(animName)
+	local animData = ANIMATIONS[animName]
+	if not animData then return nil end
+	local animation = Instance.new("Animation")
+	animation.AnimationId = animData.id
+	local track = humanoid:LoadAnimation(animation)
+	track.Looped = animData.shouldLoop
+	animData.track = track
+	return track
+end
+local function playAnimation(animName)
+	if isSpecialAnimationActive and animName ~= "Special" then return end
+	for _, animData in pairs(ANIMATIONS) do
+		if animData.track and animData.track.IsPlaying then
+			animData.track:Stop()
+		end
+	end
+	local animData = ANIMATIONS[animName]
+	if animData then
+		if not animData.track then loadAnimation(animName) end
+		if animData.track then
+			animData.track:Play()
+			if animName == "SuperRun" then
+				animData.track:AdjustSpeed(5)
+			end
+		end
+	end
+end
+local function updateAnimations()
+	if not isScriptActive then return end
+	if isPeelOutActive then
+		character:SetAttribute("SpeedBoost", 1.1)
+		isSpeedBoostActive = false
+		isRunning = false
+		stopSpindashSpeedBoost()
+		return
+	end
+	if isSpindashActive then
+		return
+	end
+	if not isSpindashActive and not isPeelOutActive and not isPeelOutReleasing then
+		local currentTime = tick()
+		if currentTime - lastSpeedCheckTime >= speedCheckInterval then
+			lastSpeedCheckTime = currentTime
+			local currentWalkSpeed = humanoid.WalkSpeed
+			local speedChange = currentWalkSpeed - lastWalkSpeed
+			if speedChange > speedChangeThreshold and currentWalkSpeed > 16 and humanoid.MoveDirection.Magnitude > 0.1 then
+				if not isRunning then
+					isRunning = true
+					runStartTime = tick()
+				end
+				isSpeedBoostActive = true
+			elseif speedChange < -speedChangeThreshold or (currentWalkSpeed <= 16 and isSpeedBoostActive) then
+				if isRunning then
+					isRunning = false
+				end
+				isSpeedBoostActive = false
+				character:SetAttribute("SpeedBoost", 1)
+			end
+			lastWalkSpeed = currentWalkSpeed
+		end
+	end
+	local state = humanoid:GetState()
+	local newAnimation = nil
+	if state == Enum.HumanoidStateType.Jumping then
+		if currentAnimation ~= "Jump" then jumpStartTime = tick() end
+		newAnimation = "Jump"
+	elseif state == Enum.HumanoidStateType.Freefall then
+		if tick() - jumpStartTime > jumpAnimationDuration then
+			newAnimation = "Fall"
+		else
+			newAnimation = "Jump"
+		end
+	elseif humanoid.MoveDirection.Magnitude > 0.1 then
+		if humanoid.WalkSpeed > 16 then
+			newAnimation = "Run"
+		else
+			newAnimation = "Walk"
+		end
+	else
+		newAnimation = "Idle"
+	end
+	if not isPeelOutActive and not isSpindashActive then
+		local currentSpeedBoost = character:GetAttribute("SpeedBoost") or 1
+		if currentSpeedBoost >= 2.5 and isSpeedBoostActive and humanoid.MoveDirection.Magnitude > 0.1 and humanoid.WalkSpeed > 16 and state ~= Enum.HumanoidStateType.Jumping and state ~= Enum.HumanoidStateType.Freefall then
+			newAnimation = "SuperRun"
+		end
+		if isSpeedBoostActive and isRunning then
+			local runDuration = tick() - runStartTime
+			local newSpeedBoost = math.min(1 + (runDuration * speedBoostRate), 3)
+			local currentBoost = character:GetAttribute("SpeedBoost")
+			if currentBoost ~= nil then
+				character:SetAttribute("SpeedBoost", newSpeedBoost)
+			end
+		end
+	end
+	if newAnimation and newAnimation ~= currentAnimation then
+		playAnimation(newAnimation)
+		currentAnimation = newAnimation
+	end
+end
+local lastDisableCheckTime = 0
+local disableCheckInterval = 0.5
+
+local function disableAnimations()
+	local currentTime = tick()
+	if currentTime - lastDisableCheckTime < disableCheckInterval then
+		return
+	end
+	lastDisableCheckTime = currentTime
+	if not isScriptActive then return end
+	local animator = humanoid:FindFirstChildOfClass("Animator")
+	if not animator then return end
+	for _, track in ipairs(humanoid:GetPlayingAnimationTracks()) do
+		for _, animId in ipairs(animationsToDisable) do
+			if track.Animation and track.Animation.AnimationId == animId then
+				track:Stop()
+				break
+			end
+		end
+	end
+end
+player.CharacterAdded:Connect(function(newChar)
+	character = newChar
+	humanoid = newChar:WaitForChild("Humanoid")
+	humanoidRootPart = newChar:WaitForChild("HumanoidRootPart")
+	playerModelCache = nil
+	monitorSpindashMesh()
+	setupCharacter(newChar)
+	for name in pairs(ANIMATIONS) do
+		if ANIMATIONS[name].track then
+			ANIMATIONS[name].track:Stop()
+			ANIMATIONS[name].track = nil
+		end
+	end
+	for name in pairs(ANIMATIONS) do loadAnimation(name) end
+	playAnimation("Idle")
+	table.insert(animationConnections, humanoid.StateChanged:Connect(updateAnimations))
+	table.insert(animationConnections, RunService.Heartbeat:Connect(updateAnimations))
+	table.insert(animationConnections, RunService.Heartbeat:Connect(disableAnimations))
+end)
+
+if monitorSpindashMesh then monitorSpindashMesh() end
+if setupCharacter and character and isScriptActive then
+	setupCharacter(character)
+end
+if isScriptActive then
+	for name in pairs(ANIMATIONS) do
+		loadAnimation(name)
+	end
+	playAnimation("Idle")
+	if humanoid then
+		table.insert(animationConnections, humanoid.StateChanged:Connect(updateAnimations))
+		table.insert(animationConnections, RunService.Heartbeat:Connect(updateAnimations))
+		table.insert(animationConnections, RunService.Heartbeat:Connect(disableAnimations))
+	end
+end
+task.spawn(function()
+	while true do
+		local playersFolder = workspace:FindFirstChild("Players")
+		if playersFolder then
+			local playerFolder = playersFolder:FindFirstChild(player.Name)
+			if playerFolder then
+				local defaultFolder = playerFolder:FindFirstChild("Default")
+				if defaultFolder then
+					local waist = defaultFolder:FindFirstChild("Waist")
+					local hrpDefault = defaultFolder:FindFirstChild("HumanoidRootPart")
+					if waist and waist:IsA("BasePart") then waist.Transparency = 1 end
+					if hrpDefault and hrpDefault:IsA("BasePart") then hrpDefault.Transparency = 1 end
+				end
+			end
+		end
+		task.wait(0.1)
+	end
+end)
+stopPeelOut = function()
+	isPeelOutActive = false
+	isHoldingPeelOut = false
+	isPeelOutReleasing = true
+	unfreezePlayer()
+	stopPeelOutSpeedBoost()
+	isRunning = false
+	isSpeedBoostActive = false
+	runStartTime = tick()
+	character:SetAttribute("SpeedBoost", 1.1)
+	-- playAnimation("SuperRun")
+	-- currentAnimation = "SuperRun"
+	task.spawn(function()
+		task.wait(0.5)
+		isPeelOutReleasing = false
+	end)
+end
+
+monitorPeelOutSounds = function()
+	local function checkForSounds()
+		if not isScriptActive or not character or not character.Parent then return end
+		local peelChargeSound = humanoidRootPart:FindFirstChild("PeelCharge")
+		if peelChargeSound and peelChargeSound:IsA("Sound") and not isPeelOutActive and not isDropDashActive then
+			isPeelOutActive = true
+			freezePlayer()
+			playAnimation("PeelCharge")
+			currentAnimation = "PeelCharge"
+			startPeelOutSpeedBoost()
+		end
+		local peelReleaseSound = humanoidRootPart:FindFirstChild("PeelRelease")
+		if peelReleaseSound and peelReleaseSound:IsA("Sound") and isPeelOutActive then
+			stopPeelOut()
+		end
+		if isPeelOutActive and not peelChargeSound and not peelReleaseSound then
+			stopPeelOut()
+		end
+	end
+	humanoidRootPart.ChildAdded:Connect(function(child)
+		if child.Name == "PeelCharge" or child.Name == "PeelRelease" then
+			task.wait(0.1)
+			checkForSounds()
+		end
+	end)
+	humanoidRootPart.ChildRemoved:Connect(function(child)
+		if child.Name == "PeelCharge" or child.Name == "PeelRelease" then
+			task.wait(0.1)
+			checkForSounds()
+		end
+	end)
+	RunService.Heartbeat:Connect(function()	
+		if tick() % 0.2 < 0.1 then
+			checkForSounds()
+		end
+	end)
+	checkForSounds()
+end
+
+local initialSonic = isSonic()
+if initialSonic then
+	startScript()
+else
+	showWaitingNotification()
+end
+isCurrentlySonic = initialSonic
+RunService.Heartbeat:Connect(onHeartbeat)
+local function easeInOutQuad(t)
+	return t < 0.5 and 2 * t * t or -1 + (4 - 2 * t) * t
+end
+local function animateBar2Color()
+	local bar2 = player:WaitForChild("PlayerGui"):WaitForChild("Round"):WaitForChild("Game"):WaitForChild("SurvivorHP"):WaitForChild("bar1"):WaitForChild("bar2")	
+	local colors = {
+		Color3.new(0, 0, 0),
+		Color3.new(0.08, 0.08, 0.08),
+		Color3.new(0.15, 0.15, 0.15),
+		Color3.new(0.08, 0.08, 0.08),
+		Color3.new(0, 0, 0),
+	}
+	local currentIndex = 1
+	local transitionSpeed = 0.5
+	while true do
+		if bar2 and bar2:IsA("GuiObject") then
+			local targetColor = colors[currentIndex]
+			local startColor = bar2.ImageColor3
+			local startTime = tick()
+			while tick() - startTime < transitionSpeed do
+				local rawAlpha = (tick() - startTime) / transitionSpeed
+				local alpha = easeInOutQuad(rawAlpha)
+				bar2.ImageColor3 = startColor:Lerp(targetColor, alpha)
+				task.wait()
+			end
+			bar2.ImageColor3 = targetColor
+			currentIndex = currentIndex % #colors + 1
+		end
+		task.wait(0.05)
+	end
+end
+
+local function animateBar1Heartbeat()
+	local bar1 = player:WaitForChild("PlayerGui"):WaitForChild("Round"):WaitForChild("Game"):WaitForChild("Teams"):WaitForChild(player.Name)
+	local baseScale = 1
+	local beatScale = 1.08
+	local beatDuration = 0.15
+	local pauseDuration = 0.3
+	while true do
+		if bar1 and bar1:IsA("GuiObject") then
+			local startTime = tick()
+			while tick() - startTime < beatDuration do
+				local alpha = (tick() - startTime) / beatDuration
+				local easedAlpha = easeInOutQuad(alpha)
+				local scale = baseScale + (beatScale - baseScale) * math.sin(easedAlpha * math.pi)
+				bar1.Size = UDim2.new(bar1.Size.X.Scale, bar1.Size.X.Offset, scale, bar1.Size.Y.Offset)
+				task.wait()
+			end
+			task.wait(pauseDuration)
+			startTime = tick()
+			while tick() - startTime < beatDuration do
+				local alpha = (tick() - startTime) / beatDuration
+				local easedAlpha = easeInOutQuad(alpha)
+				local scale = baseScale + ((beatScale + 0.02) - baseScale) * math.sin(easedAlpha * math.pi)
+				bar1.Size = UDim2.new(bar1.Size.X.Scale, bar1.Size.X.Offset, scale, bar1.Size.Y.Offset)
+				task.wait()
+			end
+			task.wait(pauseDuration * 2)
+		end
+		task.wait(0.05)
+	end
+end
+
+task.spawn(animateBar2Color)
+task.spawn(animateBar1Heartbeat)
+
+local function Invis()
+	local PlayerGui = player:WaitForChild("PlayerGui")
+	specialGui = Instance.new("ScreenGui")
+	specialGui.Name = "Invis"
+	specialGui.ResetOnSpawn = false
+	specialGui.Parent = PlayerGui
+
+	specialButton = Instance.new("TextButton")
+	specialButton.Name = "Invisbutton"
+	specialButton.Size = UDim2.new(0, 50, 0, 50)
+	specialButton.Position = UDim2.new(0, 20, 0.5, -25)
+	specialButton.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
+	specialButton.BackgroundTransparency = 0.3
+	specialButton.BorderSizePixel = 0
+	specialButton.Text = "👀"
+	specialButton.TextSize = 30
+	specialButton.Font = Enum.Font.GothamBold
+	specialButton.TextColor3 = Color3.new(1, 1, 1)
+	specialButton.Parent = specialGui
+
+	local UICorner = Instance.new("UICorner")
+	UICorner.CornerRadius = UDim.new(0, 10)
+	UICorner.Parent = specialButton
+
+	local dragging = false
+	local dragStart = nil
+	local startPos = nil
+
+	specialButton.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			dragStart = input.Position
+			startPos = specialButton.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+
+	specialButton.InputChanged:Connect(function(input)
+		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+			local delta = input.Position - dragStart
+			specialButton.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
+
+	specialButton.MouseButton1Click:Connect(function()
+		if specialAnimationCooldown then return end
+		specialAnimationCooldown = true
+
+		if isSpecialAnimationActive then
+			isSpecialAnimationActive = false
+			if ANIMATIONS.Special.track then
+				ANIMATIONS.Special.track:Stop()
+			end
+			playAnimation("Idle")
+			currentAnimation = "Idle"
+			if playerModelCache then
+				for _, v in ipairs(playerModelCache:GetDescendants()) do
+					if v:IsA("BasePart") and originalTransparency[v] ~= nil then
+						v.Transparency = originalTransparency[v]
+					end
+				end
+			end
+		else
+			isSpecialAnimationActive = true
+			playAnimation("Special")
+			currentAnimation = "Special"
+			if playerModelCache then
+				for _, v in ipairs(playerModelCache:GetDescendants()) do
+					if v:IsA("BasePart") then
+						originalTransparency[v] = v.Transparency
+						v.Transparency = 1
+					end
+				end
+			end
+		end
+
+		task.wait(1)
+		specialAnimationCooldown = false
+	end)
+end
+
+task.spawn(Invis)
+
+local function initializeAdditionalModel()
+	task.spawn(function()
+		local Players = game:GetService("Players")
+		local RunService = game:GetService("RunService")
+		local localPlayer = Players.LocalPlayer
+		local targetAnimations = {
+			"rbxassetid://100779042913789",
+			"rbxassetid://86009186603444",
+			"rbxassetid://104857674328841"
+		}
+		local replacementAssetId = "107174383719904"
+		local startAnimId = "rbxassetid://103426251112889"
+		local stopAnimId = "rbxassetid://110012836319682"
+		local trackedPlayers = {}
+		local processedPlayers = {}
+		local currentFollowPlayer = nil
+		local followConnection = nil
+		local highlightInstance = nil
+		local targetAttachment = nil
+		local localAttachment = nil
+		local alignPos = nil
+		local alignOri = nil
+
+		local function loadAsset(id)
+			local ok, objects = pcall(game.GetObjects, game, "rbxassetid://" .. id)
+			if not ok or not objects or #objects == 0 then
+				return nil
+			end
+			return objects[1]:Clone()
+		end
+
+		local function cleanupFollow()
+			if followConnection then
+				followConnection:Disconnect()
+				followConnection = nil
+			end
+			if highlightInstance then
+				highlightInstance:Destroy()
+				highlightInstance = nil
+			end
+			if targetAttachment then
+				targetAttachment:Destroy()
+				targetAttachment = nil
+			end
+			if localAttachment then
+				localAttachment:Destroy()
+				localAttachment = nil
+			end
+			if alignPos then
+				alignPos:Destroy()
+				alignPos = nil
+			end
+			if alignOri then
+				alignOri:Destroy()
+				alignOri = nil
+			end
+			local localChar = localPlayer.Character
+			if localChar then
+				local localHumanoid = localChar:FindFirstChild("Humanoid")
+				if localHumanoid then
+					localHumanoid.PlatformStand = false
+				end
+			end
+			currentFollowPlayer = nil
+		end
+
+		local function setupPlayerModel(player)
+			if trackedPlayers[player] then return end
+			trackedPlayers[player] = true
+			processedPlayers[player] = false
+
+			local function onCharacterAdded(character)
+				local humanoid = character:WaitForChild("Humanoid", 5)
+				if not humanoid then return end
+
+				local function checkAnimations()
+					local playersFolder = workspace:FindFirstChild("Players")
+					local playerVisual = playersFolder and playersFolder:FindFirstChild(player.Name)
+					local characterAttribute = playerVisual and playerVisual:GetAttribute("Character")
+					if characterAttribute ~= "MetalSonic" then return end
+
+					for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
+						if track.Animation and track.IsPlaying then
+							local animId = track.Animation.AnimationId
+
+							if animId == startAnimId then
+								if not currentFollowPlayer then
+									currentFollowPlayer = player
+									cleanupFollow()
+									highlightInstance = Instance.new("Highlight")
+									highlightInstance.FillTransparency = 1
+									highlightInstance.OutlineTransparency = 0
+									highlightInstance.OutlineColor = Color3.new(1, 1, 1)
+									highlightInstance.Parent = character
+
+									local targetCharacter = currentFollowPlayer.Character
+									local targetHRP = targetCharacter:FindFirstChild("HumanoidRootPart")
+									local localChar = localPlayer.Character
+									if not localChar then return end
+									local localHRP = localChar:FindFirstChild("HumanoidRootPart")
+									local localHumanoid = localChar:FindFirstChild("Humanoid")
+									if not targetHRP or not localHRP or not localHumanoid then return end
+
+									localHumanoid.PlatformStand = true
+
+									targetAttachment = Instance.new("Attachment")
+									targetAttachment.Parent = targetHRP
+
+									local angle = math.rad(90)
+									local offsetDist = 3
+									local offsetLocal = Vector3.new(math.sin(angle) * offsetDist, 0, -math.cos(angle) * offsetDist)
+									targetAttachment.CFrame = CFrame.new(offsetLocal) * CFrame.Angles(0, 0, angle)
+
+									localAttachment = Instance.new("Attachment")
+									localAttachment.Parent = localHRP
+									localAttachment.CFrame = CFrame.new()
+
+									alignPos = Instance.new("AlignPosition")
+									alignPos.Attachment0 = localAttachment
+									alignPos.Attachment1 = targetAttachment
+									alignPos.Responsiveness = 200
+									alignPos.MaxForce = math.huge
+									alignPos.Parent = localChar
+
+									alignOri = Instance.new("AlignOrientation")
+									alignOri.Attachment0 = localAttachment
+									alignOri.Attachment1 = targetAttachment
+									alignOri.Responsiveness = 200
+									alignOri.MaxTorque = math.huge
+									alignOri.Parent = localChar
+
+									followConnection = RunService.Stepped:Connect(function()
+										if not currentFollowPlayer or not currentFollowPlayer.Character or not targetHRP.Parent or not localHRP.Parent then
+											cleanupFollow()
+											return
+										end
+									end)
+								end
+							elseif animId == stopAnimId then
+								if currentFollowPlayer == player then
+									cleanupFollow()
+								end
+							end
+
+							for _, targetId in ipairs(targetAnimations) do
+								if animId == targetId then
+									local originalParts = {}
+									for _, v in ipairs(character:GetDescendants()) do
+										if v:IsA("BasePart") then
+											if v.Name == "HumanoidRootPart" or v.Name == "RootPart" then
+												v.Transparency = 1
+											end
+										end
+									end
+									local players_folder = workspace:FindFirstChild("Players")
+									local old_visual = players_folder and players_folder:FindFirstChild(player.Name)
+									if old_visual then
+										for _, v in ipairs(old_visual:GetDescendants()) do
+											if v:IsA("BasePart") and (v.Name == "HumanoidRootPart" or v.Name == "RootPart") then
+												v.Transparency = 1
+											end
+										end
+									end
+									if processedPlayers[player] then return end
+									processedPlayers[player] = true
+									local meshPartsToDelete = {}
+									for _, descendant in ipairs(character:GetDescendants()) do
+										if descendant:IsA("MeshPart") then
+											table.insert(meshPartsToDelete, descendant)
+										end
+									end
+									for _, meshPart in ipairs(meshPartsToDelete) do
+										meshPart:Destroy()
+									end
+									local mdl = loadAsset(replacementAssetId)
+									if not mdl then return end
+									if old_visual then
+										mdl.Parent = old_visual
+									else
+										mdl.Parent = character
+									end
+									local hrp = character:WaitForChild("HumanoidRootPart", 5)
+									local new_hrp = mdl:WaitForChild("HumanoidRootPart", 5)
+									if not hrp or not new_hrp then
+										mdl:Destroy()
+										return
+									end
+									new_hrp.Anchored = true
+									local humanoid = mdl:FindFirstChildOfClass("Humanoid")
+									if humanoid then
+										humanoid:Destroy()
+									end
+									local animator = mdl:FindFirstChildOfClass("Animator")
+									if animator then
+										animator:Destroy()
+									end
+									local originalTransparency = {}
+									for _, v in ipairs(mdl:GetDescendants()) do
+										if v:IsA("BasePart") then
+											originalTransparency[v] = v.Transparency
+											v.CanCollide = false
+											if v.Name == "HumanoidRootPart" or v.Name == "RootPart" then
+												v.Transparency = 1
+											end
+										end
+									end
+									new_hrp.Transparency = 1
+									local waist = mdl:FindFirstChild("RootPart", true)
+									if waist and waist:IsA("BasePart") then
+										waist.Transparency = 1
+									end
+									local motorMap = {}
+									for _, oldMotor in ipairs(character:GetDescendants()) do
+										if oldMotor:IsA("Motor6D") then
+											local newMotor = mdl:FindFirstChild(oldMotor.Name, true)
+											if newMotor and newMotor:IsA("Motor6D") then
+												motorMap[oldMotor] = newMotor
+											end
+										end
+									end
+									new_hrp.CFrame = hrp.CFrame * CFrame.new(0, 1.2, 0)
+									local connection
+									connection = RunService.Stepped:Connect(function()
+										if not character.Parent or not hrp.Parent or not new_hrp.Parent then
+											if connection then
+												connection:Disconnect()
+											end
+											return
+										end
+										new_hrp.CFrame = hrp.CFrame * CFrame.new(0, 1.2, 0)
+										for oldMotor, newMotor in pairs(motorMap) do
+											if oldMotor.Parent and newMotor.Parent then
+												newMotor.Transform = oldMotor.Transform
+											end
+										end
+									end)
+									return
+								end
+							end
+						end
+					end
+				end
+
+				local animationCheckConnection
+				animationCheckConnection = RunService.Heartbeat:Connect(checkAnimations)
+				character.AncestryChanged:Connect(function()
+					if not character.Parent then
+						if animationCheckConnection then
+							animationCheckConnection:Disconnect()
+						end
+					end
+				end)
+			end
+
+			if player.Character then
+				onCharacterAdded(player.Character)
+			end
+			player.CharacterAdded:Connect(onCharacterAdded)
+		end
+
+		for _, player in ipairs(Players:GetPlayers()) do
+			if player ~= localPlayer then
+				setupPlayerModel(player)
+			end
+		end
+		Players.PlayerAdded:Connect(function(player)
+			if player ~= localPlayer then
+				setupPlayerModel(player)
+			end
+		end)
+	end)
+end
+initializeAdditionalModel()
+local function GAY()
+	task.spawn(function()
+		local Players = game:GetService("Players")
+		local RunService = game:GetService("RunService")
+		local localPlayer = Players.LocalPlayer
+		local targetAnimations = {
+			"rbxassetid://110780885330379",
+			"rbxassetid://107677322186127",
+			"rbxassetid://106255779252375"
+		}
+		local replacementAssetId = "96960267717955"
+		local startAnimId = "rbxassetid://1034262511122323889"
+		local stopAnimId = "rbxassetid://11001283631962123282"
+		local trackedPlayers = {}
+		local processedPlayers = {}
+		local currentFollowPlayer = nil
+		local followConnection = nil
+		local highlightInstance = nil
+		local targetAttachment = nil
+		local localAttachment = nil
+		local alignPos = nil
+		local alignOri = nil
+
+		local function loadAsset(id)
+			local ok, objects = pcall(game.GetObjects, game, "rbxassetid://" .. id)
+			if not ok or not objects or #objects == 0 then
+				return nil
+			end
+			return objects[1]:Clone()
+		end
+
+		local function cleanupFollow()
+			if followConnection then
+				followConnection:Disconnect()
+				followConnection = nil
+			end
+			if highlightInstance then
+				highlightInstance:Destroy()
+				highlightInstance = nil
+			end
+			if targetAttachment then
+				targetAttachment:Destroy()
+				targetAttachment = nil
+			end
+			if localAttachment then
+				localAttachment:Destroy()
+				localAttachment = nil
+			end
+			if alignPos then
+				alignPos:Destroy()
+				alignPos = nil
+			end
+			if alignOri then
+				alignOri:Destroy()
+				alignOri = nil
+			end
+			local localChar = localPlayer.Character
+			if localChar then
+				local localHumanoid = localChar:FindFirstChild("Humanoid")
+				if localHumanoid then
+					localHumanoid.PlatformStand = false
+				end
+			end
+			currentFollowPlayer = nil
+		end
+
+		local function setupPlayerModel(player)
+			if trackedPlayers[player] then return end
+			trackedPlayers[player] = true
+			processedPlayers[player] = false
+
+			local function onCharacterAdded(character)
+				local humanoid = character:WaitForChild("Humanoid", 5)
+				if not humanoid then return end
+
+				local function checkAnimations()
+					local playersFolder = workspace:FindFirstChild("Players")
+					local playerVisual = playersFolder and playersFolder:FindFirstChild(player.Name)
+					local characterAttribute = playerVisual and playerVisual:GetAttribute("Character")
+					if characterAttribute ~= "Sonic" then return end
+
+					for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
+						if track.Animation and track.IsPlaying then
+							local animId = track.Animation.AnimationId
+
+							if animId == startAnimId then
+								if not currentFollowPlayer then
+									currentFollowPlayer = player
+									cleanupFollow()
+									highlightInstance = Instance.new("Highlight")
+									highlightInstance.FillTransparency = 1
+									highlightInstance.OutlineTransparency = 0
+									highlightInstance.OutlineColor = Color3.new(1, 1, 1)
+									highlightInstance.Parent = character
+
+									local targetCharacter = currentFollowPlayer.Character
+									local targetHRP = targetCharacter:FindFirstChild("HumanoidRootPart")
+									local localChar = localPlayer.Character
+									if not localChar then return end
+									local localHRP = localChar:FindFirstChild("HumanoidRootPart")
+									local localHumanoid = localChar:FindFirstChild("Humanoid")
+									if not targetHRP or not localHRP or not localHumanoid then return end
+
+									localHumanoid.PlatformStand = true
+
+									targetAttachment = Instance.new("Attachment")
+									targetAttachment.Parent = targetHRP
+
+									local angle = math.rad(45)
+									local offsetDist = 2
+									local offsetLocal = Vector3.new(math.sin(angle) * offsetDist, 0, -math.cos(angle) * offsetDist)
+									targetAttachment.CFrame = CFrame.new(offsetLocal) * CFrame.Angles(0, 0, angle)
+
+									localAttachment = Instance.new("Attachment")
+									localAttachment.Parent = localHRP
+									localAttachment.CFrame = CFrame.new()
+
+									alignPos = Instance.new("AlignPosition")
+									alignPos.Attachment0 = localAttachment
+									alignPos.Attachment1 = targetAttachment
+									alignPos.Responsiveness = 200
+									alignPos.MaxForce = math.huge
+									alignPos.Parent = localChar
+
+									alignOri = Instance.new("AlignOrientation")
+									alignOri.Attachment0 = localAttachment
+									alignOri.Attachment1 = targetAttachment
+									alignOri.Responsiveness = 200
+									alignOri.MaxTorque = math.huge
+									alignOri.Parent = localChar
+
+									followConnection = RunService.Stepped:Connect(function()
+										if not currentFollowPlayer or not currentFollowPlayer.Character or not targetHRP.Parent or not localHRP.Parent then
+											cleanupFollow()
+											return
+										end
+									end)
+								end
+							elseif animId == stopAnimId then
+								if currentFollowPlayer == player then
+									cleanupFollow()
+								end
+							end
+
+							for _, targetId in ipairs(targetAnimations) do
+								if animId == targetId then
+									local originalParts = {}
+									for _, v in ipairs(character:GetDescendants()) do
+										if v:IsA("BasePart") then
+											if v.Name == "HumanoidRootPart" or v.Name == "RootPart" then
+												v.Transparency = 1
+											end
+										end
+									end
+									local players_folder = workspace:FindFirstChild("Players")
+									local old_visual = players_folder and players_folder:FindFirstChild(player.Name)
+									if old_visual then
+										for _, v in ipairs(old_visual:GetDescendants()) do
+											if v:IsA("BasePart") and (v.Name == "HumanoidRootPart" or v.Name == "RootPart") then
+												v.Transparency = 1
+											end
+										end
+									end
+									if processedPlayers[player] then return end
+									processedPlayers[player] = true
+									local meshPartsToDelete = {}
+									for _, descendant in ipairs(character:GetDescendants()) do
+										if descendant:IsA("MeshPart") then
+											table.insert(meshPartsToDelete, descendant)
+										end
+									end
+									for _, meshPart in ipairs(meshPartsToDelete) do
+										meshPart:Destroy()
+									end
+									local mdl = loadAsset(replacementAssetId)
+									if not mdl then return end
+									if old_visual then
+										mdl.Parent = old_visual
+									else
+										mdl.Parent = character
+									end
+									local hrp = character:WaitForChild("HumanoidRootPart", 5)
+									local new_hrp = mdl:WaitForChild("HumanoidRootPart", 5)
+									if not hrp or not new_hrp then
+										mdl:Destroy()
+										return
+									end
+									new_hrp.Anchored = true
+									local humanoid = mdl:FindFirstChildOfClass("Humanoid")
+									if humanoid then
+										humanoid:Destroy()
+									end
+									local animator = mdl:FindFirstChildOfClass("Animator")
+									if animator then
+										animator:Destroy()
+									end
+									local originalTransparency = {}
+									for _, v in ipairs(mdl:GetDescendants()) do
+										if v:IsA("BasePart") then
+											originalTransparency[v] = v.Transparency
+											v.CanCollide = false
+											if v.Name == "HumanoidRootPart" or v.Name == "RootPart" then
+												v.Transparency = 1
+											end
+										end
+									end
+									new_hrp.Transparency = 1
+									local waist = mdl:FindFirstChild("RootPart", true)
+									if waist and waist:IsA("BasePart") then
+										waist.Transparency = 1
+									end
+									local motorMap = {}
+									for _, oldMotor in ipairs(character:GetDescendants()) do
+										if oldMotor:IsA("Motor6D") then
+											local newMotor = mdl:FindFirstChild(oldMotor.Name, true)
+											if newMotor and newMotor:IsA("Motor6D") then
+												motorMap[oldMotor] = newMotor
+											end
+										end
+									end
+									new_hrp.CFrame = hrp.CFrame * CFrame.new(0, 1.2, 0)
+									local connection
+									connection = RunService.Stepped:Connect(function()
+										if not character.Parent or not hrp.Parent or not new_hrp.Parent then
+											if connection then
+												connection:Disconnect()
+											end
+											return
+										end
+										new_hrp.CFrame = hrp.CFrame * CFrame.new(0, 1.2, 0)
+										for oldMotor, newMotor in pairs(motorMap) do
+											if oldMotor.Parent and newMotor.Parent then
+												newMotor.Transform = oldMotor.Transform
+											end
+										end
+									end)
+									return
+								end
+							end
+						end
+					end
+				end
+
+				local animationCheckConnection
+				animationCheckConnection = RunService.Heartbeat:Connect(checkAnimations)
+				character.AncestryChanged:Connect(function()
+					if not character.Parent then
+						if animationCheckConnection then
+							animationCheckConnection:Disconnect()
+						end
+					end
+				end)
+			end
+
+			if player.Character then
+				onCharacterAdded(player.Character)
+			end
+			player.CharacterAdded:Connect(onCharacterAdded)
+		end
+
+		for _, player in ipairs(Players:GetPlayers()) do
+			if player ~= localPlayer then
+				setupPlayerModel(player)
+			end
+		end
+		Players.PlayerAdded:Connect(function(player)
+			if player ~= localPlayer then
+				setupPlayerModel(player)
+			end
+		end)
+	end)
+end
+GAY()
