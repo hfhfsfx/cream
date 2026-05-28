@@ -1,0 +1,213 @@
+-- UNIVERSAL EXTREME ZERO GRAVITY
+-- Mobile + PC Support
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+local player = Players.LocalPlayer
+local enabled = false
+
+local controlledParts = {}
+
+-- NETWORK OWNERSHIP BOOST
+pcall(function()
+	player.ReplicationFocus = workspace
+
+	if typeof(sethiddenproperty) == "function" then
+		RunService.Heartbeat:Connect(function()
+			if enabled then
+				sethiddenproperty(player, "SimulationRadius", math.huge)
+			end
+		end)
+	end
+end)
+
+-- SETTINGS
+local UPWARD_FORCE = 120
+local DETECTION_DISTANCE = math.huge
+
+--------------------------------------------------
+-- UI
+--------------------------------------------------
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "ZeroGravityUI"
+gui.ResetOnSpawn = false
+gui.Parent = CoreGui
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 170, 0, 50)
+button.Position = UDim2.new(0.5, -85, 0.85, 0)
+button.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+button.TextColor3 = Color3.new(1,1,1)
+button.TextScaled = true
+button.Font = Enum.Font.SourceSansBold
+button.Text = "POWER: OFF"
+button.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = button
+
+local stroke = Instance.new("UIStroke")
+stroke.Thickness = 2
+stroke.Color = Color3.fromRGB(255, 0, 0)
+stroke.Parent = button
+
+--------------------------------------------------
+-- FUNCTIONS
+--------------------------------------------------
+
+local function validPart(part)
+	if not part:IsA("BasePart") then
+		return false
+	end
+
+	if part.Anchored then
+		return false
+	end
+
+	if part.Parent:FindFirstChildOfClass("Humanoid") then
+		return false
+	end
+
+	return true
+end
+
+local function controlPart(part)
+	if controlledParts[part] then
+		return
+	end
+
+	if not validPart(part) then
+		return
+	end
+
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+
+	if root then
+		local distance = (part.Position - root.Position).Magnitude
+
+		if distance > DETECTION_DISTANCE then
+			return
+		end
+	end
+
+	local attachment = Instance.new("Attachment")
+	attachment.Parent = part
+
+	local velocity = Instance.new("LinearVelocity")
+	velocity.Attachment0 = attachment
+	velocity.MaxForce = math.huge
+	velocity.VectorVelocity = Vector3.new(0, UPWARD_FORCE, 0)
+	velocity.RelativeTo = Enum.ActuatorRelativeTo.World
+	velocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
+	velocity.Parent = part
+
+	controlledParts[part] = {
+		Attachment = attachment,
+		Velocity = velocity
+	}
+end
+
+local function releasePart(part)
+	local data = controlledParts[part]
+
+	if data then
+		if data.Attachment then
+			data.Attachment:Destroy()
+		end
+
+		if data.Velocity then
+			data.Velocity:Destroy()
+		end
+
+		controlledParts[part] = nil
+	end
+end
+
+local function scan()
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		controlPart(obj)
+	end
+end
+
+--------------------------------------------------
+-- MAIN LOOP
+--------------------------------------------------
+
+RunService.Heartbeat:Connect(function()
+	if not enabled then
+		return
+	end
+
+	for part, data in pairs(controlledParts) do
+		if not part or not part.Parent then
+			controlledParts[part] = nil
+			continue
+		end
+
+		data.Velocity.VectorVelocity = Vector3.new(
+			0,
+			UPWARD_FORCE,
+			0
+		)
+	end
+end)
+
+workspace.DescendantAdded:Connect(function(obj)
+	if enabled then
+		task.wait()
+		controlPart(obj)
+	end
+end)
+
+--------------------------------------------------
+-- TOGGLE
+--------------------------------------------------
+
+local function updateButton()
+	if enabled then
+		button.Text = "POWER: ON"
+		stroke.Color = Color3.fromRGB(0, 255, 0)
+	else
+		button.Text = "POWER: OFF"
+		stroke.Color = Color3.fromRGB(255, 0, 0)
+	end
+end
+
+local function toggle()
+	enabled = not enabled
+
+	if enabled then
+		scan()
+	else
+		for part in pairs(controlledParts) do
+			releasePart(part)
+		end
+	end
+
+	updateButton()
+end
+
+button.MouseButton1Click:Connect(toggle)
+
+--------------------------------------------------
+-- KEYBIND (PC)
+--------------------------------------------------
+
+UserInputService.InputBegan:Connect(function(input, gp)
+	if gp then
+		return
+	end
+
+	if input.KeyCode == Enum.KeyCode.G then
+		toggle()
+	end
+end)
+
+updateButton()
+
+print("Mobile Zero Gravity Loaded")
