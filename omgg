@@ -1,0 +1,313 @@
+if _G.LaserLockLoaded then
+    return
+end
+_G.LaserLockLoaded = true
+
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+
+local currentTarget = nil
+local currentBodyPart = "Head"
+local bodyPartsList = {"Head", "HumanoidRootPart", "LeftLeg", "RightLeg", "LeftArm", "RightArm", "Torso"}
+
+local targetVelocities = {}
+local LaserLockActive = false
+local mainLoopConnection = nil
+local button = nil
+local screenGui = nil
+local isWaitingForRespawn = false
+
+local function getTargetVelocity(target)
+    local char = target.Character
+    if not char then return Vector3.new(0,0,0) end
+    
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return Vector3.new(0,0,0) end
+    
+    local now = tick()
+    local currentPos = root.Position
+    local oldData = targetVelocities[target]
+    
+    if oldData and oldData.lastPos and oldData.lastTime then
+        local dt = now - oldData.lastTime
+        if dt > 0 then
+            targetVelocities[target] = {
+                lastPos = currentPos,
+                lastTime = now,
+                velocity = (currentPos - oldData.lastPos) / dt
+            }
+            return targetVelocities[target].velocity
+        end
+    end
+    
+    targetVelocities[target] = {
+        lastPos = currentPos,
+        lastTime = now,
+        velocity = Vector3.new(0,0,0)
+    }
+    return Vector3.new(0,0,0)
+end
+
+local function getTargetPosition(target, part)
+    local char = target.Character
+    if not char then return nil end
+    
+    local offsets = {
+        Head = Vector3.new(0, 5, 0),
+        HumanoidRootPart = Vector3.new(0, 0, 0),
+        LeftLeg = Vector3.new(-0.8, -1.5, 0),
+        RightLeg = Vector3.new(0.8, -1.5, 0),
+        LeftArm = Vector3.new(-1.5, 2, 0),
+        RightArm = Vector3.new(1.5, 2, 0),
+        Torso = Vector3.new(0, 1, 0)
+    }
+    
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return nil end
+    
+    local realPart = char:FindFirstChild(part)
+    local basePos = realPart and realPart.Position or root.Position + (offsets[part] or Vector3.new(0,0,0))
+    
+    local velocity = getTargetVelocity(target)
+    local ping = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue()
+    local predictionTime = math.clamp(ping / 1000 + 0.05, 0.05, 0.15)
+    
+    return basePos + velocity * predictionTime
+end
+
+local function findExePlayer()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character then
+            local teamValue = player.Character:GetAttribute("Team")
+            if teamValue == "EXE" then
+                return player
+            end
+        end
+    end
+    return nil
+end
+
+local function isTargetValid(target)
+    if not target then return false end
+    if target.Parent and target.Character then
+        local teamValue = target.Character:GetAttribute("Team")
+        return teamValue == "EXE"
+    end
+    return false
+end
+
+local partIndex = 1
+local function switchBodyPart()
+    partIndex = partIndex % #bodyPartsList + 1
+    currentBodyPart = bodyPartsList[partIndex]
+end
+
+local function sendAttack(target)
+    if not localPlayer.Character then 
+        return false 
+    end
+    
+    local localChar = localPlayer.Character
+    local targetPos = getTargetPosition(target, currentBodyPart)
+    
+    if not localChar or not targetPos then return false end
+    
+    local localPos = localChar:FindFirstChild("HumanoidRootPart")
+    if not localPos then return false end
+    
+    local direction = (targetPos - localPos.Position).Unit
+    
+    local args = {
+        {
+            Direction = direction,
+            etc = targetPos,
+            Origin = localPos.Position
+        }
+    }
+    
+    pcall(function()
+        local cam = localChar:FindFirstChild("cam")
+        if cam then
+            local mouse = cam:FindFirstChild("Mouse")
+            if mouse then
+                mouse:FireServer(unpack(args))
+            end
+        end
+    end)
+    
+    switchBodyPart()
+    return true
+end
+
+local function updateButtonState()
+    if button and button.Parent then
+        if LaserLockActive then
+            button.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+            button.Text = "关闭塔尔斯激光锁人"
+        else
+            button.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+            button.Text = "开启塔尔斯激光锁人"
+        end
+    end
+end
+
+local function mainLoop()
+    if not LaserLockActive then 
+        return 
+    end
+    
+    if not localPlayer.Character then
+        if not isWaitingForRespawn then
+            isWaitingForRespawn = true
+        end
+        return
+    end
+    
+    if isWaitingForRespawn then
+        isWaitingForRespawn = false
+        currentTarget = nil
+        targetVelocities = {}
+    end
+    
+    if not isTargetValid(currentTarget) then
+        currentTarget = findExePlayer()
+    end
+    
+    if currentTarget and isTargetValid(currentTarget) then
+        sendAttack(currentTarget)
+    end
+end
+
+local function startMainLoop()
+    if mainLoopConnection then
+        mainLoopConnection:Disconnect()
+    end
+    mainLoopConnection = RunService.Heartbeat:Connect(mainLoop)
+end
+
+local function stopMainLoop()
+    if mainLoopConnection then
+        mainLoopConnection:Disconnect()
+        mainLoopConnection = nil
+    end
+end
+
+local function toggleLaserLock(enable)
+    LaserLockActive = enable
+    if enable then
+        isWaitingForRespawn = false
+        startMainLoop()
+    else
+        stopMainLoop()
+    end
+    updateButtonState()
+end
+
+local function createGUI()
+    if screenGui and screenGui.Parent then
+        return
+    end
+    
+    screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "LaserLockGUI"
+    screenGui.ResetOnSpawn = false
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    screenGui.Parent = game.CoreGui
+end
+
+local function createButton()
+    if button and button.Parent then
+        return
+    end
+    
+    button = Instance.new("TextButton")
+    
+    local viewportSize = workspace.CurrentCamera.ViewportSize
+    local buttonSize = math.min(viewportSize.X, viewportSize.Y) * 0.08
+    buttonSize = math.clamp(buttonSize, 80, 150)
+    
+    button.Size = UDim2.new(0, buttonSize, 0, buttonSize)
+    button.Position = UDim2.new(1, -(buttonSize + 20), 0, 150)
+    button.Font = Enum.Font.GothamBold
+    button.TextSize = math.max(14, math.min(buttonSize * 0.15, 18))
+    button.TextColor3 = Color3.new(1, 1, 1)
+    button.BorderSizePixel = 0
+    button.BackgroundTransparency = 0.5
+    button.AutoButtonColor = false
+    button.ClipsDescendants = true
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0.5, 0)
+    corner.Parent = button
+    
+    local function updateButtonSize()
+        if button and button.Parent then
+            local newViewportSize = workspace.CurrentCamera.ViewportSize
+            local newSize = math.min(newViewportSize.X, newViewportSize.Y) * 0.08
+            newSize = math.clamp(newSize, 80, 150)
+            button.Size = UDim2.new(0, newSize, 0, newSize)
+            button.Position = UDim2.new(1, -(newSize + 20), 0, 150)
+            button.TextSize = math.max(14, math.min(newSize * 0.15, 18))
+        end
+    end
+    
+    workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateButtonSize)
+    
+    local dragging
+    local dragInput
+    local dragStart
+    local startPos
+    
+    local function update(input)
+        local delta = input.Position - dragStart
+        button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+    
+    button.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = button.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    
+    button.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    
+    game:GetService("UserInputService").InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            update(input)
+        end
+    end)
+    
+    button.MouseButton1Click:Connect(function()
+        toggleLaserLock(not LaserLockActive)
+    end)
+    
+    button.Parent = screenGui
+    updateButtonState()
+end
+
+localPlayer.CharacterAdded:Connect(function(char)
+    if LaserLockActive then
+        isWaitingForRespawn = false
+        currentTarget = nil
+        targetVelocities = {}
+        if not mainLoopConnection then
+            startMainLoop()
+        end
+    end
+end)
+
+createGUI()
+createButton()
