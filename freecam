@@ -54,7 +54,7 @@ local btnDown = createDriveButton("BtnS", "▼", UDim2.new(0.32, 0, 0.7, 0), UDi
 local btnAscend = createDriveButton("BtnE", "⏫", UDim2.new(1.15, 0, 0, 0), UDim2.new(0, 48, 0, 48))
 local btnDescend = createDriveButton("BtnQ", "⏬", UDim2.new(1.15, 0, 0.7, 0), UDim2.new(0, 48, 0, 48))
 
-local btnTpToCam = createDriveButton("BtnTP", "TP TO CAM", UDim2.new(1.15, 0, 0.35, 0), UDim2.new(0, 110, 0, 48), Color3.fromRGB(0, 170, 255))
+local btnTpToCam = createDriveButton("BtnTP", "传送到视角处", UDim2.new(1.15, 0, 0.35, 0), UDim2.new(0, 110, 0, 48), Color3.fromRGB(0, 170, 255))
 btnTpToCam.TextColor3 = Color3.fromRGB(255, 255, 255)
 btnTpToCam.TextSize = 14
 
