@@ -58,6 +58,36 @@ local btnTpToCam = createDriveButton("BtnTP", "传送到视角处", UDim2.new(1.
 btnTpToCam.TextColor3 = Color3.fromRGB(255, 255, 255)
 btnTpToCam.TextSize = 14
 
+local speedBox = Instance.new("TextBox")
+speedBox.Name = "SpeedBox"
+speedBox.Parent = MobileControls
+speedBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+speedBox.BackgroundTransparency = 0.3
+speedBox.Position = UDim2.new(1.15, 0, 1.1, 0)
+speedBox.Size = UDim2.new(0, 110, 0, 35)
+speedBox.Font = Enum.Font.SourceSansBold
+speedBox.Text = "1.2"
+speedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedBox.TextSize = 16
+speedBox.TextScaled = false
+speedBox.PlaceholderText = "速度"
+speedBox.ClearTextOnFocus = false
+
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Name = "SpeedLabel"
+speedLabel.Parent = MobileControls
+speedLabel.BackgroundTransparency = 1
+speedLabel.Position = UDim2.new(1.15, 0, 1.0, -5)
+speedLabel.Size = UDim2.new(0, 110, 0, 20)
+speedLabel.Font = Enum.Font.SourceSansBold
+speedLabel.Text = "视角移动速度"
+speedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+speedLabel.TextSize = 14
+
+local speedCorner = Instance.new("UICorner")
+speedCorner.CornerRadius = UDim.new(0, 6)
+speedCorner.Parent = speedBox
+
 local moveVectors = {forward = 0, backward = 0, left = 0, right = 0, up = 0, down = 0}
 
 local function bindMobileButton(button, vectorKey)
@@ -128,6 +158,9 @@ local frozenParts = {}
 
 local rotateX, rotateY = 0, 0
 local lastMousePos = nil
+local activeTouchCount = 0
+local touchStartPositions = {}
+local touchCurrentPositions = {}
 
 local function updateFreecam()
     if not active then return end
@@ -185,6 +218,9 @@ local function toggleFreecam(forceState)
         ToggleButton.TextColor3 = Color3.fromRGB(255, 75, 75)
         MobileControls.Visible = false
         lastMousePos = nil
+        activeTouchCount = 0
+        table.clear(touchStartPositions)
+        table.clear(touchCurrentPositions)
         
         setCharacterFreeze(false)
         
@@ -206,6 +242,18 @@ btnTpToCam.MouseButton1Click:Connect(function()
         setCharacterFreeze(false)
         hrp.CFrame = CFrame.new(camera.CFrame.Position)
         toggleFreecam(false)
+    end
+end)
+
+speedBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local newSpeed = tonumber(speedBox.Text)
+        if newSpeed then
+            camSpeed = newSpeed
+            speedBox.Text = tostring(newSpeed)
+        else
+            speedBox.Text = tostring(camSpeed)
+        end
     end
 end)
 
@@ -234,7 +282,7 @@ local function isInAnyButton(touchPos)
     if not MobileControls.Visible then return false end
     
     local padding = 30
-    local allButtons = {btnUp, btnLeft, btnRight, btnDown, btnAscend, btnDescend, btnTpToCam}
+    local allButtons = {btnUp, btnLeft, btnRight, btnDown, btnAscend, btnDescend, btnTpToCam, speedBox}
     
     for _, btn in ipairs(allButtons) do
         local absPos = btn.AbsolutePosition
@@ -249,13 +297,33 @@ local function isInAnyButton(touchPos)
     return false
 end
 
+local function isAnyTouchMoving()
+    local threshold = 5
+    for touch, startPos in pairs(touchStartPositions) do
+        local currentPos = touchCurrentPositions[touch]
+        if currentPos then
+            local dist = (currentPos - startPos).Magnitude
+            if dist > threshold then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 inputService.InputBegan:Connect(function(input)
     if not active then return end
     if input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.Touch then
         if dragToggle then return end
         if inputService:GetFocusedTextBox() == nil then
             if not isInAnyButton(input.Position) then
-                lastMousePos = input.Position
+                activeTouchCount = activeTouchCount + 1
+                touchStartPositions[input] = input.Position
+                touchCurrentPositions[input] = input.Position
+                
+                if activeTouchCount == 1 then
+                    lastMousePos = input.Position
+                end
             end
         end
     end
@@ -267,15 +335,49 @@ inputService.InputChanged:Connect(function(input)
         if isInAnyButton(input.Position) then
             return
         end
-        local delta = input.Position - lastMousePos
-        lastMousePos = input.Position
-        rotateY = rotateY - (delta.X * sensitivity)
-        rotateX = math.clamp(rotateX - (delta.Y * sensitivity), math.rad(-89), math.rad(89))
+        if touchCurrentPositions[input] ~= nil then
+            touchCurrentPositions[input] = input.Position
+        end
+        
+        if activeTouchCount == 1 then
+            local delta = input.Position - lastMousePos
+            lastMousePos = input.Position
+            rotateY = rotateY - (delta.X * sensitivity)
+            rotateX = math.clamp(rotateX - (delta.Y * sensitivity), math.rad(-89), math.rad(89))
+        elseif activeTouchCount >= 2 then
+            if isAnyTouchMoving() then
+                for touch, pos in pairs(touchCurrentPositions) do
+                    if touchStartPositions[touch] then
+                        local delta = pos - touchStartPositions[touch]
+                        local avgDelta = delta / 2
+                        rotateY = rotateY - (avgDelta.X * sensitivity)
+                        rotateX = math.clamp(rotateX - (avgDelta.Y * sensitivity), math.rad(-89), math.rad(89))
+                        touchStartPositions[touch] = pos
+                        lastMousePos = pos
+                    end
+                end
+            end
+        end
     end
 end)
 
 inputService.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.Touch then
-        lastMousePos = nil
+        if not isInAnyButton(input.Position) then
+            if touchCurrentPositions[input] ~= nil then
+                touchCurrentPositions[input] = nil
+                touchStartPositions[input] = nil
+                activeTouchCount = math.max(0, activeTouchCount - 1)
+                
+                if activeTouchCount == 0 then
+                    lastMousePos = nil
+                else
+                    for touch, pos in pairs(touchCurrentPositions) do
+                        lastMousePos = pos
+                        break
+                    end
+                end
+            end
+        end
     end
 end)
