@@ -11,7 +11,7 @@ ToggleButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 ToggleButton.Position = UDim2.new(0.05, 0, 0.15, 0)
 ToggleButton.Size = UDim2.new(0, 110, 0, 45)
 ToggleButton.Font = Enum.Font.SourceSansBold
-ToggleButton.Text = "Freecam: OFF"
+ToggleButton.Text = "自由视角: 关闭状态"
 ToggleButton.TextColor3 = Color3.fromRGB(255, 75, 75)
 ToggleButton.TextSize = 16.0
 ToggleButton.Active = true
@@ -169,7 +169,7 @@ local function toggleFreecam(forceState)
     if forceState ~= nil then active = forceState else active = not active end
     
     if active then
-        ToggleButton.Text = "Freecam: ON"
+        ToggleButton.Text = "自由视角: 开启状态"
         ToggleButton.TextColor3 = Color3.fromRGB(75, 255, 75)
         MobileControls.Visible = true
         
@@ -181,7 +181,7 @@ local function toggleFreecam(forceState)
         
         cconnection = runService.RenderStepped:Connect(updateFreecam)
     else
-        ToggleButton.Text = "Freecam: OFF"
+        ToggleButton.Text = "自由视角: 关闭状态"
         ToggleButton.TextColor3 = Color3.fromRGB(255, 75, 75)
         MobileControls.Visible = false
         lastMousePos = nil
