@@ -23,7 +23,7 @@ local MobileControls = Instance.new("Frame")
 MobileControls.Name = "MobileControls"
 MobileControls.Parent = ScreenGui
 MobileControls.BackgroundTransparency = 1
-MobileControls.Position = UDim2.new(0.05, 0, 0.55, 0) 
+MobileControls.Position = UDim2.new(0.05, 0, 0.55, 0)
 MobileControls.Size = UDim2.new(0, 150, 0, 150)
 MobileControls.Visible = false
 
@@ -230,17 +230,23 @@ inputService.InputEnded:Connect(function(input)
     end
 end)
 
-local function isInMobileControls(touchPos)
+local function isInAnyButton(touchPos)
     if not MobileControls.Visible then return false end
     
-    local absPos = MobileControls.AbsolutePosition
-    local absSize = MobileControls.AbsoluteSize
     local padding = 30
+    local allButtons = {btnUp, btnLeft, btnRight, btnDown, btnAscend, btnDescend, btnTpToCam}
     
-    return touchPos.X >= absPos.X - padding and
+    for _, btn in ipairs(allButtons) do
+        local absPos = btn.AbsolutePosition
+        local absSize = btn.AbsoluteSize
+        if touchPos.X >= absPos.X - padding and
            touchPos.X <= absPos.X + absSize.X + padding and
            touchPos.Y >= absPos.Y - padding and
-           touchPos.Y <= absPos.Y + absSize.Y + padding
+           touchPos.Y <= absPos.Y + absSize.Y + padding then
+            return true
+        end
+    end
+    return false
 end
 
 inputService.InputBegan:Connect(function(input)
@@ -248,7 +254,7 @@ inputService.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.Touch then
         if dragToggle then return end
         if inputService:GetFocusedTextBox() == nil then
-            if not isInMobileControls(input.Position) then
+            if not isInAnyButton(input.Position) then
                 lastMousePos = input.Position
             end
         end
@@ -258,7 +264,7 @@ end)
 inputService.InputChanged:Connect(function(input)
     if not active or not lastMousePos or dragToggle then return end
     if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        if isInMobileControls(input.Position) then
+        if isInAnyButton(input.Position) then
             return
         end
         local delta = input.Position - lastMousePos
