@@ -1,0 +1,275 @@
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = game:GetService("CoreGui")
+ScreenGui.ResetOnSpawn = false
+
+local ToggleButton = Instance.new("TextButton")
+local UICorner = Instance.new("UICorner")
+
+ToggleButton.Name = "FreecamToggle"
+ToggleButton.Parent = ScreenGui
+ToggleButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+ToggleButton.Position = UDim2.new(0.05, 0, 0.15, 0)
+ToggleButton.Size = UDim2.new(0, 110, 0, 45)
+ToggleButton.Font = Enum.Font.SourceSansBold
+ToggleButton.Text = "Freecam: OFF"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 75, 75)
+ToggleButton.TextSize = 16.0
+ToggleButton.Active = true
+
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = ToggleButton
+
+local MobileControls = Instance.new("Frame")
+MobileControls.Name = "MobileControls"
+MobileControls.Parent = ScreenGui
+MobileControls.BackgroundTransparency = 1
+MobileControls.Position = UDim2.new(0.05, 0, 0.55, 0) 
+MobileControls.Size = UDim2.new(0, 150, 0, 150)
+MobileControls.Visible = false
+
+local function createDriveButton(name, text, pos, size, color)
+    local btn = Instance.new("TextButton")
+    btn.Name = name
+    btn.Parent = MobileControls
+    btn.BackgroundColor3 = color or Color3.fromRGB(255, 255, 255)
+    btn.BackgroundTransparency = 0.5
+    btn.Position = pos
+    btn.Size = size
+    btn.Font = Enum.Font.SourceSansBold
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(0, 0, 0)
+    btn.TextSize = 22
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = btn
+    return btn
+end
+
+local btnUp = createDriveButton("BtnW", "▲", UDim2.new(0.32, 0, 0, 0), UDim2.new(0, 48, 0, 48))
+local btnLeft = createDriveButton("BtnA", "◀", UDim2.new(0, 0, 0.35, 0), UDim2.new(0, 48, 0, 48))
+local btnRight = createDriveButton("BtnD", "▶", UDim2.new(0.64, 0, 0.35, 0), UDim2.new(0, 48, 0, 48))
+local btnDown = createDriveButton("BtnS", "▼", UDim2.new(0.32, 0, 0.7, 0), UDim2.new(0, 48, 0, 48))
+
+local btnAscend = createDriveButton("BtnE", "⏫", UDim2.new(1.15, 0, 0, 0), UDim2.new(0, 48, 0, 48))
+local btnDescend = createDriveButton("BtnQ", "⏬", UDim2.new(1.15, 0, 0.7, 0), UDim2.new(0, 48, 0, 48))
+
+local btnTpToCam = createDriveButton("BtnTP", "TP TO CAM", UDim2.new(1.15, 0, 0.35, 0), UDim2.new(0, 110, 0, 48), Color3.fromRGB(0, 170, 255))
+btnTpToCam.TextColor3 = Color3.fromRGB(255, 255, 255)
+btnTpToCam.TextSize = 14
+
+local moveVectors = {forward = 0, backward = 0, left = 0, right = 0, up = 0, down = 0}
+
+local function bindMobileButton(button, vectorKey)
+    button.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            moveVectors[vectorKey] = 1
+            button.BackgroundTransparency = 0.2
+        end
+    end)
+    button.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            moveVectors[vectorKey] = 0
+            button.BackgroundTransparency = 0.5
+        end
+    end)
+end
+
+bindMobileButton(btnUp, "forward")
+bindMobileButton(btnDown, "backward")
+bindMobileButton(btnLeft, "left")
+bindMobileButton(btnRight, "right")
+bindMobileButton(btnAscend, "up")
+bindMobileButton(btnDescend, "down")
+
+local dragToggle = nil
+local dragStart = nil
+local startPos = nil
+
+local function updateInput(input)
+    local delta = input.Position - dragStart
+    local position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    game:GetService("TweenService"):Create(ToggleButton, TweenInfo.new(0.1), {Position = position}):Play()
+end
+
+ToggleButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragToggle = true
+        dragStart = input.Position
+        startPos = ToggleButton.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragToggle = false
+            end
+        end)
+    end
+end)
+
+ToggleButton.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        if dragToggle then
+            updateInput(input)
+        end
+    end
+end)
+
+local camera = workspace.CurrentCamera
+local players = game:GetService("Players")
+local localPlayer = players.LocalPlayer
+local runService = game:GetService("RunService")
+local inputService = game:GetService("UserInputService")
+
+local active = false
+local camSpeed = 1.2
+local sensitivity = 0.012
+local cconnection
+local frozenParts = {}
+
+local rotateX, rotateY = 0, 0
+local lastMousePos = nil
+
+local function updateFreecam()
+    if not active then return end
+    
+    local moveDirection = Vector3.new(
+        moveVectors.right - moveVectors.left,
+        moveVectors.up - moveVectors.down,
+        moveVectors.backward - moveVectors.forward
+    )
+    
+    local currentCFrame = camera.CFrame
+    local newCFrame = currentCFrame * CFrame.new(moveDirection * camSpeed)
+    
+    camera.CFrame = CFrame.new(newCFrame.Position) * CFrame.Angles(0, rotateY, 0) * CFrame.Angles(rotateX, 0, 0)
+end
+
+local function setCharacterFreeze(shouldFreeze)
+    local character = localPlayer.Character
+    if not character then return end
+    
+    for _, part in ipairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            if shouldFreeze then
+                frozenParts[part] = part.Anchored
+                part.Anchored = true
+            else
+                if frozenParts[part] ~= nil then
+                    part.Anchored = frozenParts[part]
+                else
+                    part.Anchored = false
+                end
+            end
+        end
+    end
+    if not shouldFreeze then table.clear(frozenParts) end
+end
+
+local function toggleFreecam(forceState)
+    if forceState ~= nil then active = forceState else active = not active end
+    
+    if active then
+        ToggleButton.Text = "Freecam: ON"
+        ToggleButton.TextColor3 = Color3.fromRGB(75, 255, 75)
+        MobileControls.Visible = true
+        
+        setCharacterFreeze(true)
+        
+        camera.CameraType = Enum.CameraType.Scriptable
+        rotateY = math.atan2(-camera.CFrame.LookVector.X, -camera.CFrame.LookVector.Z)
+        rotateX = math.asin(camera.CFrame.LookVector.Y)
+        
+        cconnection = runService.RenderStepped:Connect(updateFreecam)
+    else
+        ToggleButton.Text = "Freecam: OFF"
+        ToggleButton.TextColor3 = Color3.fromRGB(255, 75, 75)
+        MobileControls.Visible = false
+        lastMousePos = nil
+        
+        setCharacterFreeze(false)
+        
+        if cconnection then cconnection:Disconnect() end
+        camera.CameraType = Enum.CameraType.Custom
+        camera.CameraSubject = localPlayer.Character and localPlayer.Character:FindFirstChild("Humanoid")
+    end
+end
+
+ToggleButton.MouseButton1Click:Connect(function() toggleFreecam() end)
+
+btnTpToCam.MouseButton1Click:Connect(function()
+    if not active then return end
+    
+    local character = localPlayer.Character
+    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+    
+    if hrp then
+        setCharacterFreeze(false)
+        hrp.CFrame = CFrame.new(camera.CFrame.Position)
+        toggleFreecam(false)
+    end
+end)
+
+inputService.InputBegan:Connect(function(input, processed)
+    if processed or not active then return end
+    if input.KeyCode == Enum.KeyCode.W then moveVectors.forward = 1
+    elseif input.KeyCode == Enum.KeyCode.S then moveVectors.backward = 1
+    elseif input.KeyCode == Enum.KeyCode.A then moveVectors.left = 1
+    elseif input.KeyCode == Enum.KeyCode.D then moveVectors.right = 1
+    elseif input.KeyCode == Enum.KeyCode.E then moveVectors.up = 1
+    elseif input.KeyCode == Enum.KeyCode.Q then moveVectors.down = 1
+    end
+end)
+
+inputService.InputEnded:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.W then moveVectors.forward = 0
+    elseif input.KeyCode == Enum.KeyCode.S then moveVectors.backward = 0
+    elseif input.KeyCode == Enum.KeyCode.A then moveVectors.left = 0
+    elseif input.KeyCode == Enum.KeyCode.D then moveVectors.right = 0
+    elseif input.KeyCode == Enum.KeyCode.E then moveVectors.up = 0
+    elseif input.KeyCode == Enum.KeyCode.Q then moveVectors.down = 0
+    end
+end)
+
+local function isInMobileControls(touchPos)
+    if not MobileControls.Visible then return false end
+    
+    local absPos = MobileControls.AbsolutePosition
+    local absSize = MobileControls.AbsoluteSize
+    local padding = 30
+    
+    return touchPos.X >= absPos.X - padding and
+           touchPos.X <= absPos.X + absSize.X + padding and
+           touchPos.Y >= absPos.Y - padding and
+           touchPos.Y <= absPos.Y + absSize.Y + padding
+end
+
+inputService.InputBegan:Connect(function(input)
+    if not active then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.Touch then
+        if dragToggle then return end
+        if inputService:GetFocusedTextBox() == nil then
+            if not isInMobileControls(input.Position) then
+                lastMousePos = input.Position
+            end
+        end
+    end
+end)
+
+inputService.InputChanged:Connect(function(input)
+    if not active or not lastMousePos or dragToggle then return end
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        if isInMobileControls(input.Position) then
+            return
+        end
+        local delta = input.Position - lastMousePos
+        lastMousePos = input.Position
+        rotateY = rotateY - (delta.X * sensitivity)
+        rotateX = math.clamp(rotateX - (delta.Y * sensitivity), math.rad(-89), math.rad(89))
+    end
+end)
+
+inputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.Touch then
+        lastMousePos = nil
+    end
+end)
