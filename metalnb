@@ -1,0 +1,342 @@
+--[[
+	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+]]
+--original script made by outcomefan pls don't repost 
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+local character
+local root
+local function setupCharacter(char)
+character = char
+root = char:WaitForChild("HumanoidRootPart")
+end
+if player.Character then
+setupCharacter(player.Character)
+end
+player.CharacterAdded:Connect(setupCharacter)
+if player.PlayerGui:FindFirstChild("HookGui") then return end
+-- Variables
+local cooldown = false
+local grappling = false
+local pulling = false
+local cancelPull = false
+local clickState = 0
+local cooldownTime = 5
+local maxDistance = 250
+local hookPart
+local tipPart
+local beam
+local rope
+local rootAttachment
+local hookAttachment
+-- Particles
+local footAttachment = Instance.new("Attachment")
+footAttachment.Name = "FootAttachment"
+footAttachment.Position = Vector3.new(0, -2, 0)
+footAttachment.Parent = root
+local dustEmitter = Instance.new("ParticleEmitter")
+dustEmitter.Texture = "rbxassetid://363622340"
+dustEmitter.Color = ColorSequence.new(Color3.fromRGB(150,150,150))
+dustEmitter.Rate = 50
+dustEmitter.Lifetime = NumberRange.new(0.3,0.5)
+dustEmitter.Speed = NumberRange.new(2,4)
+dustEmitter.Rotation = NumberRange.new(0,360)
+dustEmitter.RotSpeed = NumberRange.new(-180,180)
+dustEmitter.Size = NumberSequence.new({NumberSequenceKeypoint.new(0,0.5), NumberSequenceKeypoint.new(1,0)})
+dustEmitter.Enabled = false
+dustEmitter.Parent = footAttachment
+local windEmitter = Instance.new("ParticleEmitter")
+windEmitter.Texture = "rbxassetid://243660364"
+windEmitter.Color = ColorSequence.new(Color3.fromRGB(200,200,255))
+windEmitter.Rate = 80
+windEmitter.Lifetime = NumberRange.new(0.2,0.4)
+windEmitter.Speed = NumberRange.new(10,15)
+windEmitter.VelocitySpread = 180
+windEmitter.Size = NumberSequence.new({NumberSequenceKeypoint.new(0,0.3), NumberSequenceKeypoint.new(1,0)})
+windEmitter.Enabled = false
+windEmitter.Parent = root
+local function startParticles()
+dustEmitter.Enabled = true
+windEmitter.Enabled = true
+end
+local function stopParticles()
+dustEmitter.Enabled = false
+windEmitter.Enabled = false
+end
+-- FLASH FUNCTION
+local function flashEffect(character, duration, color)
+if not character then return end
+local highlight = Instance.new("Highlight")
+highlight.Adornee = character
+highlight.OutlineColor = Color3.fromRGB(255,255,255)
+highlight.FillColor = color
+highlight.FillTransparency = 1
+highlight.OutlineTransparency = 0
+highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+highlight.Parent = character
+local fillTween = TweenService:Create(highlight, TweenInfo.new(duration/2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {FillTransparency = 0})
+fillTween:Play()
+fillTween.Completed:Connect(function()
+TweenService:Create(highlight, TweenInfo.new(duration/2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {FillTransparency = 1}):Play()
+end)
+local outlineTween = TweenService:Create(highlight, TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {OutlineTransparency = 1})
+outlineTween:Play()
+outlineTween.Completed:Connect(function()
+if highlight then highlight:Destroy() end
+end)
+end
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "HookGui"
+gui.ResetOnSpawn = false
+gui.Parent = player.PlayerGui
+local main = Instance.new("Frame")
+main.Parent = gui
+main.Size = UDim2.new(0,65,0,80)
+main.Position = UDim2.new(0.8,0,0.65,0)
+main.BackgroundTransparency = 1
+local buttonFrame = Instance.new("Frame")
+buttonFrame.Parent = main
+buttonFrame.Size = UDim2.new(0,42,0,42)
+buttonFrame.Position = UDim2.new(0.5,-21,0,0)
+buttonFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+buttonFrame.Rotation = 45
+local stroke = Instance.new("UIStroke")
+stroke.Parent = buttonFrame
+stroke.Color = Color3.fromRGB(0,255,255)
+stroke.Thickness = 2.5
+local button = Instance.new("TextButton")
+button.Parent = buttonFrame
+button.Size = UDim2.new(1,0,1,0)
+button.BackgroundTransparency = 1
+button.Text = ""
+button.Rotation = -45
+-- Hook name
+local nameText = Instance.new("TextLabel")
+nameText.Parent = main
+nameText.Size = UDim2.new(1,0,0,16)
+nameText.Position = UDim2.new(0,0,0.8,-18)
+nameText.BackgroundTransparency = 1
+nameText.Text = "Hook"
+nameText.TextColor3 = Color3.fromRGB(0,255,255)
+nameText.TextScaled = true
+nameText.Font = Enum.Font.GothamBold
+local cooldownText = Instance.new("TextLabel")
+cooldownText.Parent = main
+cooldownText.Size = UDim2.new(0,28,0,18)
+cooldownText.Position = UDim2.new(1,-5,0.15,0)
+cooldownText.BackgroundTransparency = 1
+cooldownText.TextColor3 = Color3.fromRGB(0,255,255)
+cooldownText.TextScaled = true
+cooldownText.Font = Enum.Font.GothamBold
+-- Cooldown
+local function startCooldown()
+cooldown = true
+for i=cooldownTime,0.1,-0.1 do
+cooldownText.Text = string.format("%.1f", i)
+task.wait(0.1)
+end
+cooldownText.Text = ""
+cooldown = false
+stroke.Color = Color3.fromRGB(0,255,255)
+end
+-- Remove hook
+local function removeHook()
+cancelPull = true
+stopParticles()
+if hookPart then hookPart:Destroy() hookPart=nil end
+if tipPart then tipPart:Destroy() tipPart=nil end
+if beam then beam:Destroy() beam=nil end
+if rope then rope:Destroy() rope=nil end
+if rootAttachment then rootAttachment:Destroy() rootAttachment=nil end
+if hookAttachment then hookAttachment:Destroy() hookAttachment=nil end
+task.spawn(startCooldown)
+clickState = 0
+stroke.Color = Color3.fromRGB(0,255,255)
+end
+-- Shoot Grapple
+local function shootGrapple()
+if not root then return end
+local origin = root.Position
+local direction = camera.CFrame.LookVector
+hookPart = Instance.new("Part")
+hookPart.Size = Vector3.new(0.7,0.7,0.7)
+hookPart.Position = origin
+hookPart.Anchored = true
+hookPart.CanCollide = false
+hookPart.Transparency = 1
+hookPart.Parent = workspace
+tipPart = Instance.new("Part")
+tipPart.Size = Vector3.new(0.5,0.5,0.5)
+tipPart.Position = origin
+tipPart.Anchored = true
+tipPart.CanCollide = false
+tipPart.Color = Color3.fromRGB(255,255,255)
+tipPart.Parent = workspace
+rootAttachment = Instance.new("Attachment",root)
+hookAttachment = Instance.new("Attachment",tipPart)
+-- Trail
+local trailAttachment0 = Instance.new("Attachment")
+trailAttachment0.Position = Vector3.new(0,0,0)
+trailAttachment0.Parent = tipPart
+local trailAttachment1 = Instance.new("Attachment")
+trailAttachment1.Position = Vector3.new(0,0,-1.5)
+trailAttachment1.Parent = tipPart
+local trail = Instance.new("Trail")
+trail.Attachment0 = trailAttachment0
+trail.Attachment1 = trailAttachment1
+trail.Lifetime = 0.5
+trail.Color = ColorSequence.new(Color3.fromRGB(255,255,255))
+trail.WidthScale = NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(0.3,0.7),NumberSequenceKeypoint.new(0.6,0.4),NumberSequenceKeypoint.new(1,0.05)})
+trail.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(0.7,0.1),NumberSequenceKeypoint.new(1,1)})
+trail.MinLength = 0.1
+trail.FaceCamera = true
+trail.Parent = tipPart
+beam = Instance.new("Beam")
+beam.Attachment0 = rootAttachment
+beam.Attachment1 = hookAttachment
+beam.Width0 = 0.15
+beam.Width1 = 0.15
+beam.Color = ColorSequence.new(Color3.new(0,0,0))
+beam.Transparency = NumberSequence.new(0)
+beam.FaceCamera = true
+beam.Parent = root
+-- Flash azul clarinho ao disparar
+flashEffect(character, 0.4, Color3.fromRGB(173,216,230))
+local velocity = direction * 140 + Vector3.new(0,60,0)
+local gravity = Vector3.new(0,-workspace.Gravity,0)
+local pos = origin
+local hitSomething = false
+while true do
+local dt = task.wait()
+velocity += gravity * dt
+local newPos = pos + velocity * dt
+local rayParams = RaycastParams.new()
+rayParams.FilterDescendantsInstances = {character}
+rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+local result = workspace:Raycast(pos,newPos-pos,rayParams)
+if result and result.Instance.CanCollide then
+hookPart.Position = result.Position
+tipPart.Position = result.Position
+hitSomething = true
+-- Flash branco ao grudar
+flashEffect(character, 0.4, Color3.fromRGB(255,255,255))
+break
+end
+pos = newPos
+hookPart.Position = pos
+tipPart.Position = pos
+if (pos-origin).Magnitude > maxDistance then break end
+end
+-- Caso não bata em nada, flash verde clarinho
+if not hitSomething then
+flashEffect(character, 0.6, Color3.fromRGB(144,238,144))
+end
+rope = Instance.new("RopeConstraint")
+rope.Attachment0 = rootAttachment
+rope.Attachment1 = hookAttachment
+rope.Length = (root.Position - hookPart.Position).Magnitude
+rope.Visible = false
+rope.Parent = root
+grappling = true
+end
+-- Pull Player
+local function pullPlayer()
+if not hookPart or not root then return end
+cancelPull = false
+startParticles()
+local forceAttachment = Instance.new("Attachment",root)
+local vectorForce = Instance.new("VectorForce")
+vectorForce.Attachment0 = forceAttachment
+vectorForce.RelativeTo = Enum.ActuatorRelativeTo.World
+vectorForce.Parent = root
+local forcePower = 4500
+local maxSpeed = 80
+while true do
+if cancelPull then break end
+local distance = (hookPart.Position-root.Position).Magnitude
+if distance <= 6 then
+-- Flash verde clarinho ao chegar no gancho
+flashEffect(character, 0.6, Color3.fromRGB(144,238,144))
+break
+end
+local dir = (hookPart.Position-root.Position).Unit
+local speed = root.AssemblyLinearVelocity.Magnitude
+if speed < maxSpeed then
+vectorForce.Force = dir*forcePower
+else
+vectorForce.Force = Vector3.new(0,0,0)
+end
+task.wait()
+end
+vectorForce:Destroy()
+forceAttachment:Destroy()
+stopParticles()
+removeHook()
+end
+-- Button Click
+button.MouseButton1Click:Connect(function()
+if cooldown then return end
+clickState += 1
+if clickState == 1 then
+stroke.Color = Color3.fromRGB(0,255,0)
+elseif clickState == 2 then
+shootGrapple()
+elseif clickState == 3 then
+pullPlayer()
+elseif clickState == 4 then
+removeHook()
+end
+end)
+-- Move button
+local dragging = false
+local dragInput
+local dragStart
+local startPos
+main.InputBegan:Connect(function(input)
+if input.UserInputType == Enum.UserInputType.Touch then
+dragging = true
+dragStart = input.Position
+startPos = main.Position
+end
+end)
+main.InputChanged:Connect(function(input)
+if input.UserInputType == Enum.UserInputType.Touch then
+dragInput = input
+end
+end)
+UIS.InputChanged:Connect(function(input)
+if input == dragInput and dragging then
+local delta = input.Position - dragStart
+main.Position = UDim2.new(
+startPos.X.Scale,
+startPos.X.Offset + delta.X,
+startPos.Y.Scale,
+startPos.Y.Offset + delta.Y
+)
+end
+end)
+UIS.InputEnded:Connect(function(input)
+if input.UserInputType == Enum.UserInputType.Touch then
+dragging = false
+end
+end)
+--
+UIS.InputBegan:Connect(function(input, processed)
+if processed then return end
+if input.KeyCode == Enum.KeyCode.Q then
+clickState += 1
+if clickState == 1 then
+stroke.Color = Color3.fromRGB(0,255,0)
+elseif clickState == 2 then
+shootGrapple()
+elseif clickState == 3 then
+pullPlayer()
+elseif clickState == 4 then
+removeHook()
+end
+end
+end)
