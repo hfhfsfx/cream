@@ -1,0 +1,460 @@
+--[[
+	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+]]
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+
+local humanoid = char:WaitForChild("Humanoid")
+local root = char:WaitForChild("HumanoidRootPart")
+
+-- ANTI SLIP
+humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown,false)
+humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll,false)
+
+-- MAIN ANIMATION
+local anim = Instance.new("Animation")
+anim.AnimationId = "rbxassetid://91409825184210"
+
+local track = humanoid:LoadAnimation(anim)
+track.Priority = Enum.AnimationPriority.Action4
+track.Looped = true
+
+-- DOUBLE JUMP ANIMATION
+local jumpAnim = Instance.new("Animation")
+jumpAnim.AnimationId = "rbxassetid://476778305"
+
+local jumpTrack = humanoid:LoadAnimation(jumpAnim)
+jumpTrack.Priority = Enum.AnimationPriority.Action4
+
+local canDouble = false
+local usedDouble = false
+
+-- NO STUN
+local function removeStun()
+
+	for _,v in pairs(char:GetDescendants()) do
+		
+		local name = string.lower(v.Name)
+
+		if name:find("stun")
+		or name:find("freeze")
+		or name:find("ragdoll") then
+			
+			pcall(function()
+				v:Destroy()
+			end)
+		end
+	end
+end
+
+-- KEEP ANIMATION PLAYING
+RunService.RenderStepped:Connect(function()
+
+	removeStun()
+
+	for _,v in pairs(humanoid:GetPlayingAnimationTracks()) do
+		
+		if v ~= track and v ~= jumpTrack then
+			v:Stop()
+		end
+	end
+
+	if not track.IsPlaying then
+		track:Play()
+	end
+end)
+
+-- DETECT JUMP
+humanoid.StateChanged:Connect(function(_,new)
+
+	if new == Enum.HumanoidStateType.Jumping then
+		
+		if not canDouble then
+			canDouble = true
+			usedDouble = false
+		end
+	end
+
+	if new == Enum.HumanoidStateType.Landed then
+		
+		canDouble = false
+		usedDouble = false
+	end
+end)
+
+-- DOUBLE JUMP
+UIS.JumpRequest:Connect(function()
+
+	if canDouble and not usedDouble then
+		
+		usedDouble = true
+
+		root.AssemblyLinearVelocity = Vector3.new(
+			root.AssemblyLinearVelocity.X,
+			85,
+			root.AssemblyLinearVelocity.Z
+		)
+
+		jumpTrack:Play()
+
+		task.delay(0.3,function()
+			jumpTrack:Stop()
+		end)
+	end
+end)
+print("[May the bullying commence]")
+
+    local function makeAntiSlip(part)
+        if part:IsA("BasePart") then
+            part.CustomPhysicalProperties = PhysicalProperties.new(1, 1.5, 0, 1.5, 0)
+        end
+    end
+
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        makeAntiSlip(obj)
+    end
+
+    workspace.DescendantAdded:Connect(function(obj)
+        makeAntiSlip(obj)
+    end) 
+
+local Players = game:GetService("Players")
+local lp = Players.LocalPlayer
+local CollectionService = game:GetService("CollectionService")
+local RunService = game:GetService("RunService")
+
+local function antiStun(char)
+    local humanoid = char:WaitForChild("Humanoid")
+    RunService.Heartbeat:Connect(function()
+        if CollectionService:HasTag(char, "Stunned") then
+            CollectionService:RemoveTag(char, "Stunned")
+        end
+        
+        local currentState = humanoid:GetState()
+        if currentState == Enum.HumanoidStateType.Physics or 
+           currentState == Enum.HumanoidStateType.Ragdoll or 
+           currentState == Enum.HumanoidStateType.FallingDown or
+           currentState == Enum.HumanoidStateType.PlatformStanding then
+            humanoid:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
+        end
+    end)
+end
+
+if lp.Character then
+    antiStun(lp.Character)
+end
+
+lp.CharacterAdded:Connect(antiStun)
+
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+
+    local player = Players.LocalPlayer
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
+---SUPER METAL JIJIJIJA (LMS)
+
+
+-- OVA METAL SONIC DARK LMS FORM
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+
+local humanoid = character:WaitForChild("Humanoid")
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+local transformed = false
+
+-- RESPAWN
+player.CharacterAdded:Connect(function(c)
+
+	character = c
+	humanoid = character:WaitForChild("Humanoid")
+	hrp = character:WaitForChild("HumanoidRootPart")
+
+	transformed = false
+end)
+
+-- PLAYER MODEL
+local function getPlayerModel()
+
+	local folder = workspace:FindFirstChild("Players")
+
+	if not folder then
+		return nil
+	end
+
+	return folder:FindFirstChild(player.Name)
+end
+
+-- LMS DETECTOR
+local function isLastLife()
+
+	local model = getPlayerModel()
+
+	return model and model:GetAttribute("LastLife") == true
+end
+
+-- CHAOS EMERALDS INTRO
+local function playChaosEmeraldIntro(callback)
+
+	local chaosEmeraldsId = 127338011222921
+
+	local success, objects =
+		pcall(game.GetObjects, game, "rbxassetid://" .. chaosEmeraldsId)
+
+	if not success or #objects == 0 then
+
+		if callback then
+			callback()
+		end
+
+		return
+	end
+
+	local chaosModel = objects[1]:Clone()
+	chaosModel.Parent = workspace
+
+	local emeralds = {}
+
+	for _,obj in ipairs(chaosModel:GetDescendants()) do
+
+		if obj:IsA("MeshPart") then
+
+			table.insert(emeralds,obj)
+
+			obj.Anchored = false
+			obj.CanCollide = false
+		end
+	end
+
+	local radius = 7
+	local angleStep = (2 * math.pi) / #emeralds
+
+	local spin = 0
+
+	local connection
+
+	connection = RunService.Heartbeat:Connect(function(dt)
+
+		spin += dt * 4
+
+		for i,emerald in ipairs(emeralds) do
+
+			local angle = (i * angleStep) + spin
+
+			local x = math.cos(angle) * radius
+			local z = math.sin(angle) * radius
+
+			emerald.Position =
+				hrp.Position + Vector3.new(x,2,z)
+		end
+	end)
+
+	task.wait(2)
+
+	connection:Disconnect()
+
+	for _,emerald in ipairs(emeralds) do
+
+		local tween = TweenService:Create(
+			emerald,
+			TweenInfo.new(0.25),
+			{
+				Position = hrp.Position
+			}
+		)
+
+		tween:Play()
+	end
+
+	task.wait(0.35)
+
+	chaosModel:Destroy()
+
+	if callback then
+		callback()
+	end
+end
+
+-- DARK FORM
+local function makeDarkForm()
+
+	if transformed then
+		return
+	end
+
+	transformed = true
+
+	local blackColor = Color3.fromRGB(0,0,0)
+	local whiteColor = Color3.fromRGB(255,255,255)
+
+	for _,obj in ipairs(character:GetDescendants()) do
+
+		if obj:IsA("BasePart") then
+
+			local name = obj.Name:lower()
+
+			-- EYES
+			if string.find(name,"eye")
+			or string.find(name,"pupil")
+			or string.find(name,"iris") then
+
+				obj.Material = Enum.Material.Neon
+				obj.Color = whiteColor
+
+			else
+
+				-- TODO NEGRO
+				obj.Material = Enum.Material.SmoothPlastic
+				obj.Color = blackColor
+			end
+		end
+	end
+
+	-- AURA
+	local aura = Instance.new("Highlight")
+
+	aura.FillColor = blackColor
+	aura.FillTransparency = 0.4
+
+	aura.OutlineColor = whiteColor
+	aura.OutlineTransparency = 0
+
+	aura.Parent = character
+
+	-- Sound
+	local sound = Instance.new("Sound")
+
+	sound.SoundId = "rbxassetid://9129996965"
+	sound.Volume = 2
+
+	sound.Parent = hrp
+
+	sound:Play()
+
+	-- SPEED
+	humanoid.WalkSpeed += 4
+end
+
+-- LMS CHECK
+RunService.Heartbeat:Connect(function()
+
+	if isLastLife() and not transformed then
+
+		playChaosEmeraldIntro(function()
+
+			makeDarkForm()
+		end)
+	end
+end)
+
+local player = game:GetService("Players").LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+local camera = workspace.CurrentCamera
+local playerGui = player:WaitForChild("PlayerGui")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+-- ============================================================
+-- SCRIPT 1: FLIGHT SYSTEM (3s) + SOFT BUTTON (40x40) + FOV 120
+-- ============================================================
+
+local FLY_SFX_ID = 118787708282878
+local FLY_DURATION = 3 
+local FLY_SPEED = 120
+local NORMAL_FOV = 70
+local MAX_FOV = 120
+local isFlying = false
+
+local sfx = Instance.new("Sound", humanoidRootPart)
+sfx.SoundId = "rbxassetid://" .. FLY_SFX_ID
+sfx.Volume = 1
+sfx.Looped = true
+
+local screenGui = Instance.new("ScreenGui", playerGui)
+screenGui.ResetOnSpawn = true -- CAMBIADO A TRUE: El botÃ³n desaparece al morir/respawnear
+
+local flyBtn = Instance.new("TextButton", screenGui)
+flyBtn.Name = "SoftFlyButton"
+flyBtn.Size = UDim2.new(0, 40, 0, 40)
+flyBtn.Position = UDim2.new(0.85, 0, 0.5, 0)
+flyBtn.BackgroundColor3 = Color3.new(0, 0, 0)
+flyBtn.Text = ""
+flyBtn.Rotation = 45
+
+local uiCorner = Instance.new("UICorner", flyBtn)
+uiCorner.CornerRadius = UDim.new(0, 8)
+
+local uiStroke = Instance.new("UIStroke", flyBtn)
+uiStroke.Color = Color3.new(0, 1, 1)
+uiStroke.Thickness = 2
+uiStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+local function tweenFOV(target)
+    local info = TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+    TweenService:Create(camera, info, {FieldOfView = target}):Play()
+end
+
+local bv, bg, renderConn
+
+local function stopFlying()
+    isFlying = false
+    if bv then bv:Destroy() end
+    if bg then bg:Destroy() end
+    if renderConn then renderConn:Disconnect() end
+    sfx:Stop()
+    humanoid.PlatformStand = false
+    flyBtn.BackgroundColor3 = Color3.new(0, 0, 0)
+    tweenFOV(NORMAL_FOV)
+end
+
+local function startFlying()
+    if isFlying then return end
+    isFlying = true
+    humanoid.PlatformStand = true
+    flyBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+    tweenFOV(MAX_FOV)
+    
+    bv = Instance.new("BodyVelocity", humanoidRootPart)
+    bv.MaxForce = Vector3.new(1, 1, 1) * math.huge
+    bg = Instance.new("BodyGyro", humanoidRootPart)
+    bg.MaxTorque = Vector3.new(1, 1, 1) * math.huge
+    sfx:Play()
+
+    renderConn = RunService.RenderStepped:Connect(function()
+        if isFlying and bv and bg then
+            if humanoid.MoveDirection.Magnitude > 0 then
+                bv.Velocity = camera.CFrame.LookVector * FLY_SPEED
+            else
+                bv.Velocity = Vector3.new(0, 0, 0)
+            end
+            bg.CFrame = camera.CFrame
+        end
+    end)
+
+    task.delay(FLY_DURATION, function()
+        stopFlying()
+    end)
+end
+
+flyBtn.MouseButton1Click:Connect(startFlying)
+
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    humanoid = character:WaitForChild("Humanoid")
+    humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+    stopFlying()
+    sfx.Parent = humanoidRootPart
+    camera.FieldOfView = NORMAL_FOV
+end)
