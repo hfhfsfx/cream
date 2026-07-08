@@ -1,0 +1,749 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local highlightedPlayers = {}
+local trackedMines = {}
+
+-- Utility to create colors from Hex
+local function fromHex(hex)
+	hex = hex:gsub("#","")
+	return Color3.fromRGB(tonumber("0x"..hex:sub(1,2)), tonumber("0x"..hex:sub(3,4)), tonumber("0x"..hex:sub(5,6)))
+end
+
+-- Character color configurations
+-- Format: {NameColor, FillColor, OutlineColor}
+local CHARACTER_COLORS = {
+	-- Sonic: Ocean Blue Name/Outline
+	Sonic = {Color3.fromRGB(0, 119, 190), Color3.fromRGB(173, 216, 230), Color3.fromRGB(0, 119, 190)},
+	Silver = {Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 255, 255), Color3.fromRGB(135, 206, 250)},
+	-- Metal Sonic: Metallic Blue Name/Outline
+	["Metal Sonic"] = {Color3.fromRGB(70, 130, 180), Color3.fromRGB(0, 0, 128), Color3.fromRGB(70, 130, 180)},
+	MetalSonic = {Color3.fromRGB(70, 130, 180), Color3.fromRGB(0, 0, 128), Color3.fromRGB(70, 130, 180)},
+	-- Blaze: Special Hex Outline
+	Blaze = {Color3.fromRGB(255, 165, 0), Color3.fromRGB(75, 0, 130), fromHex("EBE8FC")},
+	-- Knuckles: Name White, Outline Dark Brown
+	Knuckles = {Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 255, 0), Color3.fromRGB(60, 30, 0)},
+	-- Cream: Name/Outline Cream
+	Cream = {Color3.fromRGB(255, 253, 208), Color3.fromRGB(0, 255, 0), Color3.fromRGB(255, 253, 208)},
+	Tails = {Color3.fromRGB(255, 165, 0), Color3.fromRGB(210, 105, 30), Color3.fromRGB(255, 165, 0)},
+	Amy = {Color3.fromRGB(255, 192, 203), Color3.fromRGB(199, 21, 133), Color3.fromRGB(255, 192, 203)},
+	-- Eggman: White Outline
+	Eggman = {Color3.fromRGB(139, 69, 19), Color3.fromRGB(255, 0, 0), Color3.fromRGB(255, 255, 255)},
+	-- Kolossos: Name Black, Outline Darker Blue
+	Kolossos = {Color3.fromRGB(0, 0, 0), Color3.fromRGB(0, 0, 0), Color3.fromRGB(0, 0, 40)},
+	["2011x"] = {Color3.fromRGB(0, 0, 139), Color3.fromRGB(0, 0, 0), Color3.fromRGB(128, 0, 128)},
+	-- Fleetway: Name Yellow, Fill Red, Outline Yellow
+	Fleetway = {Color3.fromRGB(255, 255, 0), Color3.fromRGB(255, 0, 0), Color3.fromRGB(255, 255, 0)},
+	-- Shadow: Name Maroon, Fill Black, Outline Grey-Black
+	Shadow = {Color3.fromRGB(128, 0, 0), Color3.fromRGB(0, 0, 0), Color3.fromRGB(40, 40, 40)},
+	-- Super Sonic: Dynamic Rainbow (Handled in logic, placeholders here)
+	SuperSonic = {Color3.new(1,1,1), Color3.new(1,0,0), Color3.new(1,1,1)}
+}
+
+-- TailsDoll gets Tails colors but 25% darker
+local baseFill = Color3.fromRGB(210, 105, 30)
+local baseOutline = Color3.fromRGB(255, 165, 0)
+CHARACTER_COLORS.TailsDoll = {
+	Color3.fromRGB(128, 128, 128),
+	Color3.fromRGB(math.floor(baseFill.R * 255 * 0.75), math.floor(baseFill.G * 255 * 0.75), math.floor(baseFill.B * 255 * 0.75)),
+	Color3.fromRGB(math.floor(baseOutline.R * 255 * 0.75), math.floor(baseOutline.G * 255 * 0.75), math.floor(baseOutline.B * 255 * 0.75))
+}
+
+local function getCharacterColors(characterName)
+	local colors = CHARACTER_COLORS[characterName]
+	return colors and colors[1] or Color3.fromRGB(255, 255, 255),
+	       colors and colors[2] or Color3.fromRGB(255, 0, 0),
+	       colors and colors[3] or Color3.fromRGB(255, 0, 0)
+end
+
+local function isSoloMode()
+	local gameProps = workspace:FindFirstChild("GameProperties")
+	return gameProps and gameProps:FindFirstChild("Solo") and gameProps.Solo:IsA("BoolValue") and gameProps.Solo.Value
+end
+
+local function getSuperSonicColor(currentHealth, maxHealth)
+	local t = tick()
+	local healthPerc = math.clamp(currentHealth / maxHealth, 0, 1)
+	
+	-- Logic: "If it starts going down the color switching gets slower and the colors get more muted"
+	
+	-- Speed of the rainbow cycle (Slower at low health)
+	local cycleSpeed = 0.5 + (2.5 * healthPerc)
+	
+	-- Saturation of the color (Muted/White/Grey at low health, Vibrant at max)
+	local saturation = 0.2 + (0.8 * healthPerc)
+	
+	-- Base Rainbow Color
+	local hue = (t * cycleSpeed) % 1
+	local baseColor = Color3.fromHSV(hue, saturation, 1)
+	
+	-- "Fade-in-out flashes white before switching colors"
+	-- Create a flash effect using Sine wave.
+	-- Frequency also scales with health to look erratic at high energy.
+	local flashFreq = 5 + (10 * healthPerc)
+	local flashVal = math.sin(t * flashFreq)
+	
+	-- If the sine wave is at its peak, flash white
+	if flashVal > 0.85 then
+		-- Lerp towards white based on how close to peak
+		local flashAlpha = (flashVal - 0.85) / 0.15 
+		return baseColor:Lerp(Color3.new(1, 1, 1), flashAlpha)
+	else
+		return baseColor
+	end
+end
+
+local function getHealthColor(health, maxHealth, characterName)
+	maxHealth = maxHealth or 100
+	
+	-- Special Gradient for Fleetway: Gray (0) to Yellow (Max)
+	if characterName == "Fleetway" then
+		if health <= 0 then return Color3.fromRGB(128, 128, 128) end
+		local percentage = math.clamp(health / maxHealth, 0, 1)
+		return Color3.fromRGB(128, 128, 128):Lerp(Color3.fromRGB(255, 255, 0), percentage)
+	end
+	
+	if characterName == "SuperSonic" then
+		return getSuperSonicColor(health, maxHealth)
+	end
+
+	-- Standard Gradient
+	if health <= 0 then return Color3.fromRGB(255, 0, 0) end
+	
+	if health <= 100 then
+		local percentage = health / 100
+		return Color3.fromRGB(math.floor(255 * (1 - percentage)), math.floor(255 * percentage), 0)
+	else
+		local percentage = math.clamp((health - 100) / (maxHealth - 100), 0, 1)
+		return Color3.fromRGB(math.floor(128 * percentage), math.floor(255 * (1 - percentage)), math.floor(128 * percentage))
+	end
+end
+
+local function createHighlight(character)
+	local existingHighlight = character:FindFirstChildOfClass("Highlight")
+	if existingHighlight then existingHighlight:Destroy() end
+	
+	local highlight = Instance.new("Highlight")
+	highlight.FillColor = Color3.fromRGB(255, 0, 0)
+	highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+	highlight.FillTransparency = 1 -- 100% Transparent Fill
+	highlight.OutlineTransparency = 0
+	highlight.Parent = character
+	return highlight
+end
+
+local function createBillboardGui(character)
+	local head = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
+	if not head then return nil end
+	
+	for _, child in pairs(head:GetChildren()) do
+		if child:IsA("BillboardGui") and child.Name == "ESPLabel" then
+			child:Destroy()
+		end
+	end
+	
+	-- Determine if character is EXE/Killer or Survivor
+	local characterName = character:GetAttribute("Character")
+	local isKiller = characterName == "TailsDoll" or characterName == "Kolossos" or characterName == "2011x" or characterName == "Fleetway"
+	
+	-- Font Selection
+	local font = Enum.Font.Garamond -- Default Survivor Font
+	
+	if isKiller then
+		font = Enum.Font.Antique -- Killer Font
+	elseif characterName == "SuperSonic" then
+		font = Enum.Font.Fondamento -- Super Sonic Font
+	end
+	
+	local billboardGui = Instance.new("BillboardGui")
+	billboardGui.Name = "ESPLabel"
+	billboardGui.Adornee = head
+	billboardGui.Size = UDim2.new(0, 200, 0, 75)
+	billboardGui.AlwaysOnTop = true
+	
+	local topLabel = Instance.new("TextLabel")
+	topLabel.Name = "TopLabel"
+	topLabel.Size = UDim2.new(1, 0, 0.31, 0)
+	topLabel.Position = UDim2.new(0, 0, 0, 4)
+	topLabel.BackgroundTransparency = 1
+	topLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	topLabel.TextScaled = true
+	topLabel.Font = font
+	topLabel.TextStrokeTransparency = 0.5
+	topLabel.Visible = false
+	topLabel.Parent = billboardGui
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Name = "NameLabel"
+	nameLabel.Size = UDim2.new(1, 0, 0.33, 0)
+	nameLabel.Position = UDim2.new(0, 0, 0.33, 0)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	nameLabel.TextScaled = true
+	nameLabel.Font = font
+	nameLabel.TextStrokeTransparency = 0.5
+	nameLabel.ZIndex = 1
+	nameLabel.Parent = billboardGui
+	
+	local healthLabel = Instance.new("TextLabel")
+	healthLabel.Name = "HealthLabel"
+	healthLabel.Size = UDim2.new(1, 0, 0.31, 0)
+	healthLabel.Position = UDim2.new(0, 0, 0.66, -4)
+	healthLabel.BackgroundTransparency = 1
+	healthLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	healthLabel.TextScaled = true
+	healthLabel.Font = font
+	healthLabel.TextStrokeTransparency = 0.5
+	healthLabel.ZIndex = 1
+	healthLabel.Parent = billboardGui
+	
+	billboardGui.Parent = head
+	return billboardGui
+end
+
+local function monitorHighlightChanges(playerModel, data)
+	playerModel.ChildAdded:Connect(function(child)
+		if child:IsA("Highlight") and child ~= data.highlight then
+			child.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+			local depthConnection = child:GetPropertyChangedSignal("DepthMode"):Connect(function()
+				if child.DepthMode ~= Enum.HighlightDepthMode.AlwaysOnTop then
+					child.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+				end
+			end)
+			if data.highlight then data.highlight.Enabled = false end
+			local connection
+			connection = child.AncestryChanged:Connect(function()
+				if not child.Parent then
+					connection:Disconnect()
+					depthConnection:Disconnect()
+					if data.highlight and data.highlight.Parent then
+						data.highlight.Enabled = true
+					else
+						data.highlight = createHighlight(playerModel)
+						local characterName = playerModel:GetAttribute("Character")
+						local nameColor, fillColor, outlineColor = getCharacterColors(characterName)
+						data.highlight.FillColor = fillColor
+						data.highlight.OutlineColor = outlineColor
+					end
+				end
+			end)
+		end
+	end)
+end
+
+local function updateLabel(playerModel)
+	local data = highlightedPlayers[playerModel]
+	if not data or not data.textLabel or not data.textLabel.Parent then return end
+	
+	local characterName = playerModel:GetAttribute("Character")
+	local stunDur = playerModel:GetAttribute("StunDur") or 0
+	
+	-- Max health calculation
+	local maxHealth = 100
+	if characterName == "Shadow" then
+		maxHealth = 165
+	elseif characterName == "MetalSonic" or characterName == "Metal Sonic" then
+		maxHealth = isSoloMode() and 165 or 175
+	elseif characterName == "Fleetway" then
+		maxHealth = 355
+	elseif isSoloMode() then
+		maxHealth = 165
+	elseif characterName == "Silver" then
+		maxHealth = 105
+	end
+
+	-- Colors
+	local nameColor, fillColor, outlineColor = getCharacterColors(characterName)
+	
+	-- Super Sonic Dynamic Colors
+	if characterName == "SuperSonic" then
+		local healthObj = playerModel:FindFirstChild("Health")
+		local currentHealth = healthObj and healthObj.Value or 100
+		local superColor = getSuperSonicColor(currentHealth, maxHealth)
+		nameColor = superColor
+		outlineColor = superColor
+		fillColor = Color3.fromRGB(255, 0, 0)
+	end
+	
+	if data.highlight and data.highlight.Parent then
+		data.highlight.FillColor = fillColor
+		data.highlight.OutlineColor = outlineColor
+	end
+	
+	-- Stun immunity tracking
+	if stunDur > 0 then
+		data.immunityEndTime = 0
+	elseif data.prevStunDur and data.prevStunDur > 0 and stunDur == 0 then
+		if characterName == "Eggman" or characterName == "TailsDoll" or characterName == "Kolossos" or characterName == "2011x" or characterName == "Fleetway" then
+			data.immunityEndTime = tick() + 5
+		end
+	end
+	data.prevStunDur = stunDur
+	
+	local topLabel = data.billboard:FindFirstChild("TopLabel")
+	local nameLabel = data.billboard:FindFirstChild("NameLabel")
+	local healthLabel = data.billboard:FindFirstChild("HealthLabel")
+	if not nameLabel or not healthLabel or not topLabel then return end
+	
+	-- Display name
+	local displayName = characterName
+	if characterName == "MetalSonic" then displayName = "Metal Sonic"
+	elseif characterName == "TailsDoll" then displayName = "Tripwire"
+	elseif characterName == "2011x" then displayName = "X"
+	elseif characterName == "SuperSonic" then displayName = "Super Sonic"
+	end
+	
+	nameLabel.Text = displayName
+	nameLabel.TextColor3 = nameColor
+	
+	-- === FLEETWAY SPECIAL LOGIC START ===
+	if characterName == "Fleetway" then
+		local immunityRemaining = (data.immunityEndTime or 0) - tick()
+		if stunDur > 0 then
+			topLabel.Text = string.format("%.1f", stunDur)
+			topLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+			topLabel.Visible = true
+		elseif immunityRemaining > 0.05 then
+			topLabel.Text = string.format("%.1f", immunityRemaining)
+			topLabel.TextColor3 = Color3.fromRGB(255, 120, 120)
+			topLabel.Visible = true
+		else
+			topLabel.Visible = false
+		end
+		
+		local healthObject = playerModel:FindFirstChild("Health")
+		if healthObject then
+			local healthValue = math.floor(healthObject.Value)
+			healthLabel.Text = "HP: " .. healthValue
+			healthLabel.TextColor3 = getHealthColor(healthValue, maxHealth, characterName)
+			healthLabel.Visible = true
+		else
+			healthLabel.Visible = false
+		end
+		return
+	end
+	-- === FLEETWAY SPECIAL LOGIC END ===
+	
+	-- Standard Top Label Logic
+	if characterName == "Shadow" then
+		local shadowPlayer = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild(playerModel.Name)
+		if shadowPlayer then
+			local ammoVal = shadowPlayer:FindFirstChild("Ammo")
+			if ammoVal and ammoVal:IsA("NumberValue") then
+				topLabel.Text = math.floor(ammoVal.Value)
+				topLabel.TextColor3 = Color3.fromRGB(184, 115, 51)
+				topLabel.Visible = true
+			else
+				topLabel.Visible = false
+			end
+		else
+			topLabel.Visible = false
+		end
+	elseif characterName == "TailsDoll" then
+		local tripwirePlayer = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild(playerModel.Name)
+		if tripwirePlayer then
+			local minesValue = tripwirePlayer:FindFirstChild("Mines")
+			if minesValue and minesValue:IsA("NumberValue") then
+				topLabel.Text = math.floor(minesValue.Value)
+				topLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+				topLabel.Visible = true
+			else
+				topLabel.Visible = false
+			end
+		else
+			topLabel.Visible = false
+		end
+	elseif characterName == "2011x" then
+		local rageObject = playerModel:FindFirstChild("Rage")
+		if rageObject then
+			topLabel.Text = math.floor((rageObject.Value / 5) * 100) .. "%"
+			topLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+			topLabel.Visible = true
+		else
+			topLabel.Visible = false
+		end
+	elseif characterName == "Blaze" then
+		local feverObject = playerModel:FindFirstChild("Fever")
+		if feverObject then
+			local val = math.clamp(feverObject.Value, 0, 100)
+			topLabel.Text = "SOL: " .. math.floor(val) .. "%"
+			topLabel.TextColor3 = val <= 50 and Color3.fromRGB(128, 128, 128):Lerp(Color3.fromRGB(255, 165, 0), val / 50) or Color3.fromRGB(255, 165, 0):Lerp(Color3.fromRGB(255, 0, 0), (val - 50) / 50)
+			topLabel.Visible = true
+		else
+			topLabel.Visible = false
+		end
+	elseif characterName == "Silver" then
+		local energyObject = playerModel:FindFirstChild("Energy")
+		if energyObject then
+			local val = math.clamp(energyObject.Value, 0, 100)
+			topLabel.Text = "POWER: " .. math.floor(val) .. "%"
+			topLabel.TextColor3 = Color3.fromRGB(0, 0, 139):Lerp(Color3.fromRGB(135, 206, 235), val / 100)
+			topLabel.Visible = true
+		else
+			topLabel.Visible = false
+		end
+	elseif characterName == "Tails" then
+		local tailsPlayer = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild(playerModel.Name)
+		if tailsPlayer then
+			local chargeValue = tailsPlayer:FindFirstChild("Charge")
+			if chargeValue and chargeValue:IsA("NumberValue") then
+				local percent = math.floor((chargeValue.Value / 100.5) * 100)
+				topLabel.Text = "Charge: " .. percent .. "%"
+				topLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+				topLabel.Visible = true
+			else
+				topLabel.Visible = false
+			end
+		else
+			topLabel.Visible = false
+		end
+	elseif characterName == "MetalSonic" or characterName == "Metal Sonic" then
+		local healthObject = playerModel:FindFirstChild("Health")
+		if healthObject then
+			local currentHealth = healthObject.Value
+			local currentTime = tick()
+			
+			if data.metalLastHealth and currentHealth >= data.metalLastHealth + 6 then
+				data.metalLastHealTime = currentTime
+				data.metalHealCount = data.metalHealCount + 1
+				if data.metalHealCount >= 10 then
+					data.metalCycleStart = currentTime
+					data.metalHealCount = 0
+				end
+			end
+			data.metalLastHealth = currentHealth
+			
+			if currentHealth < 150 then
+				local healInterval = 2.0
+				local metalPos = (playerModel:FindFirstChild("HumanoidRootPart") or playerModel:FindFirstChild("Head"))
+				
+				if metalPos then
+					local playersFolder = workspace:FindFirstChild("Players")
+					if playersFolder then
+						for _, otherModel in pairs(playersFolder:GetChildren()) do
+							local otherChar = otherModel:GetAttribute("Character")
+							if otherChar == "Eggman" then
+								local eggmanPos = otherModel:FindFirstChild("HumanoidRootPart") or otherModel:FindFirstChild("Head")
+								if eggmanPos and (metalPos.Position - eggmanPos.Position).Magnitude <= 5 then
+									healInterval = 0.75
+									break
+								end
+							end
+						end
+						if healInterval == 2.0 then
+							for _, otherModel in pairs(playersFolder:GetChildren()) do
+								local otherChar = otherModel:GetAttribute("Character")
+								if otherChar == "Tails" then
+									local tailsPos = otherModel:FindFirstChild("HumanoidRootPart") or otherModel:FindFirstChild("Head")
+									if tailsPos and (metalPos.Position - tailsPos.Position).Magnitude <= 5 then
+										healInterval = 1.0
+										break
+									end
+								end
+							end
+						end
+					end
+				end
+				
+				local totalTimeRemaining = 0
+				local hpNeeded = 150 - currentHealth
+				local healsNeeded = math.ceil(hpNeeded / 7)
+				
+				local cycleDuration = 10 * healInterval
+				local postCycleWait = math.max(0, 25 - cycleDuration)
+				local simHealCount = data.metalHealCount
+				
+				if healsNeeded > 0 then
+					local healsInCurrentCycle = 10 - simHealCount
+					local timeToNextHeal = healInterval
+					if data.metalLastHealTime > 0 then
+						local timeSinceLast = currentTime - data.metalLastHealTime
+						timeToNextHeal = math.max(0, healInterval - timeSinceLast)
+					end
+
+					if healsNeeded <= healsInCurrentCycle then
+						totalTimeRemaining = totalTimeRemaining + timeToNextHeal + ((healsNeeded - 1) * healInterval)
+					else
+						totalTimeRemaining = totalTimeRemaining + timeToNextHeal + ((healsInCurrentCycle - 1) * healInterval)
+						local remainingAfterCycle = healsNeeded - healsInCurrentCycle
+						totalTimeRemaining = totalTimeRemaining + postCycleWait
+						local healsLeft = remainingAfterCycle
+						local fullCycles = math.floor((healsLeft - 1) / 10)
+						local remainderHeals = healsLeft - (fullCycles * 10)
+						totalTimeRemaining = totalTimeRemaining + (fullCycles * (cycleDuration + postCycleWait))
+						totalTimeRemaining = totalTimeRemaining + (remainderHeals * healInterval)
+					end
+				end
+				
+				topLabel.Text = string.format("%.1f", totalTimeRemaining)
+				topLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+				topLabel.Visible = true
+			else
+				topLabel.Visible = false
+			end
+		else
+			topLabel.Visible = false
+		end
+	else
+		topLabel.Visible = false
+	end
+	
+	-- Standard Health Label Logic (Handles Stun for non-Fleetway)
+	local immunityRemaining = (data.immunityEndTime or 0) - tick()
+	if stunDur > 0 then
+		healthLabel.Text = string.format("%.1f", stunDur)
+		healthLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+		healthLabel.Visible = true
+	elseif immunityRemaining > 0.05 then
+		healthLabel.Text = string.format("%.1f", immunityRemaining)
+		healthLabel.TextColor3 = Color3.fromRGB(255, 120, 120)
+		healthLabel.Visible = true
+	else
+		local healthObject = playerModel:FindFirstChild("Health")
+		if healthObject then
+			local healthValue = math.floor(healthObject.Value)
+			local displayHealth = healthValue
+			
+			if characterName == "Sonic" or characterName == "SuperSonic" then
+				local dodgeObject = playerModel:FindFirstChild("Dodges")
+				if dodgeObject then
+					local dodgeValue = math.floor(dodgeObject.Value)
+					displayHealth = healthValue + dodgeValue
+					if dodgeValue > 0 then
+						healthLabel.TextColor3 = Color3.fromRGB(135, 206, 235)
+						data.wasUsingDodges = true
+					elseif data.wasUsingDodges then
+						data.wasUsingDodges = false
+						-- Revert to dynamic health color (Rainbow for Super Sonic, Standard for others)
+						TweenService:Create(healthLabel, TweenInfo.new(0.3), {TextColor3 = getHealthColor(healthValue, maxHealth, characterName)}):Play()
+					else
+						healthLabel.TextColor3 = getHealthColor(healthValue, maxHealth, characterName)
+					end
+				else
+					healthLabel.TextColor3 = getHealthColor(healthValue, maxHealth, characterName)
+				end
+			else
+				healthLabel.TextColor3 = getHealthColor(healthValue, maxHealth, characterName)
+			end
+			
+			healthLabel.Text = "HP: " .. displayHealth
+			healthLabel.Visible = true
+		else
+			healthLabel.Visible = false
+		end
+	end
+end
+
+local function setupPlayer(playerModel)
+	if not playerModel:IsA("Model") or highlightedPlayers[playerModel] then return end
+	
+	local characterName = playerModel:GetAttribute("Character")
+	if not characterName then return end
+	
+	local highlight = createHighlight(playerModel)
+	local billboard = createBillboardGui(playerModel)
+	if not billboard then return end
+	
+	local textLabel = billboard:FindFirstChild("HealthLabel")
+	if not textLabel then return end
+	
+	highlightedPlayers[playerModel] = {
+		highlight = highlight,
+		billboard = billboard,
+		textLabel = textLabel,
+		model = playerModel,
+		prevStunDur = playerModel:GetAttribute("StunDur") or 0,
+		immunityEndTime = 0,
+		wasUsingDodges = false,
+		-- Metal Sonic heal tracking
+		metalLastHealth = nil,
+		metalHealCount = 0,
+		metalLastHealTime = 0,
+		metalCycleStart = 0
+	}
+	
+	monitorHighlightChanges(playerModel, highlightedPlayers[playerModel])
+	updateLabel(playerModel)
+	
+	local obs = {"Health", "Rage", "Dodges", "Fever", "Energy", "Ammo"}
+	for _, name in pairs(obs) do
+		local obj = playerModel:FindFirstChild(name)
+		if obj and obj:IsA("NumberValue") then
+			obj.Changed:Connect(function()
+				updateLabel(playerModel)
+			end)
+		end
+	end
+	
+	local playerObj = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild(playerModel.Name)
+	if playerObj then
+		local extObs = {}
+		if characterName == "TailsDoll" then table.insert(extObs, "Mines") end
+		if characterName == "Tails" then table.insert(extObs, "Charge") end
+		if characterName == "Shadow" then table.insert(extObs, "Ammo") end
+		
+		for _, vName in pairs(extObs) do
+			local val = playerObj:FindFirstChild(vName)
+			if val and val:IsA("NumberValue") then
+				val.Changed:Connect(function() updateLabel(playerModel) end)
+			end
+		end
+	end
+	
+	playerModel:GetAttributeChangedSignal("Character"):Connect(function() updateLabel(playerModel) end)
+	playerModel:GetAttributeChangedSignal("StunDur"):Connect(function() updateLabel(playerModel) end)
+end
+
+local function cleanupPlayer(playerModel)
+	local data = highlightedPlayers[playerModel]
+	if data then
+		if data.highlight then data.highlight:Destroy() end
+		if data.billboard then data.billboard:Destroy() end
+		highlightedPlayers[playerModel] = nil
+	end
+end
+
+local function setupMine(union)
+	if trackedMines[union] then return end
+	
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "MineLabel"
+	billboard.Adornee = union
+	billboard.Size = UDim2.new(0, 50, 0, 19)
+	billboard.AlwaysOnTop = true
+	billboard.StudsOffset = Vector3.new(0, 2, 0)
+	
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.TextColor3 = Color3.fromRGB(0, 100, 0)
+	label.Text = "MINE"
+	label.TextScaled = true
+	label.Font = Enum.Font.SourceSansBold
+	label.TextStrokeTransparency = 0.5
+	label.Parent = billboard
+	billboard.Parent = union
+	
+	trackedMines[union] = {part = union, position = union.Position}
+end
+
+local function cleanupMine(union)
+	local data = trackedMines[union]
+	if data then
+		local part = Instance.new("Part")
+		part.Size = Vector3.new(2, 2, 2)
+		part.Position = data.position
+		part.Anchored = true
+		part.CanCollide = false
+		part.Transparency = 1
+		part.Parent = workspace
+		
+		local billboard = Instance.new("BillboardGui")
+		billboard.Name = "ExplodedLabel"
+		billboard.Adornee = part
+		billboard.Size = UDim2.new(0, 90, 0, 19)
+		billboard.AlwaysOnTop = true
+		billboard.StudsOffset = Vector3.new(0, 2, 0)
+		
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.new(1, 0, 1, 0)
+		label.BackgroundTransparency = 1
+		label.TextColor3 = Color3.fromRGB(0, 100, 0)
+		label.Text = "EXPLODED"
+		label.TextScaled = true
+		label.Font = Enum.Font.SourceSansBold
+		label.TextStrokeTransparency = 0.5
+		label.Parent = billboard
+		billboard.Parent = part
+		
+		task.delay(1, function()
+			if part and part.Parent then part:Destroy() end
+		end)
+		
+		trackedMines[union] = nil
+	end
+end
+
+local function setupChasetrap(trap)
+	if not trap:FindFirstChild("ChasetrapHighlight") then
+		local highlight = Instance.new("Highlight")
+		highlight.Name = "ChasetrapHighlight"
+		highlight.FillColor = Color3.fromRGB(0, 100, 0)
+		highlight.OutlineColor = Color3.fromRGB(0, 100, 0)
+		highlight.FillTransparency = 0.7
+		highlight.OutlineTransparency = 0.4
+		highlight.Parent = trap
+	end
+end
+
+-- Projectile tracking loop
+task.spawn(function()
+	while true do
+		local projectileFolder = workspace:FindFirstChild("Projectile")
+		if projectileFolder then
+			local chasetrapObj = projectileFolder:FindFirstChild("chasetrap")
+			if chasetrapObj then
+				setupChasetrap(chasetrapObj)
+				for _, child in pairs(chasetrapObj:GetChildren()) do
+					setupChasetrap(child)
+				end
+			end
+			
+			local trapsFolder = projectileFolder:FindFirstChild("Traps")
+			if trapsFolder then
+				local currentMines = {}
+				for _, child in pairs(trapsFolder:GetChildren()) do
+					if child:IsA("UnionOperation") and child.Name == "Union" then
+						setupMine(child)
+						currentMines[child] = true
+					end
+				end
+				
+				for mine in pairs(trackedMines) do
+					if not currentMines[mine] or not mine.Parent then
+						cleanupMine(mine)
+					end
+				end
+			end
+		end
+		task.wait(0.1)
+	end
+end)
+
+-- Player setup loop
+task.spawn(function()
+	while true do
+		local playersFolder = workspace:FindFirstChild("Players")
+		if playersFolder then
+			for _, p in pairs(playersFolder:GetChildren()) do
+				setupPlayer(p)
+			end
+		end
+		task.wait(1)
+	end
+end)
+
+-- Main render loop
+RunService.RenderStepped:Connect(function()
+	local camera = workspace.CurrentCamera
+	if not camera then return end
+	
+	for playerModel, data in pairs(highlightedPlayers) do
+		if not playerModel.Parent then
+			cleanupPlayer(playerModel)
+		else
+			local head = playerModel:FindFirstChild("Head") or playerModel:FindFirstChild("HumanoidRootPart")
+			if head and data.billboard then
+				local distance = (head.Position - camera.CFrame.Position).Magnitude
+				data.billboard.StudsOffset = Vector3.new(0, 8.5 + (distance * 0.05), 0)
+				
+				local immunityRemaining = (data.immunityEndTime or 0) - tick()
+				local characterName = playerModel:GetAttribute("Character")
+				if immunityRemaining > 0 or characterName == "Silver" or characterName == "Blaze" or characterName == "TailsDoll" or characterName == "Tails" or characterName == "2011x" or characterName == "MetalSonic" or characterName == "Metal Sonic" or characterName == "Fleetway" or characterName == "Shadow" or characterName == "SuperSonic" or characterName == "Cream" or characterName == "Knuckles" or characterName == "Kolossos" then
+					updateLabel(playerModel)
+				end
+			end
+		end
+	end
+end)
