@@ -1,0 +1,336 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local ASSET_ID = 119984857583906
+
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local isScriptActive = false
+local syncConn = nil
+local currentMdl = nil
+
+local function loadAsset(id)
+	local ok, objects = pcall(game.GetObjects, game, "rbxassetid://" .. id)
+	if not ok or not objects or #objects == 0 then return nil end
+	return objects[1]:Clone()
+end
+
+local function waitForDodges()
+	while true do
+		local pf = workspace:FindFirstChild("Players")
+		if pf and pf:FindFirstChild(player.Name) and pf:FindFirstChild(player.Name):FindFirstChild("Dodges") then return end
+		task.wait(0.5)
+	end
+end
+
+local HIDE_PARTS = {
+	belly = true,
+	Body = true,
+}
+
+local function setupCharacter(char)
+	if not isScriptActive then return end
+	if syncConn then syncConn:Disconnect() syncConn = nil end
+	if currentMdl and currentMdl.Parent then currentMdl:Destroy() currentMdl = nil end
+
+	local hrp = char:WaitForChild("HumanoidRootPart")
+
+	for _, v in ipairs(char:GetDescendants()) do
+		if v:IsA("BasePart") then
+			v.Transparency = 1
+			if v ~= hrp then v.CanCollide = false end
+		end
+	end
+
+	local playersFolder = workspace:FindFirstChild("Players")
+	local oldVisual = playersFolder and playersFolder:FindFirstChild(player.Name)
+	if oldVisual then
+		for _, v in ipairs(oldVisual:GetDescendants()) do
+			if v:IsA("BasePart") then v.Transparency = 1 end
+		end
+	end
+
+	local mdl = loadAsset(ASSET_ID)
+	if not mdl then warn("me cago en todo1") return end
+
+	local newHrp = mdl:FindFirstChild("HumanoidRootPart")
+	if not newHrp then mdl:Destroy() return end
+	mdl.PrimaryPart = newHrp
+
+	if oldVisual then mdl.Parent = oldVisual else mdl.Parent = char end
+	currentMdl = mdl
+
+	newHrp.Anchored = true
+	newHrp.Transparency = 1
+
+	local mdlHum = mdl:FindFirstChildOfClass("Humanoid")
+	if mdlHum then mdlHum:Destroy() end
+	local mdlAnim = mdl:FindFirstChildOfClass("Animator")
+	if mdlAnim then mdlAnim:Destroy() end
+
+	for _, v in ipairs(mdl:GetDescendants()) do
+		if v:IsA("BasePart") then
+			v.CanCollide = false
+			v.Transparency = HIDE_PARTS[v.Name] and 1 or 0
+		end
+	end
+
+	mdl:PivotTo(hrp.CFrame)
+	task.wait(0.1)
+	newHrp.Transparency = 1
+	local newWaist = mdl:FindFirstChild("Waist", true)
+	if newWaist then newWaist.Transparency = 1 end
+
+	-- MOTOR MAP
+	local motorMap = {}
+	local function buildMotorMap()
+		motorMap = {}
+		for _, oldMotor in ipairs(char:GetDescendants()) do
+			if oldMotor:IsA("Motor6D") then
+				local newMotor = nil
+				if oldMotor.Parent then
+					local mdlParent = mdl:FindFirstChild(oldMotor.Parent.Name, true)
+					if mdlParent then
+						newMotor = mdlParent:FindFirstChild(oldMotor.Name)
+						if not (newMotor and newMotor:IsA("Motor6D")) then newMotor = nil end
+					end
+				end
+				if not newMotor then
+					newMotor = mdl:FindFirstChild(oldMotor.Name, true)
+					if not (newMotor and newMotor:IsA("Motor6D")) then newMotor = nil end
+				end
+				if newMotor then motorMap[oldMotor] = newMotor end
+			end
+		end
+	end
+	buildMotorMap()
+	print("[SKIN] motorMap entries:", (function() local n=0 for _ in pairs(motorMap) do n+=1 end return n end)())
+
+	local isDropDashActive = false
+	local lastImageRectOffset = Vector2.new(0, 0)
+
+	task.spawn(function()
+		local imgGui = player.PlayerGui
+			:WaitForChild("Round", 30)
+		if not imgGui then return end
+		imgGui = imgGui:WaitForChild("Game", 30)
+		if not imgGui then return end
+		imgGui = imgGui:WaitForChild("Ability", 30)
+		if not imgGui then return end
+		imgGui = imgGui:WaitForChild("Bar", 30)
+		if not imgGui then return end
+		imgGui = imgGui:WaitForChild("AB1", 30)
+		if not imgGui then return end
+		imgGui = imgGui:WaitForChild("iMG", 30)
+		if not imgGui then return end
+
+		RunService.Heartbeat:Connect(function()
+			if not imgGui or not imgGui.Parent then return end
+			local currentOffset = imgGui.ImageRectOffset
+			if currentOffset ~= lastImageRectOffset then
+				isDropDashActive = currentOffset ~= Vector2.new(0, 0)
+				lastImageRectOffset = currentOffset
+			end
+		end)
+	end)
+
+	newHrp.CFrame = hrp.CFrame
+
+	syncConn = RunService.Stepped:Connect(function()
+		if not char.Parent or not hrp.Parent or not newHrp.Parent then
+			if syncConn then syncConn:Disconnect() syncConn = nil end
+			return
+		end
+		if not next(motorMap) then buildMotorMap() end
+
+		newHrp.CFrame = hrp.CFrame
+
+		for oldMotor, newMotor in pairs(motorMap) do
+			if oldMotor.Parent and newMotor.Parent then
+				newMotor.Transform = oldMotor.Transform
+			end
+		end
+
+		local pf = workspace:FindFirstChild("Players")
+		local pFolder = pf and pf:FindFirstChild(player.Name)
+		local nativeSpindash = pFolder and pFolder:FindFirstChild("Spindash")
+
+		if isDropDashActive then
+			for _, v in ipairs(mdl:GetDescendants()) do
+				if v:IsA("BasePart") then
+					v.Transparency = 1
+				end
+			end
+			if nativeSpindash then
+				for _, v in ipairs(nativeSpindash:GetDescendants()) do
+					if v:IsA("BasePart") then
+						v.Transparency = 0
+					end
+				end
+			end
+		else
+			
+			for _, v in ipairs(mdl:GetDescendants()) do
+				if v:IsA("BasePart") then
+					v.Transparency = HIDE_PARTS[v.Name] and 1 or 0
+				end
+			end
+		end
+
+		newHrp.Transparency = 1
+		if newWaist then newWaist.Transparency = 1 end
+	end)
+
+	char.DescendantAdded:Connect(function(d)
+		if d:IsA("BasePart") and not d:IsDescendantOf(mdl) then
+			d.Transparency = 1
+			if d ~= hrp then d.CanCollide = false end
+		end
+	end)
+end
+
+local function setupViewport()
+	task.spawn(function()
+		local viewportFrame = player.PlayerGui
+			:WaitForChild("Round", 30)
+			:WaitForChild("Game", 30)
+			:WaitForChild("SurvivorHP", 30)
+			:WaitForChild("ViewportFrame", 30)
+		if not viewportFrame then warn("no hay frame?") return end
+
+		local viewportModel = viewportFrame
+			:WaitForChild("WorldModel", 30)
+			:WaitForChild("Default", 30)
+		if not viewportModel then warn("no hay modelo??") return end
+
+		local vpOverrideModel = nil
+		local function replaceViewportModel()
+			local ok, objects = pcall(game.GetObjects, game, "rbxassetid://" .. ASSET_ID)
+			if not ok or #objects == 0 then
+				warn("me cago en todo2")
+				return
+			end
+			if vpOverrideModel and vpOverrideModel.Parent then
+				vpOverrideModel:Destroy()
+				vpOverrideModel = nil
+			end
+			local newModel = objects[1]:Clone()
+			vpOverrideModel = newModel
+
+			for _, part in ipairs(viewportModel:GetDescendants()) do
+				if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+					part.Transparency = 1
+				end
+			end
+
+			local newHum = newModel:FindFirstChildOfClass("Humanoid")
+			if newHum then newHum:Destroy() end
+
+			for _, v in ipairs(newModel:GetDescendants()) do
+				if v:IsA("BasePart") then
+					v.CanCollide = false
+					v.Transparency = HIDE_PARTS[v.Name] and 1 or 0
+				end
+			end
+
+			newModel.Parent = viewportModel
+
+			local viewportRootPart = viewportModel:FindFirstChild("HumanoidRootPart")
+			local primaryPart = newModel.PrimaryPart or newModel:FindFirstChildWhichIsA("BasePart")
+			if viewportRootPart and primaryPart then
+				newModel:PivotTo(viewportRootPart.CFrame)
+				primaryPart.Transparency = 1
+				local weld = Instance.new("WeldConstraint")
+				weld.Part0 = viewportRootPart
+				weld.Part1 = primaryPart
+				weld.Parent = viewportRootPart
+			end
+
+			print("[SKIN] viewport reemplazado")
+		end
+
+		replaceViewportModel()
+
+		viewportModel.DescendantAdded:Connect(function()
+			task.wait(0.1)
+			if not vpOverrideModel or not vpOverrideModel.Parent then
+				vpOverrideModel = nil
+				replaceViewportModel()
+			end
+		end)
+
+		player.CharacterAdded:Connect(function()
+			task.wait(3)
+			vpOverrideModel = nil
+			local newVM = viewportFrame:FindFirstChild("WorldModel")
+				and viewportFrame.WorldModel:FindFirstChild("Default")
+			if newVM then
+				viewportModel = newVM
+				replaceViewportModel()
+			end
+		end)
+	end)
+end
+
+-- Start
+waitForDodges()
+task.wait(3)
+isScriptActive = true
+setupCharacter(character)
+setupViewport()
+
+player.CharacterAdded:Connect(function(newChar)
+	character = newChar
+	humanoid = newChar:WaitForChild("Humanoid")
+	task.wait(1)
+	setupCharacter(newChar)
+end)
+
+task.spawn(function()
+	while true do
+		local pf = workspace:FindFirstChild("Players")
+		local playerFolder = pf and pf:FindFirstChild(player.Name)
+		if playerFolder then
+			local defaultFolder = playerFolder:FindFirstChild("Default")
+			if defaultFolder then
+				local waist = defaultFolder:FindFirstChild("Waist")
+				local hrpDefault = defaultFolder:FindFirstChild("HumanoidRootPart")
+				if waist and waist:IsA("BasePart") then waist.Transparency = 1 end
+				if hrpDefault and hrpDefault:IsA("BasePart") then hrpDefault.Transparency = 1 end
+			end
+		end
+		task.wait(0.1)
+	end
+end)
+
+-- M脷SICA
+local function loadCustomAsset(url, filename)
+	if not isfile(filename) then
+		writefile(filename, game:HttpGet(url))
+	end
+	return getcustomasset(filename)
+end
+
+local CUSTOM_MUSIC = loadCustomAsset(
+	"https://github.com/monicagalindo-wq/RECUP/raw/refs/heads/main/Attack.mp3",
+	"Attack.mp3"
+)
+
+task.spawn(function()
+	local theme = game:GetService("ReplicatedStorage")
+		:FindFirstChild("ClientAssets")
+		and game.ReplicatedStorage.ClientAssets:FindFirstChild("Sounds")
+		and game.ReplicatedStorage.ClientAssets.Sounds:FindFirstChild("mus")
+		and game.ReplicatedStorage.ClientAssets.Sounds.mus:FindFirstChild("Game")
+		and game.ReplicatedStorage.ClientAssets.Sounds.mus.Game:FindFirstChild("Round")
+		and game.ReplicatedStorage.ClientAssets.Sounds.mus.Game.Round:FindFirstChild("SoloTheme")
+		and game.ReplicatedStorage.ClientAssets.Sounds.mus.Game.Round.SoloTheme:FindFirstChild("SonicSolo")
+	if not theme then
+		warn("no musica pipipi")
+		return
+	end
+	theme.SoundId = CUSTOM_MUSIC
+	theme.Volume = 1.5
+	theme.Looped = true
+end)
