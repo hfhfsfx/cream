@@ -1,0 +1,31 @@
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local function apply(character)
+    pcall(function()
+        local frame = character:WaitForChild("HumanoidRootPart")
+            :WaitForChild("BillboardGui")
+            :WaitForChild("Frame")
+        local function lockText(label)
+            label.Text = "inf"
+            label:GetPropertyChangedSignal("Text"):Connect(function()
+                if label.Text ~= "inf" then
+                    label.Text = "inf"
+                end
+            end)
+        end
+        lockText(frame:WaitForChild("Amount"))
+        lockText(frame:WaitForChild("Maximum"))
+    end)
+end
+
+if player.Character then apply(player.Character) end
+player.CharacterAdded:Connect(apply)
+
+while task.wait() do
+    pcall(function()
+        player.Character:AddTag("Kill")
+        task.wait()
+        player.Character:RemoveTag("Kill")
+    end)
+end
