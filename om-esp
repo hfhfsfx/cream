@@ -8,8 +8,6 @@ local trackedMines = {}
 
 -- Font size settings
 local fontSizeMultiplier = 1.0
-local MIN_FONT_SIZE = 0.5
-local MAX_FONT_SIZE = 2.0
 
 -- Utility to create colors from Hex
 local function fromHex(hex)
@@ -723,17 +721,18 @@ local function createControlPanel()
 	plusButton.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
 	plusButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	plusButton.Text = "+"
-	plusButton.TextScaled = true	plusButton.Font = Enum.Font.SourceSansBold
+	plusButton.TextScaled = true
+	plusButton.Font = Enum.Font.SourceSansBold
 	plusButton.BorderSizePixel = 0
 	plusButton.Parent = mainFrame
 	
 	minusButton.MouseButton1Click:Connect(function()
-		fontSizeMultiplier = math.max(MIN_FONT_SIZE, fontSizeMultiplier - 0.1)
+		fontSizeMultiplier = fontSizeMultiplier - 0.1
 		refreshFontSizes()
 	end)
 	
 	plusButton.MouseButton1Click:Connect(function()
-		fontSizeMultiplier = math.min(MAX_FONT_SIZE, fontSizeMultiplier + 0.1)
+		fontSizeMultiplier = fontSizeMultiplier + 0.1
 		refreshFontSizes()
 	end)
 	
