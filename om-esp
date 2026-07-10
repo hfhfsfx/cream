@@ -1,9 +1,15 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local highlightedPlayers = {}
 local trackedMines = {}
+
+-- Font size settings
+local fontSizeMultiplier = 1.0
+local MIN_FONT_SIZE = 0.5
+local MAX_FONT_SIZE = 2.0
 
 -- Utility to create colors from Hex
 local function fromHex(hex)
@@ -66,27 +72,16 @@ local function getSuperSonicColor(currentHealth, maxHealth)
 	local t = tick()
 	local healthPerc = math.clamp(currentHealth / maxHealth, 0, 1)
 	
-	-- Logic: "If it starts going down the color switching gets slower and the colors get more muted"
-	
-	-- Speed of the rainbow cycle (Slower at low health)
 	local cycleSpeed = 0.5 + (2.5 * healthPerc)
-	
-	-- Saturation of the color (Muted/White/Grey at low health, Vibrant at max)
 	local saturation = 0.2 + (0.8 * healthPerc)
 	
-	-- Base Rainbow Color
 	local hue = (t * cycleSpeed) % 1
 	local baseColor = Color3.fromHSV(hue, saturation, 1)
 	
-	-- "Fade-in-out flashes white before switching colors"
-	-- Create a flash effect using Sine wave.
-	-- Frequency also scales with health to look erratic at high energy.
 	local flashFreq = 5 + (10 * healthPerc)
 	local flashVal = math.sin(t * flashFreq)
 	
-	-- If the sine wave is at its peak, flash white
 	if flashVal > 0.85 then
-		-- Lerp towards white based on how close to peak
 		local flashAlpha = (flashVal - 0.85) / 0.15 
 		return baseColor:Lerp(Color3.new(1, 1, 1), flashAlpha)
 	else
@@ -97,7 +92,6 @@ end
 local function getHealthColor(health, maxHealth, characterName)
 	maxHealth = maxHealth or 100
 	
-	-- Special Gradient for Fleetway: Gray (0) to Yellow (Max)
 	if characterName == "Fleetway" then
 		if health <= 0 then return Color3.fromRGB(128, 128, 128) end
 		local percentage = math.clamp(health / maxHealth, 0, 1)
@@ -108,7 +102,6 @@ local function getHealthColor(health, maxHealth, characterName)
 		return getSuperSonicColor(health, maxHealth)
 	end
 
-	-- Standard Gradient
 	if health <= 0 then return Color3.fromRGB(255, 0, 0) end
 	
 	if health <= 100 then
@@ -127,7 +120,7 @@ local function createHighlight(character)
 	local highlight = Instance.new("Highlight")
 	highlight.FillColor = Color3.fromRGB(255, 0, 0)
 	highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
-	highlight.FillTransparency = 1 -- 100% Transparent Fill
+	highlight.FillTransparency = 1
 	highlight.OutlineTransparency = 0
 	highlight.Parent = character
 	return highlight
@@ -143,29 +136,27 @@ local function createBillboardGui(character)
 		end
 	end
 	
-	-- Determine if character is EXE/Killer or Survivor
 	local characterName = character:GetAttribute("Character")
 	local isKiller = characterName == "TailsDoll" or characterName == "Kolossos" or characterName == "2011x" or characterName == "Fleetway"
 	
-	-- Font Selection
-	local font = Enum.Font.Garamond -- Default Survivor Font
+	local font = Enum.Font.Garamond
 	
 	if isKiller then
-		font = Enum.Font.Antique -- Killer Font
+		font = Enum.Font.Antique
 	elseif characterName == "SuperSonic" then
-		font = Enum.Font.Fondamento -- Super Sonic Font
+		font = Enum.Font.Fondamento
 	end
 	
 	local billboardGui = Instance.new("BillboardGui")
 	billboardGui.Name = "ESPLabel"
 	billboardGui.Adornee = head
-	billboardGui.Size = UDim2.new(0, 200, 0, 75)
+	billboardGui.Size = UDim2.new(0, 200 * fontSizeMultiplier, 0, 75 * fontSizeMultiplier)
 	billboardGui.AlwaysOnTop = true
 	
 	local topLabel = Instance.new("TextLabel")
 	topLabel.Name = "TopLabel"
 	topLabel.Size = UDim2.new(1, 0, 0.31, 0)
-	topLabel.Position = UDim2.new(0, 0, 0, 4)
+	topLabel.Position = UDim2.new(0, 0, 0, 4 * fontSizeMultiplier)
 	topLabel.BackgroundTransparency = 1
 	topLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 	topLabel.TextScaled = true
@@ -189,7 +180,7 @@ local function createBillboardGui(character)
 	local healthLabel = Instance.new("TextLabel")
 	healthLabel.Name = "HealthLabel"
 	healthLabel.Size = UDim2.new(1, 0, 0.31, 0)
-	healthLabel.Position = UDim2.new(0, 0, 0.66, -4)
+	healthLabel.Position = UDim2.new(0, 0, 0.66, -4 * fontSizeMultiplier)
 	healthLabel.BackgroundTransparency = 1
 	healthLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 	healthLabel.TextScaled = true
@@ -232,6 +223,25 @@ local function monitorHighlightChanges(playerModel, data)
 	end)
 end
 
+local function refreshFontSizes()
+	for playerModel, data in pairs(highlightedPlayers) do
+		if data.billboard and data.billboard.Parent then
+			data.billboard.Size = UDim2.new(0, 200 * fontSizeMultiplier, 0, 75 * fontSizeMultiplier)
+			
+			local topLabel = data.billboard:FindFirstChild("TopLabel")
+			local nameLabel = data.billboard:FindFirstChild("NameLabel")
+			local healthLabel = data.billboard:FindFirstChild("HealthLabel")
+			
+			if topLabel then
+				topLabel.Position = UDim2.new(0, 0, 0, 4 * fontSizeMultiplier)
+			end
+			if healthLabel then
+				healthLabel.Position = UDim2.new(0, 0, 0.66, -4 * fontSizeMultiplier)
+			end
+		end
+	end
+end
+
 local function updateLabel(playerModel)
 	local data = highlightedPlayers[playerModel]
 	if not data or not data.textLabel or not data.textLabel.Parent then return end
@@ -239,7 +249,6 @@ local function updateLabel(playerModel)
 	local characterName = playerModel:GetAttribute("Character")
 	local stunDur = playerModel:GetAttribute("StunDur") or 0
 	
-	-- Max health calculation
 	local maxHealth = 100
 	if characterName == "Shadow" then
 		maxHealth = 165
@@ -253,10 +262,8 @@ local function updateLabel(playerModel)
 		maxHealth = 105
 	end
 
-	-- Colors
 	local nameColor, fillColor, outlineColor = getCharacterColors(characterName)
 	
-	-- Super Sonic Dynamic Colors
 	if characterName == "SuperSonic" then
 		local healthObj = playerModel:FindFirstChild("Health")
 		local currentHealth = healthObj and healthObj.Value or 100
@@ -271,7 +278,6 @@ local function updateLabel(playerModel)
 		data.highlight.OutlineColor = outlineColor
 	end
 	
-	-- Stun immunity tracking
 	if stunDur > 0 then
 		data.immunityEndTime = 0
 	elseif data.prevStunDur and data.prevStunDur > 0 and stunDur == 0 then
@@ -286,7 +292,6 @@ local function updateLabel(playerModel)
 	local healthLabel = data.billboard:FindFirstChild("HealthLabel")
 	if not nameLabel or not healthLabel or not topLabel then return end
 	
-	-- Display name
 	local displayName = characterName
 	if characterName == "MetalSonic" then displayName = "Metal Sonic"
 	elseif characterName == "TailsDoll" then displayName = "Tripwire"
@@ -297,7 +302,6 @@ local function updateLabel(playerModel)
 	nameLabel.Text = displayName
 	nameLabel.TextColor3 = nameColor
 	
-	-- === FLEETWAY SPECIAL LOGIC START ===
 	if characterName == "Fleetway" then
 		local immunityRemaining = (data.immunityEndTime or 0) - tick()
 		if stunDur > 0 then
@@ -323,9 +327,7 @@ local function updateLabel(playerModel)
 		end
 		return
 	end
-	-- === FLEETWAY SPECIAL LOGIC END ===
 	
-	-- Standard Top Label Logic
 	if characterName == "Shadow" then
 		local shadowPlayer = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild(playerModel.Name)
 		if shadowPlayer then
@@ -489,7 +491,6 @@ local function updateLabel(playerModel)
 		topLabel.Visible = false
 	end
 	
-	-- Standard Health Label Logic (Handles Stun for non-Fleetway)
 	local immunityRemaining = (data.immunityEndTime or 0) - tick()
 	if stunDur > 0 then
 		healthLabel.Text = string.format("%.1f", stunDur)
@@ -515,7 +516,6 @@ local function updateLabel(playerModel)
 						data.wasUsingDodges = true
 					elseif data.wasUsingDodges then
 						data.wasUsingDodges = false
-						-- Revert to dynamic health color (Rainbow for Super Sonic, Standard for others)
 						TweenService:Create(healthLabel, TweenInfo.new(0.3), {TextColor3 = getHealthColor(healthValue, maxHealth, characterName)}):Play()
 					else
 						healthLabel.TextColor3 = getHealthColor(healthValue, maxHealth, characterName)
@@ -556,7 +556,6 @@ local function setupPlayer(playerModel)
 		prevStunDur = playerModel:GetAttribute("StunDur") or 0,
 		immunityEndTime = 0,
 		wasUsingDodges = false,
-		-- Metal Sonic heal tracking
 		metalLastHealth = nil,
 		metalHealCount = 0,
 		metalLastHealTime = 0,
@@ -610,7 +609,7 @@ local function setupMine(union)
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "MineLabel"
 	billboard.Adornee = union
-	billboard.Size = UDim2.new(0, 50, 0, 19)
+	billboard.Size = UDim2.new(0, 50 * fontSizeMultiplier, 0, 19 * fontSizeMultiplier)
 	billboard.AlwaysOnTop = true
 	billboard.StudsOffset = Vector3.new(0, 2, 0)
 	
@@ -642,7 +641,7 @@ local function cleanupMine(union)
 		local billboard = Instance.new("BillboardGui")
 		billboard.Name = "ExplodedLabel"
 		billboard.Adornee = part
-		billboard.Size = UDim2.new(0, 90, 0, 19)
+		billboard.Size = UDim2.new(0, 90 * fontSizeMultiplier, 0, 19 * fontSizeMultiplier)
 		billboard.AlwaysOnTop = true
 		billboard.StudsOffset = Vector3.new(0, 2, 0)
 		
@@ -677,7 +676,82 @@ local function setupChasetrap(trap)
 	end
 end
 
--- Projectile tracking loop
+local function createControlPanel()
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "ESPSettings"
+	screenGui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+	
+	local mainFrame = Instance.new("Frame")
+	mainFrame.Name = "MainPanel"
+	mainFrame.Size = UDim2.new(0, 100, 0, 70)
+	mainFrame.Position = UDim2.new(0, 10, 0.5, -35)
+	mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+	mainFrame.BackgroundTransparency = 0.15
+	mainFrame.BorderSizePixel = 0
+	mainFrame.Active = true
+	mainFrame.Draggable = true
+	mainFrame.Parent = screenGui
+	
+	local blur = Instance.new("BlurEffect")
+	blur.Size = 8
+	blur.Parent = mainFrame
+	
+	local sizeLabel = Instance.new("TextLabel")
+	sizeLabel.Size = UDim2.new(1, 0, 0, 20)
+	sizeLabel.Position = UDim2.new(0, 0, 0, 5)
+	sizeLabel.BackgroundTransparency = 1
+	sizeLabel.Text = "透视字体大小"
+	sizeLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+	sizeLabel.TextScaled = true
+	sizeLabel.Font = Enum.Font.SourceSans
+	sizeLabel.Parent = mainFrame
+	
+	local minusButton = Instance.new("TextButton")
+	minusButton.Size = UDim2.new(0, 35, 0, 30)
+	minusButton.Position = UDim2.new(0, 8, 0.45, 0)
+	minusButton.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+	minusButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	minusButton.Text = "−"
+	minusButton.TextScaled = true
+	minusButton.Font = Enum.Font.SourceSansBold
+	minusButton.BorderSizePixel = 0
+	minusButton.Parent = mainFrame
+	
+	local plusButton = Instance.new("TextButton")
+	plusButton.Size = UDim2.new(0, 35, 0, 30)
+	plusButton.Position = UDim2.new(0, 57, 0.45, 0)
+	plusButton.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+	plusButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	plusButton.Text = "+"
+	plusButton.TextScaled = true	plusButton.Font = Enum.Font.SourceSansBold
+	plusButton.BorderSizePixel = 0
+	plusButton.Parent = mainFrame
+	
+	minusButton.MouseButton1Click:Connect(function()
+		fontSizeMultiplier = math.max(MIN_FONT_SIZE, fontSizeMultiplier - 0.1)
+		refreshFontSizes()
+	end)
+	
+	plusButton.MouseButton1Click:Connect(function()
+		fontSizeMultiplier = math.min(MAX_FONT_SIZE, fontSizeMultiplier + 0.1)
+		refreshFontSizes()
+	end)
+	
+	local function setupButtonHover(button)
+		button.MouseEnter:Connect(function()
+			TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(80, 80, 100)}):Play()
+		end)
+		button.MouseLeave:Connect(function()
+			TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 60, 80)}):Play()
+		end)
+	end
+	
+	setupButtonHover(minusButton)
+	setupButtonHover(plusButton)
+	
+	return mainFrame
+end
+
 task.spawn(function()
 	while true do
 		local projectileFolder = workspace:FindFirstChild("Projectile")
@@ -711,7 +785,6 @@ task.spawn(function()
 	end
 end)
 
--- Player setup loop
 task.spawn(function()
 	while true do
 		local playersFolder = workspace:FindFirstChild("Players")
@@ -724,7 +797,6 @@ task.spawn(function()
 	end
 end)
 
--- Main render loop
 RunService.RenderStepped:Connect(function()
 	local camera = workspace.CurrentCamera
 	if not camera then return end
@@ -747,3 +819,11 @@ RunService.RenderStepped:Connect(function()
 		end
 	end
 end)
+
+task.wait(1)
+if Players.LocalPlayer and Players.LocalPlayer:FindFirstChild("PlayerGui") then
+	createControlPanel()
+else
+	Players.LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("PlayerGui") 
+	createControlPanel()
+end
