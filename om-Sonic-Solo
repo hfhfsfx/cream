@@ -1,0 +1,14 @@
+local function loadCustomAsset(url, filename)
+    if not isfile(filename) then
+        writefile(filename, game:HttpGet(url))
+    end
+    return getcustomasset(filename)
+end
+
+local CUSTOM_MUSIC = loadCustomAsset(
+    "https://raw.githubusercontent.com/hfhfsfx/cream/main/DON'T-BLINK.mp3",
+    "DON'T-BLINK.mp3"
+)
+
+game:GetService("ReplicatedStorage")
+    .ClientAssets.Sounds.mus.Game.Round.SoloTheme.SonicSolo.SoundId = CUSTOM_MUSIC
