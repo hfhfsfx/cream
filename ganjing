@@ -1,0 +1,212 @@
+--[[
+    MarkyXploitss Optimizer (Full Release)
+    - UI: Wide & Slim with Rainbow Border
+    - FPS: Enhanced Large Display
+    - GFX: Fixed real-time optimization (updates as you move)
+    - NOTIFS: Tiny wide pop-ups for feature toggles
+    - Panel scaled down 2x (all sizes and positions reduced proportionally)
+]]
+
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local UIStroke = Instance.new("UIStroke")
+local Title = Instance.new("TextLabel")
+local FPSLabel = Instance.new("TextLabel")
+local ToggleBtn = Instance.new("TextButton")
+local UltraSoonBtn = Instance.new("TextButton")
+local DiscordBtn = Instance.new("TextButton")
+local YTBtn = Instance.new("TextButton")
+local Corner = Instance.new("UICorner")
+
+-- Logic Variables
+local GFX_Enabled = false
+local OriginalSettings = {}
+
+-- Root UI Setup
+ScreenGui.Parent = (CoreGui or Players.LocalPlayer:WaitForChild("PlayerGui"))
+ScreenGui.Name = "MarkyXploitss_Optimizer"
+
+-- Main Frame Setup (Size halved: 250x210 -> 125x105, position adjusted accordingly)
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+MainFrame.Position = UDim2.new(0.5, -62, 0.5, -52)  -- Offset halved
+MainFrame.Size = UDim2.new(0, 125, 0, 105)          -- Size halved
+MainFrame.BackgroundTransparency = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+Corner.CornerRadius = UDim.new(0, 2)                -- Corner radius halved
+Corner.Parent = MainFrame
+
+-- Slim Rainbow Border (Thickness slightly reduced)
+UIStroke.Parent = MainFrame
+UIStroke.Color = Color3.fromRGB(255, 0, 0)
+UIStroke.Thickness = 0.8                            -- 1.5 -> 0.8 (approx halved)
+UIStroke.Transparency = 0
+UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+-- Tiny Wide Notification System (Size halved)
+local function CreateNotification(msg)
+    local NotifFrame = Instance.new("Frame")
+    local NotifCorner = Instance.new("UICorner")
+    local NotifStroke = Instance.new("UIStroke")
+    local NotifText = Instance.new("TextLabel")
+
+    NotifFrame.Size = UDim2.new(0, 80, 0, 15)        -- 160x30 -> 80x15
+    NotifFrame.Position = UDim2.new(1, 20, 1, -45)   -- Initial position unchanged, but later offsets adjusted
+    NotifFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    NotifFrame.Parent = ScreenGui
+
+    NotifCorner.CornerRadius = UDim.new(0, 2)        -- Corner radius halved
+    NotifCorner.Parent = NotifFrame
+
+    NotifStroke.Parent = NotifFrame
+    NotifStroke.Color = Color3.fromRGB(0, 170, 255)
+    NotifStroke.Thickness = 0.6                      -- 1.2 -> 0.6
+
+    NotifText.Size = UDim2.new(1, -10, 1, 0)
+    NotifText.Position = UDim2.new(0, 5, 0, 0)
+    NotifText.BackgroundTransparency = 1
+    NotifText.Font = Enum.Font.GothamBold
+    NotifText.Text = msg
+    NotifText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    NotifText.TextSize = 6                           -- 8 -> 6 (approx halved)
+    NotifText.Parent = NotifFrame
+
+    -- Notification travel distance also reduced for visual consistency
+    -- Original: from (1,20) to (1,-170), now width halved, target x offset adjusted to about -85
+    NotifFrame:TweenPosition(UDim2.new(1, -85, 1, -22), "Out", "Quart", 0.4, true)
+    
+    task.delay(2.5, function()
+        if NotifFrame then
+            NotifFrame:TweenPosition(UDim2.new(1, 20, 1, -22), "In", "Quart", 0.4, true)
+            task.wait(0.4)
+            NotifFrame:Destroy()
+        end
+    end)
+end
+
+-- Fixed Low GFX Engine (Cleans parts mid-game) -- Logic unchanged
+local function CleanPart(v)
+    if not v:IsA("BasePart") and not v:IsA("Decal") and not v:IsA("Texture") then return end
+    if v:IsDescendantOf(Players.LocalPlayer.Character) then return end
+
+    if GFX_Enabled then
+        if v:IsA("BasePart") then
+            OriginalSettings[v] = {Material = v.Material, Reflectance = v.Reflectance}
+            v.Material = Enum.Material.SmoothPlastic
+            v.Reflectance = 0
+        elseif v:IsA("Decal") or v:IsA("Texture") then
+            if v.Name ~= "face" then
+                OriginalSettings[v] = {Transparency = v.Transparency}
+                v.Transparency = 1
+            end
+        end
+    end
+end
+
+game.DescendantAdded:Connect(function(v)
+    if GFX_Enabled then task.wait(0.1) CleanPart(v) end
+end)
+
+local function ToggleGFX()
+    GFX_Enabled = not GFX_Enabled
+    if GFX_Enabled then
+        settings().Rendering.QualityLevel = 1
+        for _, v in pairs(game:GetDescendants()) do CleanPart(v) end
+        ToggleBtn.Text = "LOW GFX: ON"
+        ToggleBtn.TextColor3 = Color3.fromRGB(0, 255, 127)
+        CreateNotification("Graphics Optimized")
+    else
+        settings().Rendering.QualityLevel = 0
+        for obj, props in pairs(OriginalSettings) do
+            if obj and obj.Parent then
+                for prop, val in pairs(props) do obj[prop] = val end
+            end
+        end
+        OriginalSettings = {}
+        ToggleBtn.Text = "LOW GFX: OFF"
+        ToggleBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
+        CreateNotification("Graphics Restored")
+    end
+end
+
+-- UI Component Setup (All sizes and positions reduced proportionally)
+local function BuildUI()
+    Title.Parent = MainFrame
+    Title.BackgroundTransparency = 1
+    Title.Position = UDim2.new(0, 0, 0, 4)           -- 8 -> 4
+    Title.Size = UDim2.new(1, 0, 0, 10)             -- 20 -> 10
+    Title.Font = Enum.Font.GothamBold
+    Title.Text = "MarkyXploitss Optimizer"
+    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Title.TextSize = 6                              -- 11 -> 6 (approx halved)
+
+    -- Large FPS Counter (Size halved)
+    FPSLabel.Parent = MainFrame
+    FPSLabel.BackgroundTransparency = 1
+    FPSLabel.Position = UDim2.new(0, 0, 0, 13)      -- 26 -> 13
+    FPSLabel.Size = UDim2.new(1, 0, 0, 12)          -- 25 -> 12
+    FPSLabel.Font = Enum.Font.GothamBold
+    FPSLabel.Text = "FPS: ..."
+    FPSLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    FPSLabel.TextSize = 7                           -- 14 -> 7
+
+    local function SetupBtn(btn, text, pos, color, locked)
+        btn.Parent = MainFrame
+        btn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+        btn.Position = pos
+        btn.Size = UDim2.new(0.9, 0, 0, 14)          -- 28 -> 14
+        btn.Font = Enum.Font.GothamBold
+        btn.Text = text
+        btn.TextColor3 = color
+        btn.TextSize = 5                             -- 9 -> 5 (approx halved)
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 2)  -- 4 -> 2
+        if locked then 
+            btn.BackgroundTransparency = 0.6 
+            btn.TextTransparency = 0.5 
+        end
+    end
+
+    -- Buttons with adjusted spacing (Position offsets also reduced accordingly)
+    SetupBtn(ToggleBtn, "LOW GFX: OFF", UDim2.new(0.05, 0, 0.32, 0), Color3.fromRGB(255, 80, 80))
+    SetupBtn(UltraSoonBtn, "ULTRA LOW GFX (SOON)", UDim2.new(0.05, 0, 0.48, 0), Color3.fromRGB(150, 150, 150), true)
+    SetupBtn(DiscordBtn, "COPY DISCORD", UDim2.new(0.05, 0, 0.64, 0), Color3.fromRGB(200, 200, 200))
+    SetupBtn(YTBtn, "COPY YOUTUBE", UDim2.new(0.05, 0, 0.80, 0), Color3.fromRGB(200, 200, 200))
+end
+
+-- Rainbow & FPS Threads (Logic unchanged)
+task.spawn(function()
+    local hue = 0
+    while task.wait() do
+        hue = hue + 0.005
+        if hue > 1 then hue = 0 end
+        UIStroke.Color = Color3.fromHSV(hue, 1, 1)
+    end
+end)
+
+task.spawn(function()
+    while task.wait(1) do
+        local fps = math.floor(1 / RunService.RenderStepped:Wait())
+        FPSLabel.Text = "FPS: " .. fps
+    end
+end)
+
+-- Main Execution
+BuildUI()
+
+ToggleBtn.MouseButton1Click:Connect(ToggleGFX)
+UltraSoonBtn.MouseButton1Click:Connect(function() CreateNotification("Coming Soon") end)
+DiscordBtn.MouseButton1Click:Connect(function() 
+    if setclipboard then setclipboard("https://discord.gg/mHJeX2Acn") end 
+    DiscordBtn.Text = "COPIED" task.wait(1) DiscordBtn.Text = "COPY DISCORD" 
+end)
+YTBtn.MouseButton1Click:Connect(function() 
+    if setclipboard then setclipboard("https://youtube.com/@markyxploitssofficial") end 
+    YTBtn.Text = "COPIED" task.wait(1) YTBtn.Text = "COPY YOUTUBE" 
+end)
