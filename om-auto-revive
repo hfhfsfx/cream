@@ -1,0 +1,23 @@
+--[[
+	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+]]
+local ProximityPromptService = game:GetService("ProximityPromptService")
+
+-- SETTINGS
+local REVIVE_DELAY = 0.02-- seconds (change if needed)
+
+ProximityPromptService.PromptShown:Connect(function(prompt)
+    if not prompt.Enabled then return end
+    if prompt.ActionText ~= "Revive" then return end
+
+    task.delay(REVIVE_DELAY, function()
+        if prompt and prompt.Enabled then
+            -- instant hold
+            prompt.HoldDuration = 0
+
+            pcall(function()
+                fireproximityprompt(prompt)
+            end)
+        end
+    end)
+end)
