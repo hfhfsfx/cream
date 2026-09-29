@@ -1,0 +1,2196 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local SCRIPT_VERSION = 5.5
+
+local function createWaitingText()
+	local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "WaitingGui"
+	screenGui.ResetOnSpawn = false
+	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	screenGui.Parent = playerGui
+
+	local waitingLabel = Instance.new("TextLabel")
+	waitingLabel.Size = UDim2.new(0, 400, 0, 60)
+	waitingLabel.Position = UDim2.new(0.5, -200, 0.5, -30)
+	waitingLabel.BackgroundTransparency = 1
+	waitingLabel.Text = "waiting for sonic"
+	waitingLabel.TextSize = 36
+	waitingLabel.Font = Enum.Font.GothamBold
+	waitingLabel.TextScaled = false
+	waitingLabel.Parent = screenGui
+
+	local glow = Instance.new("ImageLabel")
+	glow.Size = UDim2.new(1, 20, 1, 20)
+	glow.Position = UDim2.new(0, -10, 0, -10)
+	glow.BackgroundTransparency = 1
+	glow.Image = "rbxassetid://5028857082"
+	glow.ImageColor3 = Color3.new(1, 1, 1)
+	glow.ImageTransparency = 0.5
+	glow.ZIndex = waitingLabel.ZIndex - 1
+	glow.Parent = waitingLabel
+
+	local hue = 0
+	local connection
+	connection = RunService.Heartbeat:Connect(function()
+		hue = (hue + 0.01) % 1
+		local color = Color3.fromHSV(hue, 0.50, 1)
+		waitingLabel.TextColor3 = color
+		glow.ImageColor3 = color
+	end)
+
+	return screenGui, connection
+end
+
+local function waitForSonic()
+	local waitingGui, connection = createWaitingText()
+	while true do
+		local found = false
+		for _, player in Players:GetPlayers() do
+			local path = workspace:FindFirstChild("Players")
+			if path then
+				local playerFolder = path:FindFirstChild(player.Name)
+				if playerFolder and playerFolder:FindFirstChild("Dodges") then
+					found = true
+					break
+				end
+			end
+		end
+		if found then
+			if connection then connection:Disconnect() end
+			if waitingGui then waitingGui:Destroy() end
+			return
+		end
+		task.wait(0.1)
+	end
+end
+
+local function applyHyperVisuals(char)
+    local hue = 0
+    local parts = {}
+    
+    for _, name in ipairs({
+    "Cube.001","Cube.002","Cube.003","Cube.004","Ear1","Ear2","normal","hed","faceplate","face","mask","Spine","Chest","Pelvis","Back",
+    "Body","LArm1","LArm2","LArm3","LArm4","LArm5",
+    "LFoot1","LFoot2","LFoot3","LFoot4","LFoot5",
+    "RArm1","RArm2","RArm3","RArm4","RArm5",
+    "RLeg1","RLeg2","RLeg3","RLeg4","RLeg5",
+    "left backspike","right backspike","tail"
+}) do
+    local p = (char:FindFirstChild("hed") and char.hed:FindFirstChild(name)) or char:FindFirstChild(name)
+    if p and p:IsA("BasePart") then
+		rainbow = Color3.fromHSV(hue, 0.45, 1)
+    	p.Material = Enum.Material.Neon
+       	table.insert(parts, p)
+		
+    end
+end
+ 
+    RunService.Heartbeat:Connect(function(dt)
+        hue = (hue + dt * 1.2) % 1
+        local rainbow = Color3.fromHSV(hue, 0.45, 1)
+        
+        for _, p in ipairs(parts) do
+            p.Color = rainbow
+        end
+        
+        for _, d in ipairs(char:GetDescendants()) do
+            if d:IsA("BasePart") and d.Name == "Spindash" then
+                d.Color = rainbow
+                d.Material = Enum.Material.Neon
+            elseif d:IsA("Trail") or d:IsA("Beam") then
+                d.Color = ColorSequence.new(rainbow)
+            end
+        end
+    end)
+end
+
+waitForSonic()
+
+local function applyHyperVisuals(char)
+    local hue = 0
+
+    RunService.Heartbeat:Connect(function(dt)
+        hue = (hue + dt * 1.2) % 1
+        local rainbow = Color3.fromHSV(hue, 0.45, 1)
+
+        for _, d in ipairs(char:GetDescendants()) do
+            if d:IsA("BasePart") then
+                d.Color = rainbow
+                d.Material = Enum.Material.Neon
+            elseif d:IsA("Trail") or d:IsA("Beam") then
+                d.Color = ColorSequence.new(rainbow)
+            end
+        end
+    end)
+end
+
+local function applyHyperVisuals(char)
+    local hue = 0
+
+    local excludedNames = {
+        -- Pene y cara
+        belly = true,
+        muzzl = true,
+        nose = true,
+        eye1 = true,
+        eye2 = true,
+        eyes = true,
+
+        -- Brazos y manos
+        LArm1 = true, LArm2 = true, LArm3 = true, LArm4 = true, LArm5 = true, LSleeve = true,
+        RArm1 = true, RArm2 = true, RArm3 = true, RArm4 = true, RArm5 = true, RSleeve = true,
+        ["Left Hand"] = true, ["Right Hand"] = true,
+        LThumb1 = true, LThumb2 = true,
+        RThumb1 = true, RThumb2 = true,
+        LIndex1 = true, LIndex2 = true,
+        RIndex1 = true, RIndex2 = true,
+        LMiddle1 = true, LMiddle2 = true,
+        RMiddle1 = true, RMiddle2 = true,
+        LPinky1 = true, LPinky2 = true,
+        RPinky1 = true, RPinky2 = true,
+
+        -- Zapatos
+        LFoot = true, LFoot1 = false, LFoot2 = false, LFoot3 = false, LFoot4 = false, LFoot5 = false,
+        RFoot = true,
+
+        -- la mierda esa blanca del zapato
+        ["Sphere.003"] = true,
+		["Sphere.017"] = true,
+        ["Sphere.030"] = true,
+        ["Sphere.010"] = true,
+        ["Sphere.006"] = true,
+        ["Sphere.007"] = true
+    }
+
+    RunService.Heartbeat:Connect(function(dt)
+        hue = (hue + dt * 1.2) % 1
+        local rainbow = Color3.fromHSV(hue, 0.50, 1)
+
+        for _, d in ipairs(char:GetDescendants()) do
+            if d:IsA("BasePart") and not excludedNames[d.Name] then
+                d.Color = rainbow
+                d.Material = Enum.Material.Neon
+            elseif d:IsA("Trail") or d:IsA("Beam") then
+                d.Color = ColorSequence.new(rainbow)
+            end
+        end
+    end)
+end
+
+local function playChaosEmeraldIntro(loadRestCallback)
+	local player = Players.LocalPlayer
+	local char = player.Character or player.CharacterAdded:Wait()
+	local rootPart = char:WaitForChild("HumanoidRootPart")
+
+	local chaosEmeraldsId = 132942718178268
+	local success, objects = pcall(game.GetObjects, game, "rbxassetid://" .. chaosEmeraldsId)
+	if not success or #objects == 0 then
+		warn("FTL CHAOS EMERALDS")
+		return
+	end
+	local chaosModel = objects[1]:Clone()
+	chaosModel.Name = "ChaosEmeraldsIntro"
+	chaosModel.Parent = workspace
+
+	local emeralds = {}
+	for _, obj in ipairs(chaosModel:GetDescendants()) do
+		if obj:IsA("MeshPart") then
+			table.insert(emeralds, obj)
+			obj.CanCollide = false
+			obj.Anchored = false
+		end
+	end
+
+	local radius = 8
+	local angleStep = (2 * math.pi) / #emeralds
+	for i, emerald in ipairs(emeralds) do
+		local angle = i * angleStep
+		local x = math.cos(angle) * radius
+		local z = math.sin(angle) * radius
+		emerald.Position = rootPart.Position + Vector3.new(x, 2, z)
+	end
+
+	local spinSpeed = 1
+	local maxSpinSpeed = 10
+	local spinAcceleration = 1.8
+	local spinTime = 0
+	local maxSpinTime = 10
+
+	local spinConnection
+	spinConnection = RunService.Heartbeat:Connect(function(deltaTime)
+		spinTime += deltaTime
+		if spinSpeed < maxSpinSpeed then
+			spinSpeed = math.min(spinSpeed + spinAcceleration * deltaTime, maxSpinSpeed)
+		end
+		for i, emerald in ipairs(emeralds) do
+			local angle = (i * angleStep) + (spinTime * spinSpeed)
+			local x = math.cos(angle) * radius
+			local z = math.sin(angle) * radius
+			emerald.Position = rootPart.Position + Vector3.new(x, 2, z)
+		end
+		if spinTime >= maxSpinTime then
+			spinConnection:Disconnect()
+			for _, emerald in ipairs(emeralds) do
+				local targetPos = rootPart.Position + Vector3.new(0, 1, 0)
+				local tween = TweenService:Create(emerald, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+					Position = targetPos
+				})
+				tween:Play()
+			end
+			task.wait(0.4)
+			local thunderSound = workspace:FindFirstChild("LMSThunder")
+			if thunderSound then
+				thunderSound:Play()
+			end
+			local playerGui = player:WaitForChild("PlayerGui")
+			local flashGui = Instance.new("ScreenGui")
+			flashGui.Name = "TransformationFlash"
+			flashGui.ResetOnSpawn = false
+			flashGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+			flashGui.Parent = playerGui
+			local flashFrame = Instance.new("Frame")
+			flashFrame.Size = UDim2.new(1, 0, 1, 0)
+			flashFrame.Position = UDim2.new(0, 0, 0, 0)
+			flashFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			flashFrame.BackgroundTransparency = 1
+			flashFrame.BorderSizePixel = 0
+			flashFrame.Parent = flashGui
+			local flashIn = TweenService:Create(flashFrame, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				BackgroundTransparency = 0
+			})
+			local flashOut = TweenService:Create(flashFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				BackgroundTransparency = 1
+			})
+			flashIn:Play()
+			flashIn.Completed:Connect(function()
+				flashOut:Play()
+				flashOut.Completed:Connect(function()
+					flashGui:Destroy()
+				end)
+			end)
+			task.wait(0.5)
+			if chaosModel and chaosModel.Parent then
+				chaosModel:Destroy()
+			end
+			if loadRestCallback then
+ 			   loadRestCallback()
+			end
+
+			task.wait(0.1)
+			applyHyperVisuals(char)
+		end
+	end)
+end
+
+local function loadRest()
+	task.spawn(function()
+		local targetId = "rbxassetid://136212496176401"
+		local replacementId = "rbxassetid://139781718376707"
+		local thunderSound = workspace:FindFirstChild("LMSThunder")
+		if not thunderSound then
+			thunderSound = Instance.new("Sound")
+			thunderSound.Name = "LMSThunder"
+			thunderSound.SoundId = "rbxassetid://6734393210"
+			thunderSound.Volume = 1
+			thunderSound.Parent = workspace
+		end
+		local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+		local screenGui = Instance.new("ScreenGui")
+		screenGui.Name = "ThunderstrikeEffect"
+		screenGui.ResetOnSpawn = false
+		screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		screenGui.Parent = playerGui
+		local flashFrame = Instance.new("Frame")
+		flashFrame.Size = UDim2.new(1, 0, 1, 0)
+		flashFrame.Position = UDim2.new(0, 0, 0, 0)
+		flashFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		flashFrame.BackgroundTransparency = 1
+		flashFrame.BorderSizePixel = 0
+		flashFrame.Parent = screenGui
+		local function createLightningBolt()
+			local lightning = Instance.new("Frame")
+			lightning.BorderSizePixel = 0
+			lightning.BackgroundColor3 = Color3.fromRGB(200, 200, 255)
+			lightning.Parent = screenGui
+			local startX = math.random(0, 1)
+			local startY = 0
+			local endX = startX + (math.random(-0.3, 0.3))
+			local endY = 1
+			local currentX = startX
+			local currentY = startY
+			for i = 1, 5 do
+				local nextX = currentX + (endX - startX) / 5 + (math.random(-0.1, 0.1))
+				local nextY = currentY + (endY - startY) / 5
+				local segment = Instance.new("Frame")
+				segment.BorderSizePixel = 0
+				segment.BackgroundColor3 = Color3.fromRGB(200, 200, 255)
+				local length = math.sqrt((nextX - currentX)^2 + (nextY - currentY)^2)
+				local angle = math.atan2(nextY - currentY, nextX - currentX)
+				segment.Size = UDim2.new(0, length * screenGui.AbsoluteSize.X, 0, math.random(2, 6))
+				segment.Position = UDim2.new(currentX, 0, currentY, 0)
+				segment.Rotation = math.deg(angle)
+				segment.Parent = lightning
+				currentX = nextX
+				currentY = nextY
+			end
+			return lightning
+		end
+		local function thunderstrike()
+			thunderSound:Play()
+			local lightnings = {}
+			for i = 1, math.random(2, 4) do
+				local lightning = createLightningBolt()
+				table.insert(lightnings, lightning)
+			end
+			local flashIn = TweenService:Create(flashFrame, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				BackgroundTransparency = 0
+			})
+			local flashOut = TweenService:Create(flashFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				BackgroundTransparency = 1
+			})
+			flashIn:Play()
+			flashIn.Completed:Connect(function()
+				flashOut:Play()
+			end)
+			task.delay(0.1, function()
+				for _, lightning in ipairs(lightnings) do
+					if lightning and lightning.Parent then
+						lightning:Destroy()
+					end
+				end
+			end)
+		end
+		local wasPlaying = false
+		while true do
+			local theme = workspace:FindFirstChild("Assets") and workspace.Assets:FindFirstChild("Songs") and workspace.Assets.Songs:FindFirstChild("Theme80s")
+			if theme then
+				if theme.SoundId == targetId then
+					theme.SoundId = replacementId
+					theme.Volume = 2
+					theme.Looped = true
+					theme.TimePosition = 1
+					theme.PlaybackSpeed = 0.99
+					theme:Play()
+				end
+				if theme.SoundId == replacementId and theme.IsPlaying then
+					if theme.TimePosition >= theme.TimeLength - 0.2 then
+						theme.TimePosition = 1
+					end
+				end
+				local isPlaying = theme.IsPlaying
+				if isPlaying and not wasPlaying then
+					thunderstrike()
+				end
+				wasPlaying = isPlaying
+			end
+			task.wait(0.2)
+		end
+	end)
+
+	task.spawn(function()
+		local LMSVoices = workspace:FindFirstChild("Trollface laugh")
+		if not LMSVoices then
+			LMSVoices = Instance.new("Sound")
+			LMSVoices.Name = "LMSVoices"
+		end
+		LMSVoices.Volume = 0.8
+		LMSVoices.PlaybackSpeed = 1.1
+		LMSVoices.Parent = workspace
+
+		local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+		local survivorsGui = Instance.new("ScreenGui")
+		survivorsGui.Name = "SurvivorsLMS"
+		survivorsGui.ResetOnSpawn = false
+		survivorsGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		survivorsGui.Parent = playerGui
+
+		local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+		task.wait(0.1)
+
+		local imageData = {
+			{time = 100, id = "rbxassetid://130535056871189", position = UDim2.new(0.85, 0, 0.3, 0)},
+			{time = 105.5, id = "rbxassetid://134385725896369", position = UDim2.new(0.85, 0, 0.5, 0)},
+			{time = 110.9, id = "rbxassetid://78729983278720", position = UDim2.new(0.85, 0, 0.4, 0)},
+			{time = 114.5, id = "rbxassetid://126434676467453", position = UDim2.new(0.85, 0, 0.6, 0)},
+			{time = 120, id = "rbxassetid://108643637794395", position = UDim2.new(0.85, 0, 0.2, 0)},
+			{time = 125.5, id = "rbxassetid://118293343783035", position = UDim2.new(0.85, 0, 0.1, 0)}
+		}
+
+		local displayedImages = {}
+		local allImagesDisplayed = false
+		local finalImageTime = 0
+
+		local function thunderstrike()
+			local thunderSound = workspace:FindFirstChild("LMSThunder")
+			if thunderSound then
+				thunderSound:Play()
+			end
+			local flashFrame = survivorsGui:FindFirstChild("ThunderFlash")
+			if not flashFrame then
+				flashFrame = Instance.new("Frame")
+				flashFrame.Name = "ThunderFlash"
+				flashFrame.Size = UDim2.new(1, 0, 1, 0)
+				flashFrame.Position = UDim2.new(0, 0, 0, 0)
+				flashFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+				flashFrame.BackgroundTransparency = 1
+				flashFrame.BorderSizePixel = 0
+				flashFrame.Parent = survivorsGui
+			end
+			local flashIn = TweenService:Create(flashFrame, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				BackgroundTransparency = 0
+			})
+			local flashOut = TweenService:Create(flashFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				BackgroundTransparency = 1
+			})
+			flashIn:Play()
+			flashIn.Completed:Connect(function()
+				flashOut:Play()
+			end)
+		end
+
+		local function showImage(imageData)
+			if isMobile then
+				for _, existingImage in ipairs(survivorsGui:GetChildren()) do
+					if existingImage:IsA("ImageLabel") then
+						existingImage:Destroy()
+					end
+				end
+			end
+			local imageLabel = Instance.new("ImageLabel")
+			if isMobile then
+				imageLabel.Size = UDim2.new(0, 25, 0, 25)
+				local mobilePos = imageData.position
+				mobilePos.X.Scale = mobilePos.X.Scale - 0.15
+				mobilePos.Y.Scale = mobilePos.Y.Scale - 0.05
+				imageLabel.Position = mobilePos
+			else
+				imageLabel.Size = UDim2.new(0, 150, 0, 150)
+				imageLabel.Position = imageData.position
+			end
+			imageLabel.Image = imageData.id
+			imageLabel.BackgroundTransparency = 1
+			imageLabel.ImageTransparency = 1
+			imageLabel.Parent = survivorsGui
+			local fadeIn = TweenService:Create(imageLabel, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				ImageTransparency = 0.7
+			})
+			fadeIn:Play()
+			table.insert(displayedImages, imageLabel)
+			thunderstrike()
+		end
+
+		local function clearImages()
+			for _, image in ipairs(displayedImages) do
+				if image and image.Parent then
+					local fadeOut = TweenService:Create(image, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+						ImageTransparency = 1
+					})
+					fadeOut:Play()
+					fadeOut.Completed:Connect(function()
+						image:Destroy()
+					end)
+				end
+			end
+			displayedImages = {}
+			allImagesDisplayed = false
+		end
+
+		local voiceClips = {
+			{time = 96.4, id = "rbxassetid://18379039436"},
+			{time = 100, id = "rbxassetid://100201150967075"},
+			{time = 105.5, id = "rbxassetid://4721318688"},
+			{time = 110.9, id = "rbxassetid://6216681427"},
+			{time = 114.5, id = "rbxassetid://4721292472"},
+			{time = 120, id = "rbxassetid://85771528668355"},
+			{time = 125.5, id = "rbxassetid://120582910915795", duration = 3}
+		}
+
+		local songStartTime = 0
+		local playedClips = {}
+		local isPlaying = false
+		local imageShown = {}
+		for i = 1, #imageData do
+			imageShown[i] = false
+		end
+
+		local function resetClips()
+			playedClips = {}
+			for i = 1, #voiceClips do
+				playedClips[i] = false
+			end
+			for i = 1, #imageData do
+				imageShown[i] = false
+			end
+			clearImages()
+		end
+
+		local function playVoiceClip(clip)
+			LMSVoices.SoundId = clip.id
+			LMSVoices:Play()
+			if clip.duration then
+				task.delay(clip.duration, function()
+					if LMSVoices.IsPlaying and LMSVoices.SoundId == clip.id then
+						LMSVoices:Stop()
+					end
+				end)
+			end
+		end
+
+		while true do
+			local theme = workspace:FindFirstChild("Assets") and workspace.Assets:FindFirstChild("Songs") and workspace.Assets.Songs:FindFirstChild("Theme80s")
+			if theme then
+				if theme.IsPlaying and not isPlaying then
+					songStartTime = tick()
+					isPlaying = true
+					resetClips()
+				elseif not theme.IsPlaying and isPlaying then
+					isPlaying = false
+				end
+				if isPlaying then
+					local elapsedTime = (tick() - songStartTime) * theme.PlaybackSpeed
+					for i, clip in ipairs(voiceClips) do
+						if not playedClips[i] and elapsedTime >= clip.time then
+							playVoiceClip(clip)
+							playedClips[i] = true
+							if i > 1 and i-1 <= #imageData and not imageShown[i-1] then
+								showImage(imageData[i-1])
+								imageShown[i-1] = true
+								-- checking if final image
+								if i-1 == #imageData then
+									allImagesDisplayed = true
+									finalImageTime = tick()
+									-- final thunder
+									task.delay(11, function()
+										if allImagesDisplayed then
+											thunderstrike()
+											task.delay(0.5, function()
+												clearImages()
+											end)
+										end
+									end)
+								end
+							end
+						end
+					end
+					if elapsedTime >= 150 then
+						resetClips()
+						if theme.Looped then
+							songStartTime = tick()
+						end
+					end
+				end
+			end
+			task.wait(0.05)
+		end
+	end)
+
+	local player = Players.LocalPlayer
+	local char = player.Character or player.CharacterAdded:Wait()
+	local rootPart = char:WaitForChild("HumanoidRootPart")
+	local humanoid = char:WaitForChild("Humanoid")
+	task.wait(0.1)
+
+	for _, d in ipairs(char:GetDescendants()) do
+	    if d:IsA("Trail") then
+    	    d.Enabled = true
+    	    d.Color = ColorSequence.new(Color3.fromHSV(0.50, 0.5, 1)) -- para cambiar color
+	    elseif d:IsA("Beam") then
+    	    d.Enabled = true
+    	    d.Color = ColorSequence.new(Color3.fromHSV(0.50, 0.5, 1))
+	    end
+	end
+	local function applyHyperVisuals(char)
+	    local hue = 0
+
+	    RunService.Heartbeat:Connect(function(dt)
+    	    hue = (hue + dt * 1.2) % 1
+    	    local rainbow = Color3.fromHSV(hue, 0.45, 1)
+
+	        for _, d in ipairs(char:GetDescendants()) do
+       		    if d:IsA("BasePart") then
+        	        d.Color = rainbow
+        	        d.Material = Enum.Material.Neon
+        	    elseif d:IsA("Trail") or d:IsA("Beam") then
+        	        d.Color = ColorSequence.new(rainbow)
+        	    end
+        	end
+   		end)
+	end
+
+
+	player.CharacterAdded:Connect(function(newChar)
+		char = newChar
+		rootPart = char:WaitForChild("HumanoidRootPart")
+		humanoid = char:WaitForChild("Humanoid")
+	end)
+
+	local belly = char:WaitForChild("belly",10)
+	if belly then
+		if belly:FindFirstChildOfClass("PointLight") then belly:FindFirstChildOfClass("PointLight"):Destroy() end
+		local light = Instance.new("PointLight")
+		light.Name = "BronzeGlow"
+		light.Color = Color3.fromHSV(0, 0.45, 1)
+		light.Brightness = 2.5
+		light.Range = 30
+		light.Shadows = true
+		light.Parent = belly
+	end
+
+	local flying = false
+	RunService.Stepped:Connect(function(_,delta)
+		if not flying then
+			if humanoid.MoveDirection.Magnitude > 0 then
+				char:PivotTo(char:GetPivot() + humanoid.MoveDirection * delta * 20)
+			end
+		end
+	end)
+
+	local playerGui = player:WaitForChild("PlayerGui")
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "BronzeFlyGui"
+	screenGui.ResetOnSpawn = false
+	screenGui.Parent = playerGui
+
+	local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+
+	local function createRejoinButton()
+		local rejoinButton = Instance.new("ImageButton")
+		rejoinButton.Name = "Rejoin"
+		if isMobile then
+			rejoinButton.Size = UDim2.new(0, 20, 0, 20)
+			rejoinButton.Position = UDim2.new(1, -25, 0, 0)
+		else
+			rejoinButton.Size = UDim2.new(0, 80, 0, 80)
+			rejoinButton.Position = UDim2.new(1, -100, 0, 20)
+		end
+		rejoinButton.AnchorPoint = Vector2.new(1, 0)
+		rejoinButton.BackgroundTransparency = 1
+		rejoinButton.Image = "rbxassetid://72410974345101"
+		rejoinButton.ImageColor3 = Color3.fromRGB(255, 100, 100)
+		rejoinButton.Parent = screenGui
+
+		local rejoinLabel = Instance.new("TextLabel")
+		if isMobile then
+			rejoinLabel.Size = UDim2.new(1, 0, 0.5, 0)
+			rejoinLabel.Position = UDim2.new(0, 0, 0.8, 0)
+			rejoinLabel.TextSize = 8
+		else
+			rejoinLabel.Size = UDim2.new(1, 0, 0.3, 0)
+			rejoinLabel.Position = UDim2.new(0, 0, 0.9, 0)
+			rejoinLabel.TextSize = 14
+		end
+		rejoinLabel.BackgroundTransparency = 1
+		rejoinLabel.Text = "Rejoin"
+		rejoinLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+		rejoinLabel.Font = Enum.Font.GothamBold
+		rejoinLabel.TextScaled = false
+		rejoinLabel.Parent = rejoinButton
+
+		rejoinButton.MouseButton1Click:Connect(function()
+			game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, Players.LocalPlayer)
+		end)
+
+		return rejoinButton
+	end
+
+	local rejoinButton = createRejoinButton()
+
+	if isMobile then
+		task.spawn(function()
+			while true do
+				task.wait(0.1)
+				if screenGui and screenGui.Parent then
+					local existingButton = screenGui:FindFirstChild("Rejoin")
+					if existingButton and existingButton ~= rejoinButton then
+						existingButton:Destroy()
+					end
+				end
+			end
+		end)
+	end
+
+	local bar = Instance.new("Frame")
+	if isMobile then
+		bar.Size = UDim2.new(0,144,0,192)
+		bar.Position = UDim2.new(0,8,0.5,-96 - 40)
+	else
+		bar.Size = UDim2.new(0,300,0,440)
+		bar.Position = UDim2.new(0,20,0.5,-220)
+	end
+	bar.BackgroundTransparency = 1
+	bar.Parent = screenGui
+
+	local function createButton(x,y,color,name,key)
+		local btn = Instance.new("ImageButton")
+		if isMobile then
+			btn.Size = UDim2.new(0,32,0,32)
+			btn.Position = UDim2.new(0,x,0,y)
+		else
+			btn.Size = UDim2.new(0,80,0,80)
+			btn.Position = UDim2.new(0,x,0,y)
+		end
+		btn.BackgroundTransparency = 1
+		btn.Image = "rbxassetid://72410974345101"
+		btn.ImageColor3 = color
+		btn.Parent = bar
+
+		local nameLbl = Instance.new("TextLabel")
+		nameLbl.Size = UDim2.new(1,0,0.3,0)
+		nameLbl.Position = UDim2.new(0,0,0.9,0)
+		nameLbl.BackgroundTransparency = 1
+		nameLbl.Text = name
+		nameLbl.TextColor3 = color
+		nameLbl.Font = Enum.Font.GothamBold
+		nameLbl.TextScaled = true
+		nameLbl.Parent = btn
+
+		local cdLbl = Instance.new("TextLabel")
+		cdLbl.Size = UDim2.new(1,0,0.5,0)
+		cdLbl.Position = UDim2.new(0.5,0,0.1,0)
+		cdLbl.AnchorPoint = Vector2.new(0.5,0.5)
+		cdLbl.BackgroundTransparency = 1
+		cdLbl.Text = ""
+		cdLbl.TextColor3 = Color3.fromRGB(255,0,0)
+		cdLbl.Font = Enum.Font.GothamBold
+		cdLbl.TextScaled = true
+		cdLbl.Rotation = 45
+		cdLbl.Parent = btn
+
+		local keyLbl = Instance.new("TextLabel")
+		keyLbl.Size = UDim2.new(1,0,0.25,0)
+		keyLbl.Position = UDim2.new(0,0,-0.2,0)
+		keyLbl.BackgroundTransparency = 1
+		keyLbl.Text = key
+		keyLbl.TextColor3 = color
+		keyLbl.Font = Enum.Font.GothamBold
+		keyLbl.TextScaled = true
+		keyLbl.TextXAlignment = Enum.TextXAlignment.Left
+		keyLbl.Parent = btn
+
+		return btn, cdLbl, nameLbl
+	end
+
+	local dropButton, dropCd
+	local lungeButton, lungeCd, lungeName
+	local airstrikeButton, airstrikeCd
+	local speedButton, speedCd
+	local ultimateButton, ultimateCd
+	local stairwayButton, stairwayCd
+	local flyToggleButton, flyToggleName
+
+	if isMobile then
+		local buttonData = {
+			{Color3.fromRGB(0,255,0), "Fake Dropdash (X)", "X"},
+			{Color3.fromRGB(255,215,0), "Airstrike (G)", "G"},
+			{Color3.fromRGB(255,0,0), "Speed Blitz (R)", "R"},
+			{Color3.fromRGB(255,255,50), "Ultimate (T)", "T"},
+			{Color3.fromRGB(50,50,50), "Fortnite (H)", "H"},
+		}
+		local buttonObjs = {}
+		local paddingX = 4
+		local paddingY = 4
+		local buttonsPerRow = 3
+		for i = 1, #buttonData do
+			local row = math.floor((i-1)/buttonsPerRow)
+			local col = (i-1)%buttonsPerRow
+			local x = col * (32 + paddingX)
+			local y = row * (32 + paddingY)
+			local color, name, key = buttonData[i][1], buttonData[i][2], buttonData[i][3]
+			local btn, cdLbl, nameLbl = createButton(x, y, color, name, key)
+			table.insert(buttonObjs, {btn, cdLbl, nameLbl})
+			if i == 1 then dropButton, dropCd = btn, cdLbl
+			elseif i == 2 then airstrikeButton, airstrikeCd = btn, cdLbl
+			elseif i == 3 then speedButton, speedCd = btn, cdLbl
+			elseif i == 4 then ultimateButton, ultimateCd = btn, cdLbl
+			elseif i == 5 then stairwayButton, stairwayCd = btn, cdLbl
+			end
+		end
+		local flyBtnX = (2 + 1) * (32 + paddingX)
+		local flyBtnY = math.floor(1/buttonsPerRow) * (32 + paddingY)
+		flyToggleButton, _, flyToggleName = createButton(flyBtnX, flyBtnY, Color3.fromRGB(0,120,255), "Fly: OFF", "")
+
+		lungeButton = Instance.new("ImageButton")
+		lungeButton.Size = UDim2.new(0, 40, 0, 40)
+		lungeButton.Position = UDim2.new(1, -56, 0.5, -20)
+		lungeButton.AnchorPoint = Vector2.new(0,0)
+		lungeButton.BackgroundTransparency = 1
+		lungeButton.Image = "rbxassetid://72410974345101"
+		lungeButton.ImageColor3 = Color3.fromRGB(160,32,240)
+		lungeButton.Parent = screenGui
+
+		lungeName = Instance.new("TextLabel")
+		lungeName.Size = UDim2.new(1,0,0.3,0)
+		lungeName.Position = UDim2.new(0,0,0.9,0)
+		lungeName.BackgroundTransparency = 1
+		lungeName.Text = "Lunge"
+		lungeName.TextColor3 = Color3.fromRGB(160,32,240)
+		lungeName.Font = Enum.Font.GothamBold
+		lungeName.TextScaled = true
+		lungeName.Parent = lungeButton
+
+		lungeCd = Instance.new("TextLabel")
+		lungeCd.Size = UDim2.new(1,0,0.5,0)
+		lungeCd.Position = UDim2.new(0.5,0,0.1,0)
+		lungeCd.AnchorPoint = Vector2.new(0.5,0.5)
+		lungeCd.BackgroundTransparency = 1
+		lungeCd.Text = ""
+		lungeCd.TextColor3 = Color3.fromRGB(255,0,0)
+		lungeCd.Font = Enum.Font.GothamBold
+		lungeCd.TextScaled = true
+		lungeCd.Rotation = 45
+		lungeCd.Parent = lungeButton
+	else
+		dropButton, dropCd = createButton(0, 0, Color3.fromRGB(0,255,0), "Fake Dropdash (X)", "X")
+		lungeButton, lungeCd, lungeName = createButton(100, 0, Color3.fromRGB(160,32,240), "Lunge: OFF (V)", "V")
+		airstrikeButton, airstrikeCd = createButton(100, 90, Color3.fromRGB(255,215,0), "Airstrike (G)", "G")
+		speedButton, speedCd = createButton(200, 90, Color3.fromRGB(255,0,0), "Speed Blitz (R)", "R")
+		ultimateButton, ultimateCd = createButton(200, 0, Color3.fromRGB(255,255,50), "Ultimate (T)", "T")
+		stairwayButton, stairwayCd = createButton(100, 270, Color3.fromRGB(50,50,50), "Fortnite (H)", "H")
+	end
+
+	local CONFIG = {
+		AirstrikeCooldown = 25,
+		SpeedBlitzCooldown = 35,
+		BlitzDuration = 3,
+		AirstrikeSpamDuration = 0.5,
+		FloatHeight = 90,
+		FlyDuration = 15,
+		FlyCooldown = 25,
+		FakeDropdashDuration = 10,
+		FakeDropdashCooldown = 25,
+		LungeDistance = 45,
+		LungeDuration = 0.20,
+		LungeCooldown = 1,
+		UltimateDuration = 35,
+		UltimateGravity = 80,
+		UltimateWalkSpeed = 3,
+		TeleportOffsetInFront = 0,
+		StairwayHeight = 20,
+		StairwayRiseTime = 5,
+		StairwayDuration = 30,
+		StairwayCooldown = 0,
+		StairwaySize = Vector3.new(20, 1, 40),
+		StairwayWedgeAngle = 45
+	}
+
+	local airstrikeCooldown = false
+	local speedBlitzCooldown = false
+	local fakeDropdashActive = false
+	local fakeDropdashCooldown = false
+	local lungeToggle = false
+	local lungeOnCooldown = false
+	local ultimateActive = false
+	local ultimateHits = 0
+	local lastHitTime = 0
+	local canGainHit = true
+	local stairwayCooldown = false
+
+	humanoid.JumpPower = 250
+
+	local function findKiller()
+		for _, p in Players:GetPlayers() do
+			if p ~= player and p.Character then
+				local rage = workspace:FindFirstChild("Players")
+					and workspace.Players:FindFirstChild(p.Character.Name)
+					and workspace.Players[p.Character.Name]:FindFirstChild("Rage")
+				local sphere = workspace:FindFirstChild("Players")
+					and workspace.Players:FindFirstChild(p.Character.Name)
+					and workspace.Players[p.Character.Name]:FindFirstChild("Sphere.046")
+				local mines = workspace:FindFirstChild("Players")
+					and workspace.Players:FindFirstChild(p.Character.Name)
+					and workspace.Players[p.Character.Name]:FindFirstChild("Mines")
+				if rage or sphere or mines then
+					return p.Character.HumanoidRootPart
+				end
+			end
+		end
+		return nil
+	end
+
+	local killerHighlight = nil
+	local function highlightKillerRed()
+		if killerHighlight then killerHighlight:Destroy() end
+		local killerRoot = findKiller()
+		if killerRoot and killerRoot.Parent then
+			killerHighlight = Instance.new("Highlight")
+			killerHighlight.FillColor = Color3.fromRGB(255,0,0)
+			killerHighlight.OutlineColor = Color3.fromRGB(255,100,100)
+			killerHighlight.FillTransparency = 0.3
+			killerHighlight.Parent = killerRoot.Parent
+		end
+	end
+
+	local function doTacticalStairway()
+		if stairwayCooldown then return end
+		stairwayCooldown = true
+		task.spawn(function()
+			for i = CONFIG.StairwayCooldown, 1, -1 do
+				stairwayCd.Text = tostring(i)
+				task.wait(1)
+			end
+			stairwayCd.Text = ""
+			stairwayCooldown = false
+		end)
+		local spawnPos = rootPart.Position + rootPart.CFrame.LookVector * 10
+		local wedge = Instance.new("WedgePart")
+		wedge.Name = "TacticalStairway"
+		wedge.Material = Enum.Material.DiamondPlate
+		wedge.Color = Color3.fromRGB(40, 40, 40)
+		wedge.Size = CONFIG.StairwaySize
+		wedge.Anchored = true
+		wedge.CanCollide = true
+		wedge.TopSurface = Enum.SurfaceType.Smooth
+		wedge.BottomSurface = Enum.SurfaceType.Smooth
+		wedge.Parent = workspace
+
+		local cf = CFrame.new(spawnPos)
+			* CFrame.Angles(0, math.rad(360), 0)
+			* CFrame.Angles(math.rad(CONFIG.StairwayWedgeAngle), 0, 0)
+		wedge.CFrame = cf
+
+		local startTime = tick()
+		local shakeConn = RunService.Heartbeat:Connect(function()
+			local elapsed = tick() - startTime
+			if elapsed >= CONFIG.StairwayRiseTime then
+				shakeConn:Disconnect()
+				return
+			end
+			local shakeIntensity = (1 - elapsed / CONFIG.StairwayRiseTime) * 2
+			local shakeX = (math.noise(tick() * 10, 0, 0) - 0.5) * shakeIntensity
+			local shakeY = (math.noise(0, tick() * 10, 0) - 0.5) * shakeIntensity * 2
+			local shakeZ = (math.noise(0, 0, tick() * 10) - 0.5) * shakeIntensity
+			wedge.CFrame = cf * CFrame.new(shakeX, shakeY, shakeZ)
+		end)
+
+		local riseTween = TweenService:Create(
+			wedge,
+			TweenInfo.new(CONFIG.StairwayRiseTime, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+			{CFrame = cf + Vector3.new(0, CONFIG.StairwayHeight, 0)}
+		)
+		riseTween:Play()
+
+		task.delay(CONFIG.StairwayDuration, function()
+			if wedge and wedge.Parent then
+				wedge:Destroy()
+			end
+		end)
+	end
+
+	rootPart.Touched:Connect(function(hit)
+		if not ultimateActive and canGainHit and char:FindFirstChild("Spindash") then
+			local killerRoot = findKiller()
+			if killerRoot and hit:IsDescendantOf(killerRoot.Parent) and hit.CanCollide then
+				local now = tick()
+				if now - lastHitTime >= 0.3 then
+					lastHitTime = now
+					ultimateHits += 1
+					ultimateCd.Text = ultimateHits.."/9"
+					if ultimateHits >= 9 then
+						ultimateCd.Text = "READY"
+						ultimateButton.ImageColor3 = Color3.fromRGB(255,255,100)
+					end
+					canGainHit = false
+					task.delay(0.3, function() canGainHit = true end)
+				end
+			end
+		end
+	end)
+
+	local function activateUltimate()
+		if ultimateActive or ultimateHits < 9 then return end
+		ultimateActive = true
+		ultimateHits = 0
+		ultimateCd.Text = ""
+		ultimateButton.ImageColor3 = Color3.fromRGB(255,255,50)
+		task.spawn(function()
+			pcall(function()
+				player.PlayerGui.Round.Game.RemoteFunction:InvokeServer(2)
+			end)
+		end)
+		highlightKillerRed()
+
+		local rainbowHighlights = {}
+		local rainbowConnections = {}
+
+		local function createRainbowHighlight(part)
+			if not part:IsA("BasePart") then return end
+			local highlight = Instance.new("Highlight")
+			highlight.Name = "UltimateRainbowOutline"
+			highlight.Adornee = part
+			highlight.FillColor = Color3.new(1, 1, 1)
+			highlight.OutlineColor = Color3.new(1, 1, 1)
+			highlight.FillTransparency = 1
+			highlight.OutlineTransparency = 0
+			highlight.Parent = part
+			return highlight
+		end
+
+		for _, part in ipairs(char:GetDescendants()) do
+			if part:IsA("BasePart") then
+				local highlight = createRainbowHighlight(part)
+				if highlight then
+					table.insert(rainbowHighlights, highlight)
+				end
+			end
+		end
+
+		for _, highlight in pairs(rainbowHighlights) do
+			if highlight and highlight.Parent then
+				local hue = 0
+				local connection = RunService.Heartbeat:Connect(function()
+					if not highlight or not highlight.Parent or not ultimateActive then
+						return
+					end
+					hue = (hue + 0.01) % 1
+					local color = Color3.fromHSV(hue, 0.50, 1)
+					highlight.OutlineColor = color
+				end)
+				table.insert(rainbowConnections, connection)
+			end
+		end
+
+		local subtleHl = Instance.new("Highlight", char)
+		subtleHl.FillColor = Color3.new(1,1,1)
+		subtleHl.FillTransparency = 0.95
+		subtleHl.OutlineTransparency = 1
+
+		workspace.Gravity = CONFIG.UltimateGravity
+		CONFIG.LungeCooldown = 0
+
+		local walkConn = RunService.Stepped:Connect(function(_, delta)
+			if not ultimateActive then walkConn:Disconnect() return end
+			char:PivotTo(char:GetPivot() + humanoid.MoveDirection * delta * CONFIG.UltimateWalkSpeed * 60)
+		end)
+
+		task.spawn(function()
+			local partsList = {
+				"Cube.001","Cube.002","Cube.003","Cube.004","Ear1","Ear2","normal",
+				"Body","LArm1","LArm2","LArm3","LArm4","LArm5",
+				"LFoot1","LFoot2","LFoot3","LFoot4","LFoot5",
+				"RArm1","RArm2","RArm3","RArm4","RArm5",
+				"RLeg1","RLeg2","RLeg3","RLeg4","RLeg5",
+				"left backspike","right backspike","tail"
+			}
+			local thingsToChange = {}
+			for _, name in ipairs(partsList) do
+				local part = char:FindFirstChild("hed") and char.hed:FindFirstChild(name) or char:FindFirstChild(name)
+				if part and part:IsA("BasePart") then
+					table.insert(thingsToChange, part)
+				end
+			end
+			for _, obj in ipairs(char:GetDescendants()) do
+				if obj:IsA("Trail") or obj:IsA("Beam") then
+					table.insert(thingsToChange, obj)
+				end
+			end
+			if char:FindFirstChild("Spindash") then
+				for _, obj in char.Spindash:GetDescendants() do
+					if obj:IsA("BasePart") and obj.Material == Enum.Material.Neon then
+						table.insert(thingsToChange, obj)
+					end
+				end
+			end
+			local tweenInfo = TweenInfo.new(5, Enum.EasingStyle.Linear)
+			for _, item in ipairs(thingsToChange) do
+				if item:IsA("BasePart") then
+					TweenService:Create(item, tweenInfo, {Color = Color3.new(1,1,1)}):Play()
+				elseif item:IsA("Trail") or item:IsA("Beam") then
+					TweenService:Create(item, tweenInfo, {Color = ColorSequence.new(Color3.new(1,1,1))}):Play()
+				end
+			end
+		end)
+
+		task.spawn(function()
+			local scaleFactor = 1.1
+			local originalSizes = {}
+			for _, part in ipairs(char:GetDescendants()) do
+				if part:IsA("BasePart") or part:IsA("MeshPart") then
+					originalSizes[part] = part.Size
+					TweenService:Create(part, TweenInfo.new(5), {Size = part.Size * scaleFactor}):Play()
+				end
+			end
+			task.wait(CONFIG.UltimateDuration)
+			for part, origSize in pairs(originalSizes) do
+				if part.Parent then
+					TweenService:Create(part, TweenInfo.new(5), {Size = origSize}):Play()
+				end
+			end
+		end)
+
+		task.delay(CONFIG.UltimateDuration, function()
+			ultimateActive = false
+			if killerHighlight then killerHighlight:Destroy(); killerHighlight = nil end
+			workspace.Gravity = 196.2
+			CONFIG.LungeCooldown = 1
+			for _, highlight in pairs(rainbowHighlights) do
+				if highlight and highlight.Parent then
+					highlight:Destroy()
+				end
+			end
+			for _, connection in pairs(rainbowConnections) do
+				if connection then
+					connection:Disconnect()
+				end
+			end
+			subtleHl:Destroy()
+			ultimateCd.Text = "0/9"
+			if walkConn.Connected then walkConn:Disconnect() end
+			local partsList = {
+				"Cube.001","Cube.002","Cube.003","Cube.004","Ear1","Ear2","normal",
+				"Body","LArm1","LArm2","LArm3","LArm4","LArm5",
+				"LFoot1","LFoot2","LFoot3","LFoot4","LFoot5",
+				"RArm1","RArm2","RArm3","RArm4","RArm5",
+				"RLeg1","RLeg2","RLeg3","RLeg4","RLeg5",
+				"left backspike","right backspike","tail"
+			}
+			local thingsToChange = {}
+			for _, name in ipairs(partsList) do
+				local part = char:FindFirstChild("hed") and char.hed:FindFirstChild(name) or char:FindFirstChild(name)
+				if part and part:IsA("BasePart") then
+					table.insert(thingsToChange, part)
+				end
+			end
+			for _, obj in ipairs(char:GetDescendants()) do
+				if obj:IsA("Trail") or obj:IsA("Beam") then
+					table.insert(thingsToChange, obj)
+				end
+			end
+			if char:FindFirstChild("Spindash") then
+				for _, obj in char.Spindash:GetDescendants() do
+					if obj:IsA("BasePart") and obj.Material == Enum.Material.Neon then
+						table.insert(thingsToChange, obj)
+					end
+				end
+			end
+			local tweenInfo = TweenInfo.new(5, Enum.EasingStyle.Linear)
+			for _, item in ipairs(thingsToChange) do
+				if item:IsA("BasePart") then
+					TweenService:Create(item, tweenInfo, {Color = bronzeColor}):Play()
+				elseif item:IsA("Trail") or item:IsA("Beam") then
+					TweenService:Create(item, tweenInfo, {Color = ColorSequence.new(yellowColor)}):Play()
+				end
+			end
+		end)
+	end
+
+	local function doAirstrike()
+		if airstrikeCooldown then return end
+		airstrikeCooldown = true
+		task.spawn(function()
+			for i = CONFIG.AirstrikeCooldown,1,-1 do
+				airstrikeCd.Text = tostring(i)
+				task.wait(1)
+			end
+			airstrikeCd.Text = ""
+			airstrikeCooldown = false
+		end)
+		task.spawn(function()
+			pcall(function()
+				player.PlayerGui.Round.Game.RemoteFunction:InvokeServer(1)
+			end)
+		end)
+		local highlight = Instance.new("Highlight")
+		highlight.FillColor = yellowColor
+		highlight.OutlineColor = yellowColor
+		highlight.Parent = char
+		task.wait(0.6)
+		if highlight and highlight.Parent then highlight:Destroy() end
+		local highPos = rootPart.Position + Vector3.new(0, CONFIG.FloatHeight, 0)
+		TweenService:Create(rootPart, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = CFrame.new(highPos)}):Play()
+		task.wait(0.7)
+		local killerRoot = findKiller()
+		if not killerRoot then humanoid.PlatformStand = false return end
+		highlightKillerRed()
+		local touchConn = rootPart.Touched:Connect(function(hit)
+			if hit and hit.Parent and hit.Parent:FindFirstChild("Humanoid") and hit.Parent.HumanoidRootPart == killerRoot then
+				task.spawn(function()
+					local stun = killerRoot.Parent:FindFirstChild("Stun") or killerRoot.Parent:FindFirstChild("Humanoid"):FindFirstChild("Stun")
+					if stun and stun:IsA("RemoteEvent") then stun:FireServer() end
+				end)
+			end
+		end)
+		humanoid.PlatformStand = true
+		local endTime = os.clock() + CONFIG.AirstrikeSpamDuration
+		local conn = RunService.Heartbeat:Connect(function()
+			if os.clock() >= endTime then
+				conn:Disconnect()
+				touchConn:Disconnect()
+				humanoid.PlatformStand = false
+				if killerHighlight then killerHighlight:Destroy(); killerHighlight = nil end
+				return
+			end
+			local frontOffset = killerRoot.CFrame.LookVector * CONFIG.TeleportOffsetInFront
+			rootPart.CFrame = killerRoot.CFrame + frontOffset
+		end)
+	end
+
+	local function doSpeedBlitz()
+		if speedBlitzCooldown then return end
+		speedBlitzCooldown = true
+		task.spawn(function()
+			for i = CONFIG.SpeedBlitzCooldown,1,-1 do
+				speedCd.Text = tostring(i)
+				task.wait(1)
+			end
+			speedCd.Text = ""
+			speedBlitzCooldown = false
+		end)
+		task.spawn(function()
+			pcall(function()
+				player.PlayerGui.Round.Game.RemoteFunction:InvokeServer(1)
+			end)
+		end)
+		local redColor = Color3.fromRGB(255,0,0)
+		local highlight = Instance.new("Highlight")
+		highlight.FillColor = redColor
+		highlight.OutlineColor = redColor
+		highlight.Parent = char
+		task.wait(0.5)
+		highlight:Destroy()
+		task.wait(0.5)
+		highlight = Instance.new("Highlight")
+		highlight.FillColor = redColor
+		highlight.OutlineColor = redColor
+		highlight.Parent = char
+		task.wait(0.5)
+		highlight:Destroy()
+		local killerRoot = findKiller()
+		if not killerRoot then humanoid.PlatformStand = false return end
+		highlightKillerRed()
+		local touchConn = rootPart.Touched:Connect(function(hit)
+			if hit and hit.Parent and hit.Parent:FindFirstChild("Humanoid") and hit.Parent.HumanoidRootPart == killerRoot then
+				task.spawn(function()
+					local stun = killerRoot.Parent:FindFirstChild("Stun") or killerRoot.Parent:FindFirstChild("Humanoid"):FindFirstChild("Stun")
+					if stun and stun:IsA("RemoteEvent") then stun:FireServer() end
+				end)
+			end
+		end)
+		humanoid.PlatformStand = true
+		local endTime = os.clock() + CONFIG.BlitzDuration
+		local conn = RunService.Heartbeat:Connect(function()
+			if os.clock() >= endTime then
+				conn:Disconnect()
+				touchConn:Disconnect()
+				humanoid.PlatformStand = false
+				if killerHighlight then killerHighlight:Destroy(); killerHighlight = nil end
+				return
+			end
+			local frontOffset = killerRoot.CFrame.LookVector * CONFIG.TeleportOffsetInFront
+			local randomOffset = Vector3.new(math.random(-5,5), math.random(0,5), math.random(-5,5))
+			rootPart.CFrame = killerRoot.CFrame + frontOffset + randomOffset
+		end)
+	end
+
+	local function doFakeDropdash()
+		if fakeDropdashActive or fakeDropdashCooldown then return end
+		fakeDropdashActive = true
+		fakeDropdashCooldown = true
+		task.spawn(function()
+			for i = CONFIG.FakeDropdashCooldown,1,-1 do dropCd.Text = tostring(i) task.wait(1) end
+			dropCd.Text = ""
+			fakeDropdashCooldown = false
+		end)
+		highlightKillerRed()
+		local hl = Instance.new("Highlight")
+		hl.FillColor = Color3.fromRGB(0,255,0)
+		hl.OutlineColor = Color3.fromRGB(0,255,0)
+		hl.Parent = char
+		local cam = workspace.CurrentCamera
+		cam.FieldOfView = 144
+		if isMobile then
+			humanoid.WalkSpeed = 16
+		else
+			humanoid.WalkSpeed = 0
+		end
+		VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
+		VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.W, false, game)
+		local forwardConn = RunService.Heartbeat:Connect(function(dt)
+			if not fakeDropdashActive then forwardConn:Disconnect() return end
+			rootPart.CFrame += rootPart.CFrame.LookVector * 65 * dt
+		end)
+		local touchConn = rootPart.Touched:Connect(function(hit)
+			-- climb removed ;(
+		end)
+		task.delay(CONFIG.FakeDropdashDuration, function()
+			fakeDropdashActive = false
+			VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
+			VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.W, false, game)
+			hl:Destroy()
+			TweenService:Create(cam, TweenInfo.new(0.6), {FieldOfView = 70}):Play()
+			if forwardConn.Connected then forwardConn:Disconnect() end
+			touchConn:Disconnect()
+			humanoid.WalkSpeed = 16
+			if killerHighlight then killerHighlight:Destroy(); killerHighlight = nil end
+		end)
+	end
+
+	local function toggleLunge()
+		lungeToggle = not lungeToggle
+		lungeName.Text = lungeToggle and "Lunge: ON (V)" or "Lunge: OFF (V)"
+	end
+
+	local function doLunge()
+		if (isMobile or lungeToggle) and not lungeOnCooldown then
+			lungeOnCooldown = true
+			if CONFIG.LungeCooldown > 0 then
+				task.spawn(function()
+					for i = CONFIG.LungeCooldown,1,-1 do lungeCd.Text = tostring(i) task.wait(1) end
+					lungeCd.Text = ""
+					lungeOnCooldown = false
+				end)
+			else
+				task.delay(0.1, function() lungeOnCooldown = false end)
+			end
+			local dir = workspace.CurrentCamera.CFrame.LookVector
+			local target = rootPart.Position + dir * CONFIG.LungeDistance
+			TweenService:Create(rootPart, TweenInfo.new(CONFIG.LungeDuration, Enum.EasingStyle.Quint), {
+				CFrame = CFrame.new(target, target + dir)
+			}):Play()
+		end
+	end
+
+	local flymetertext = true
+	local flyMax = 35
+	local flyMeter = flyMax
+	local flySpeed = 0
+	local flySpeedMax = 150
+	local flyAccel = 60
+	local flyDecel = 80
+	local flyDrainMax = 1
+	local flyDrainIdle = 0.9 / 3
+	local flyDrainSpeed = 1
+	local flyDrainMinSpeed = 100
+	local flyBarTween = nil
+	local flyBarAlpha = 0
+	local flyBarShowTime = 0.3
+	local flyBarHideTime = 0.4
+	local jumpHeld = false
+	local jumpHoldStart = 0
+	local jumpHoldThreshold = 0.3
+	local jumpCooldown = false
+	local flyRegenCooldown = false
+	local flyRegenCooldownTime = 3
+
+	local flyGui = Instance.new("BillboardGui")
+	flyGui.Name = "FlyMeterGui"
+	flyGui.ResetOnSpawn = false
+	flyGui.Adornee = rootPart
+	if isMobile then
+		flyGui.Size = UDim2.new(0, 24, 0, 88)
+	else
+		flyGui.Size = UDim2.new(0, 60, 0, 220)
+	end
+	flyGui.SizeOffset = Vector2.new(0,0)
+	flyGui.StudsOffset = Vector3.new(-4, 0, 0)
+	flyGui.AlwaysOnTop = true
+	flyGui.MaxDistance = 30
+	flyGui.Parent = char
+
+	local flyBarFrame = Instance.new("Frame")
+	if isMobile then
+		flyBarFrame.Size = UDim2.new(0, 8, 0, 88)
+		flyBarFrame.Position = UDim2.new(0, 0, 0.5, -44)
+	else
+		flyBarFrame.Size = UDim2.new(0, 24, 0, 220)
+		flyBarFrame.Position = UDim2.new(0, 0, 0.5, -110)
+	end
+	flyBarFrame.BackgroundTransparency = 1
+	flyBarFrame.AnchorPoint = Vector2.new(0, 0.5)
+	flyBarFrame.Parent = flyGui
+
+	local flyBarBG = Instance.new("Frame")
+	flyBarBG.Size = UDim2.new(1, 0, 1, 0)
+	flyBarBG.Position = UDim2.new(0, 0, 0, 0)
+	flyBarBG.BackgroundColor3 = Color3.fromRGB(30, 30, 60)
+	flyBarBG.BorderSizePixel = 0
+	flyBarBG.BackgroundTransparency = 0.5
+	flyBarBG.Parent = flyBarFrame
+
+	local flyBar = Instance.new("Frame")
+	flyBar.Size = UDim2.new(1, 0, 1, 0)
+	flyBar.Position = UDim2.new(0, 0, 1, 0)
+	flyBar.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+	flyBar.BorderSizePixel = 0
+	flyBar.BackgroundTransparency = 0.1
+	flyBar.Parent = flyBarFrame
+
+	local flyBarText = Instance.new("TextLabel")
+	flyBarText.Size = UDim2.new(1, 0, 0, 16)
+	flyBarText.Position = UDim2.new(0, 0, 1, 4)
+	flyBarText.BackgroundTransparency = 1
+	flyBarText.TextColor3 = Color3.fromRGB(180, 220, 255)
+	flyBarText.Font = Enum.Font.GothamBold
+	flyBarText.TextScaled = true
+	flyBarText.Text = ""
+	flyBarText.Parent = flyBarFrame
+
+	flyBarFrame.Visible = false
+	flyBar.Size = UDim2.new(1, 0, 1, 0)
+	flyBar.BackgroundTransparency = 0.1
+
+	local function setFlyBarVisible(visible)
+		if flyBarTween then flyBarTween:Cancel() end
+		if visible then
+			flyBarFrame.Visible = true
+			flyBarTween = TweenService:Create(flyBarFrame, TweenInfo.new(flyBarShowTime, Enum.EasingStyle.Quad), {BackgroundTransparency = 0})
+			flyBarTween:Play()
+		else
+			flyBarTween = TweenService:Create(flyBarFrame, TweenInfo.new(flyBarHideTime, Enum.EasingStyle.Quad), {BackgroundTransparency = 1})
+			flyBarTween:Play()
+			task.delay(flyBarHideTime, function()
+				flyBarFrame.Visible = false
+			end)
+		end
+	end
+
+	local function updateFlyBar()
+		local percent = math.clamp(flyMeter / flyMax, 0, 1)
+		local barHeight = math.floor(percent * flyBarFrame.AbsoluteSize.Y)
+		flyBar.Size = UDim2.new(1, 0, percent, 0)
+		flyBar.Position = UDim2.new(0, 0, 1 - percent, 0)
+		if flymetertext then
+			flyBarText.Text = string.format("%.1f / %d", flyMeter, flyMax)
+		else
+			flyBarText.Text = ""
+		end
+	end
+
+	local flyConn = nil
+	local bv = nil
+	local bg = nil
+	local flyInertiaDecel = 6
+
+	local function flyStart()
+		if flying or flyMeter <= 0 then return end
+		flying = true
+		setFlyBarVisible(true)
+		local currentVelocity = rootPart.AssemblyLinearVelocity
+		local horizontalSpeed = math.sqrt(currentVelocity.X^2 + currentVelocity.Z^2)
+		flySpeed = math.min(horizontalSpeed, flySpeedMax)
+		bv = Instance.new("BodyVelocity")
+		bv.MaxForce = Vector3.new(1e5,1e5,1e5)
+		bv.Velocity = Vector3.new()
+		bv.Parent = rootPart
+		bg = Instance.new("BodyGyro")
+		bg.MaxTorque = Vector3.new(1e5,1e5,1e5)
+		bg.P = 1e4
+		bg.D = 500
+		bg.CFrame = rootPart.CFrame
+		bg.Parent = rootPart
+		flyConn = RunService.RenderStepped:Connect(function(dt)
+			if not flying then
+				if flyConn then flyConn:Disconnect() flyConn = nil end
+				if bv then bv:Destroy() bv = nil end
+				if bg then bg:Destroy() bg = nil end
+				setFlyBarVisible(false)
+				return
+			end
+			local cam = workspace.CurrentCamera
+			local move = Vector3.new()
+			if isMobile then
+				local moveDir = humanoid.MoveDirection
+				if moveDir.Magnitude > 0 then
+					local camCF = cam.CFrame
+					local localMove = camCF:VectorToObjectSpace(moveDir)
+					local forward = camCF.LookVector * -localMove.Z
+					local right = camCF.RightVector * localMove.X
+					local up = Vector3.new(0, -localMove.Y, 0)
+					move = (forward + right + up).Unit
+				end
+			else
+				if UserInputService:IsKeyDown(Enum.KeyCode.W) then move += cam.CFrame.LookVector end
+				if UserInputService:IsKeyDown(Enum.KeyCode.S) then move -= cam.CFrame.LookVector end
+				if UserInputService:IsKeyDown(Enum.KeyCode.A) then move -= cam.CFrame.RightVector end
+				if UserInputService:IsKeyDown(Enum.KeyCode.D) then move += cam.CFrame.RightVector end
+				if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then move -= Vector3.new(0,1,0) end
+			end
+			local moving = move.Magnitude > 0
+			if moving then
+				flySpeed = math.min(flySpeed + flyAccel * dt, flySpeedMax)
+				bv.Velocity = move * flySpeed
+			else
+				flySpeed = math.max(flySpeed - flyDecel * dt, 0)
+				bv.Velocity = bv.Velocity:Lerp(Vector3.new(), math.clamp(flyInertiaDecel * dt, 0, 1))
+			end
+			bg.CFrame = cam.CFrame
+			local now = tick()
+			if flying then
+				local drain = 0
+				if flySpeed >= flyDrainMinSpeed then
+					drain = flyDrainSpeed * dt
+				else
+					drain = flyDrainIdle * dt
+				end
+				flyMeter = math.max(flyMeter - drain, 0)
+				updateFlyBar()
+				if flyMeter <= 0 then
+					flying = false
+					if not flyRegenCooldown then
+						flyRegenCooldown = true
+						task.delay(flyRegenCooldownTime, function()
+							flyRegenCooldown = false
+						end)
+					end
+				end
+			end
+		end)
+	end
+
+	local function smoothDecelerate(lastVelocity)
+		local decayTime = 0.7
+		local startTime = tick()
+		local bvDecel = Instance.new("BodyVelocity")
+		bvDecel.MaxForce = Vector3.new(1e5,1e5,1e5)
+		bvDecel.Velocity = lastVelocity
+		bvDecel.Parent = rootPart
+		local conn
+		conn = RunService.RenderStepped:Connect(function()
+			local elapsed = tick() - startTime
+			local alpha = math.clamp(1 - (elapsed / decayTime), 0, 1)
+			bvDecel.Velocity = lastVelocity * alpha
+			if alpha <= 0 then
+				if conn then conn:Disconnect() end
+				bvDecel:Destroy()
+			end
+		end)
+	end
+
+	local function flyCancel()
+		if flying then
+			flying = false
+			setFlyBarVisible(false)
+			if flyConn then flyConn:Disconnect() flyConn = nil end
+			local lastVelocity = bv and bv.Velocity or rootPart.Velocity
+			if bv then bv:Destroy() bv = nil end
+			if bg then bg:Destroy() bg = nil end
+			if lastVelocity and lastVelocity.Magnitude > 1 then
+				smoothDecelerate(lastVelocity)
+			end
+		end
+	end
+
+	local function rechargeFlyMeter()
+		task.spawn(function()
+			while true do
+				if not flying and flyMeter < flyMax and not flyRegenCooldown then
+					flyMeter = math.min(flyMeter + flyDrainIdle * 0.5, flyMax)
+					updateFlyBar()
+				end
+				task.wait(0.5)
+			end
+		end)
+	end
+	rechargeFlyMeter()
+
+	local jumpInputActive = false
+	local jumpInputStart = 0
+
+	local function onJumpInputBegan(input, gameProcessed)
+		if not isMobile and input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Space then
+			if not jumpInputActive then
+				jumpInputActive = true
+				jumpInputStart = tick()
+			end
+		end
+	end
+
+	local function onJumpInputEnded(input, gameProcessed)
+		if not isMobile and input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Space then
+			if jumpInputActive then
+				jumpInputActive = false
+				if flying then
+					flyCancel()
+				end
+			end
+		end
+	end
+
+	UserInputService.InputBegan:Connect(onJumpInputBegan)
+	UserInputService.InputEnded:Connect(onJumpInputEnded)
+
+	if isMobile then
+		local function updateFlyToggleButton()
+			if flying then
+				flyToggleButton.ImageColor3 = Color3.fromRGB(0,200,255)
+				flyToggleName.Text = "Fly: ON"
+			else
+				flyToggleButton.ImageColor3 = Color3.fromRGB(0,120,255)
+				flyToggleName.Text = "Fly: OFF"
+			end
+		end
+		flyToggleButton.MouseButton1Click:Connect(function()
+			if flying then
+				flyCancel()
+			else
+				if flyMeter > 0 then
+					flyStart()
+				end
+			end
+			updateFlyToggleButton()
+		end)
+		updateFlyToggleButton()
+	end
+
+	task.spawn(function()
+		while true do
+			if not isMobile then
+				if jumpInputActive and not flying and flyMeter > 0 then
+					local heldTime = tick() - jumpInputStart
+					if heldTime >= jumpHoldThreshold then
+						flyStart()
+					end
+				end
+				if not jumpInputActive and flying then
+					flyCancel()
+				end
+			end
+			task.wait(0.05)
+		end
+	end)
+
+	updateFlyBar()
+
+	task.spawn(function()
+		while true do
+			if flying then
+				setFlyBarVisible(true)
+			else
+				setFlyBarVisible(false)
+			end
+			task.wait(0.1)
+		end
+	end)
+
+	UserInputService.InputBegan:Connect(function(inp, gpe)
+		if gpe then return end
+		if inp.KeyCode == Enum.KeyCode.X then doFakeDropdash()
+		elseif inp.KeyCode == Enum.KeyCode.G then doAirstrike()
+		elseif inp.KeyCode == Enum.KeyCode.R then doSpeedBlitz()
+		elseif inp.KeyCode == Enum.KeyCode.V then toggleLunge()
+		elseif inp.KeyCode == Enum.KeyCode.T then activateUltimate()
+		elseif inp.KeyCode == Enum.KeyCode.H then doTacticalStairway()
+		elseif inp.UserInputType == Enum.UserInputType.MouseButton1 and lungeToggle then doLunge()
+		end
+	end)
+
+	dropButton.MouseButton1Click:Connect(doFakeDropdash)
+	airstrikeButton.MouseButton1Click:Connect(doAirstrike)
+	speedButton.MouseButton1Click:Connect(doSpeedBlitz)
+	if isMobile then
+		lungeButton.MouseButton1Click:Connect(doLunge)
+	else
+		lungeButton.MouseButton1Click:Connect(toggleLunge)
+	end
+	ultimateButton.MouseButton1Click:Connect(activateUltimate)
+	stairwayButton.MouseButton1Click:Connect(doTacticalStairway)
+
+	task.spawn(function()
+		local hed = char:WaitForChild("hed")
+		local cubes = {"Cube.001", "Cube.002", "Cube.003", "Cube.004"}
+		for _, name in ipairs(cubes) do
+			local cube = hed:WaitForChild(name)
+			cube.Size = cube.Size * Vector3.new(1.2, 1.2, 1.2)
+			cube.Position = cube.Position - Vector3.new(0, 0, 0)
+		end
+	end)
+
+	task.spawn(function()
+		while true do
+			local currentColor = ultimateActive and ColorSequence.new(Color3.new(1,1,1)) or ColorSequence.new(yellowColor)
+			for _, obj in ipairs(char:GetDescendants()) do
+				if obj:IsA("Trail") or obj:IsA("Beam") then
+					obj.Enabled = true
+					obj.Color = currentColor
+					obj.LightEmission = 1
+					obj.Brightness = 10
+				end
+			end
+			task.wait(0.1)
+		end
+	end)
+
+	task.spawn(function()
+		local Players = game:GetService("Players")
+		local RunService = game:GetService("RunService")
+		local TweenService = game:GetService("TweenService")
+		local player = Players.LocalPlayer
+		local viewportFrame = player.PlayerGui
+			:WaitForChild("Round", 30)
+			:WaitForChild("Game", 30)
+			:WaitForChild("SurvivorHP", 30)
+			:WaitForChild("ViewportFrame", 30)
+		local viewportModel = viewportFrame
+			:WaitForChild("WorldModel", 30)
+			:WaitForChild("Default", 30)
+		local bronzeColor = Color3.fromRGB(205, 127, 50)
+		local yellowColor = Color3.fromRGB(255, 255, 0)
+		local whiteColor = Color3.new(1, 1, 1)
+		local partNames = {
+			"Cube.001","Cube.002","Cube.003","Cube.004","Ear1","Ear2","normal",
+			"Body","LArm1","LArm2","LArm3","LArm4","LArm5",
+			"LFoot1","LFoot2","LFoot3","LFoot4","LFoot5",
+			"RArm1","RArm2","RArm3","RArm4","RArm5",
+			"RLeg1","RLeg2","RLeg3","RLeg4","RLeg5",
+			"left backspike","right backspike","tail"
+		}
+		local assetId = "110909040273730"
+		local function replaceViewportModel()
+			local ok, objects = pcall(game.GetObjects, game, "rbxassetid://" .. assetId)
+			if not ok or #objects == 0 then
+				warn("FF ASSET:", assetId)
+				return
+			end
+			local newModel = objects[1]:Clone()
+			for _, part in ipairs(viewportModel:GetDescendants()) do
+				if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+					part.Transparency = 1
+				end
+			end
+			newModel.Parent = viewportModel
+			local newHumanoid = newModel:FindFirstChildOfClass("Humanoid")
+			if newHumanoid then
+				newHumanoid:Destroy()
+			end
+			local viewportRootPart = viewportModel:FindFirstChild("HumanoidRootPart")
+			if viewportRootPart then
+				newModel:PivotTo(viewportRootPart.CFrame * CFrame.new(0, 1.4, 0) * CFrame.Angles(math.rad(185), math.rad(200), 0))
+				local primaryPart = newModel.PrimaryPart or newModel:FindFirstChildWhichIsA("BasePart")
+				if primaryPart then
+					local weld = Instance.new("WeldConstraint")
+					weld.Part0 = viewportRootPart
+					weld.Part1 = primaryPart
+					weld.Parent = viewportRootPart
+				end
+			end
+		end
+		replaceViewportModel()
+		local viewportParts = {}
+		local viewportPartsVersion = 0
+		local function rebuildPartList()
+			viewportParts = {}
+			viewportPartsVersion += 1
+			for _, name in ipairs(partNames) do
+				local part = viewportModel:FindFirstChild("hed") and viewportModel.hed:FindFirstChild(name)
+					or viewportModel:FindFirstChild(name)
+				if part and part:IsA("BasePart") then
+					part.Material = Enum.Material.Neon
+					table.insert(viewportParts, part)
+				end
+			end
+			local spindash = viewportModel:FindFirstChild("Spindash")
+			if spindash then
+				for _, obj in spindash:GetDescendants() do
+					if obj:IsA("BasePart") then
+						obj.Material = Enum.Material.Neon
+						table.insert(viewportParts, obj)
+					end
+				end
+			end
+			for _, obj in viewportModel:GetDescendants() do
+				if obj:IsA("Trail") or obj:IsA("Beam") then
+					table.insert(viewportParts, obj)
+				end
+			end
+		end
+		rebuildPartList()
+		viewportModel.DescendantAdded:Connect(function()
+			task.wait(0.1)
+			rebuildPartList()
+		end)
+		task.spawn(function()
+			while task.wait(0.5) do
+				local viewportHed = viewportModel:FindFirstChild("hed")
+				if viewportHed then
+					local eye1 = viewportHed:FindFirstChild("eye1")
+					local eye2 = viewportHed:FindFirstChild("eye2")
+					if eye1 then
+						eye1.Color = Color3.fromRGB(255, 0, 0)
+						eye1.Material = Enum.Material.Neon
+					end
+					if eye2 then
+						eye2.Color = Color3.fromRGB(255, 0, 0)
+						eye2.Material = Enum.Material.Neon
+					end
+				end
+			end
+		end)
+		local function applyBronze()
+			for _, obj in viewportParts do
+				if obj and obj.Parent then
+					if obj:IsA("BasePart") then
+						obj.Color = bronzeColor
+					elseif obj:IsA("Trail") or obj:IsA("Beam") then
+						obj.Enabled = true
+						obj.Color = ColorSequence.new(yellowColor)
+						obj.LightEmission = 1
+						obj.Brightness = 10
+					end
+				end
+			end
+		end
+		local function applyWhite()
+			for _, obj in viewportParts do
+				if obj and obj.Parent then
+					if obj:IsA("BasePart") then
+						TweenService:Create(obj, TweenInfo.new(5, Enum.EasingStyle.Linear), {Color = whiteColor}):Play()
+					elseif obj:IsA("Trail") or obj:IsA("Beam") then
+						TweenService:Create(obj, TweenInfo.new(5, Enum.EasingStyle.Linear), {Color = ColorSequence.new(whiteColor)}):Play()
+					end
+				end
+			end
+		end
+		local function revertToBronze()
+			for _, obj in viewportParts do
+				if obj and obj.Parent then
+					if obj:IsA("BasePart") then
+						TweenService:Create(obj, TweenInfo.new(5, Enum.EasingStyle.Linear), {Color = bronzeColor}):Play()
+					elseif obj:IsA("Trail") or obj:IsA("Beam") then
+						TweenService:Create(obj, TweenInfo.new(5, Enum.EasingStyle.Linear), {Color = ColorSequence.new(yellowColor)}):Play()
+					end
+				end
+			end
+		end
+		applyBronze()
+		local lastState = false
+		RunService.Heartbeat:Connect(function()
+			if ultimateActive and not lastState then
+				lastState = true
+				applyWhite()
+			elseif not ultimateActive and lastState then
+				lastState = false
+				revertToBronze()
+			end
+		end)
+		viewportModel.DescendantAdded:Connect(function()
+			task.wait(0.5)
+			replaceViewportModel()
+		end)
+		player.CharacterAdded:Connect(function(newChar)
+			task.wait(3)
+			viewportModel = viewportFrame:FindFirstChild("WorldModel") and viewportFrame.WorldModel:FindFirstChild("Default")
+			if viewportModel then
+				rebuildPartList()
+				if ultimateActive then
+					applyWhite()
+				else
+					applyBronze()
+				end
+			end
+		end)
+		task.spawn(function()
+			local hasScaled = false
+			while task.wait(1) do
+				local hed = viewportModel:FindFirstChild("hed")
+				if hed and not hasScaled then
+					local scaled = true
+					for _, name in ipairs({"Cube.001", "Cube.002", "Cube.003", "Cube.004"}) do
+						local cube = hed:FindFirstChild(name)
+						if cube and cube:IsA("BasePart") then
+							cube.Size = cube.Size * Vector3.new(1.2, 1.2, 1.2)
+							scaled = scaled and true
+						end
+					end
+					if scaled then
+						hasScaled = true
+					end
+				end
+				if not hed then
+					hasScaled = false
+				end
+			end
+		end)
+	end)
+
+	task.spawn(function()
+		local Players = game:GetService("Players")
+		local ReplicatedStorage = game:GetService("ReplicatedStorage")
+		local player = Players.LocalPlayer
+		local teamsFrame = player.PlayerGui:WaitForChild("Round"):WaitForChild("Game"):WaitForChild("Teams")
+		local playerFrame = teamsFrame:FindFirstChild(player.Name)
+		if not playerFrame then
+			teamsFrame.ChildAdded:Wait():IsA("Frame")
+			playerFrame = teamsFrame:WaitForChild(player.Name)
+		end
+		local characterContainer = playerFrame:WaitForChild("Frame"):WaitForChild("Character")
+		local superSonicIcon = ReplicatedStorage:WaitForChild("ClientAssets"):WaitForChild("Icons"):WaitForChild("SuperSonic")
+		characterContainer:ClearAllChildren()
+		for _, obj in superSonicIcon:GetChildren() do
+			obj:Clone().Parent = characterContainer
+		end
+		characterContainer.BackgroundTransparency = 1
+	end)
+
+	task.spawn(function()
+		local hed = game.Players.LocalPlayer.Character:WaitForChild("hed", 10)
+		if not hed then return end
+		local eye1 = hed:FindFirstChild("eye1")
+		local eye2 = hed:FindFirstChild("eye2")
+		if eye1 then eye1.Color = Color3.fromRGB(255, 0, 0) end
+		if eye2 then eye2.Color = Color3.fromRGB(255, 0, 0) end
+	end)
+
+	local player = Players.LocalPlayer
+	local character = player.Character or player.CharacterAdded:Wait()
+	local humanoid = character:WaitForChild("Humanoid")
+
+	player.CharacterAdded:Connect(function(newCharacter)
+		character = newCharacter
+		humanoid = character:WaitForChild("Humanoid")
+		local hed = character:FindFirstChild("hed")
+		if hed then
+			local joy1 = hed:FindFirstChild("joy1")
+			if joy1 then
+				joy1:Destroy()
+				print("DD JOY1 RS")
+			end
+			local joy2 = hed:FindFirstChild("joy2")
+			if joy2 then
+				joy2:Destroy()
+				print("DD JOY2 RS")
+			end
+		end
+	end)
+
+	local hed = character:FindFirstChild("hed")
+	if hed then
+		local joy1 = hed:FindFirstChild("joy1")
+		if joy1 then
+			joy1:Destroy()
+			print("DD JOY1 I")
+		end
+		local joy2 = hed:FindFirstChild("joy2")
+		if joy2 then
+			joy2:Destroy()
+			print("DD JOY2 I")
+		end
+	end
+
+	local player = Players.LocalPlayer
+	local ASSET_ID = 110909040273730
+	local currentConnection = nil
+
+	local function loadAsset(id)
+		local ok, objects = pcall(game.GetObjects, game, "rbxassetid://" .. id)
+		if not ok or not objects or #objects == 0 then
+			return nil
+		end
+		return objects[1]:Clone()
+	end
+
+	local function setupCharacter(character)
+		if currentConnection then
+			currentConnection:Disconnect()
+			currentConnection = nil
+		end
+		local originalParts = {}
+		for _, v in ipairs(character:GetDescendants()) do
+			if v:IsA("BasePart") then
+				table.insert(originalParts, v)
+			end
+		end
+		for _, part in ipairs(originalParts) do
+			part.Transparency = 1
+		end
+		local players_folder = workspace:FindFirstChild("Players")
+		local old_visual = players_folder and players_folder:FindFirstChild(player.Name)
+		if old_visual then
+			for _, v in ipairs(old_visual:GetDescendants()) do
+				if v:IsA("BasePart") then
+					v.Transparency = 1
+				end
+			end
+		end
+		local mdl = loadAsset(ASSET_ID)
+		if not mdl then
+			return
+		end
+		if old_visual then
+			mdl.Parent = old_visual
+		else
+			mdl.Parent = character
+		end
+		local hrp = character:WaitForChild("HumanoidRootPart", 5)
+		local new_hrp = mdl:WaitForChild("HumanoidRootPart", 5)
+		if not hrp or not new_hrp then
+			mdl:Destroy()
+			return
+		end
+		new_hrp.Anchored = true
+		local humanoid = mdl:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			humanoid:Destroy()
+		end
+		local animator = mdl:FindFirstChildOfClass("Animator")
+		if animator then
+			animator:Destroy()
+		end
+		local normal = mdl:FindFirstChild("normal", true)
+		local faceParts = {}
+		local relativeCFrames = {}
+		if normal and normal:IsA("BasePart") then
+			faceParts = {
+				eye1 = mdl:FindFirstChild("eye1", true),
+				eye2 = mdl:FindFirstChild("eye2", true),
+				muzzl = mdl:FindFirstChild("muzzl", true),
+				nose = mdl:FindFirstChild("nose", true),
+				Ear1 = mdl:FindFirstChild("Ear1", true),
+				Ear2 = mdl:FindFirstChild("Ear2", true)
+			}
+			for name, part in pairs(faceParts) do
+				if part and part:IsA("BasePart") then
+					relativeCFrames[name] = normal.CFrame:Inverse() * part.CFrame
+				end
+			end
+		end
+		for _, v in ipairs(mdl:GetDescendants()) do
+			if v:IsA("BasePart") then
+				v.CanCollide = false
+				v.Transparency = 0
+			end
+		end
+		new_hrp.Transparency = 1
+		local angry = mdl:FindFirstChild("angry", true)
+		if angry and angry:IsA("BasePart") then
+			angry.Transparency = 1
+		end
+		local new_head = mdl:FindFirstChild("Head")
+		if new_head and new_head:IsA("BasePart") then
+			new_head.Transparency = 1
+		end
+		local waist = mdl:FindFirstChild("Waist", true)
+		if waist and waist:IsA("BasePart") then
+			waist.Transparency = 1
+		end
+		if normal then
+			normal.Transparency = 0
+			normal.CanCollide = false
+			normal.Anchored = true
+		end
+		for name, part in pairs(faceParts) do
+			if part then
+				part.Transparency = 0
+				part.CanCollide = false
+				part.Anchored = true
+			end
+		end
+		local original_hed_normal = nil
+		if old_visual then
+			local hed = old_visual:FindFirstChild("hed")
+			if hed then
+				original_hed_normal = hed:FindFirstChild("normal")
+			end
+		end
+		if new_head then
+			for _, joint in ipairs(mdl:GetDescendants()) do
+				if joint:IsA("Motor6D") or joint:IsA("Weld") or joint:IsA("WeldConstraint") then
+					local part0 = joint.Part0 or joint.PartA
+					local part1 = joint.Part1 or joint.PartB
+					if (part0 == new_head or part1 == new_head) then
+						local other = (part0 == new_head) and part1 or part0
+						if other and not other:IsDescendantOf(new_head) then
+							joint:Destroy()
+						end
+					end
+				end
+			end
+			new_head.Anchored = true
+		end
+		local motorMap = {}
+		for _, oldMotor in ipairs(character:GetDescendants()) do
+			if oldMotor:IsA("Motor6D") then
+				local newMotor = mdl:FindFirstChild(oldMotor.Name, true)
+				if newMotor and newMotor:IsA("Motor6D") then
+					motorMap[oldMotor] = newMotor
+				end
+			end
+		end
+		new_hrp.CFrame = hrp.CFrame
+		if new_head and original_hed_normal then
+			new_head.CFrame = original_hed_normal.CFrame
+		end
+		if normal and original_hed_normal then
+			normal.CFrame = original_hed_normal.CFrame
+		end
+		for name, part in pairs(faceParts) do
+			if part and relativeCFrames[name] and normal then
+				part.CFrame = normal.CFrame * relativeCFrames[name]
+			end
+		end
+		currentConnection = RunService.Stepped:Connect(function()
+			if not character.Parent or not hrp.Parent or not new_hrp.Parent then
+				if currentConnection then
+					currentConnection:Disconnect()
+					currentConnection = nil
+				end
+				return
+			end
+			new_hrp.CFrame = hrp.CFrame
+			for oldMotor, newMotor in pairs(motorMap) do
+				if oldMotor.Parent and newMotor.Parent then
+					newMotor.Transform = oldMotor.Transform
+				end
+			end
+			if new_head and original_hed_normal and original_hed_normal.Parent then
+				new_head.CFrame = original_hed_normal.CFrame
+			end
+			if normal and original_hed_normal and original_hed_normal.Parent then
+				normal.CFrame = original_hed_normal.CFrame
+			end
+			for name, part in pairs(faceParts) do
+				if part and part.Parent and relativeCFrames[name] and normal then
+					part.CFrame = normal.CFrame * relativeCFrames[name]
+				end
+			end
+		end)
+	end
+
+	if player.Character then
+		setupCharacter(player.Character)
+	end
+	player.CharacterAdded:Connect(setupCharacter)
+end
+
+playChaosEmeraldIntro(loadRest)
+
+local function loadCustomAsset(url, filename)
+	if not isfile(filename) then
+		writefile(filename, game:HttpGet(url))
+	end
+	return getcustomasset(filename)
+end
+
+local DEFAULT_MUSIC = loadCustomAsset(
+	"https://raw.githubusercontent.com/makinmaking/NOMOREGAMES/main/NO%20MORE%20GAMES%20-%20Sonic.exe_%20OUTCOME%20MEMORIES%20UST%20(Super%20Sonic%20THEME).mp3",
+	"default.mp3"
+)
+local RUN_MUSIC = loadCustomAsset(
+	"https://raw.githubusercontent.com/makinmaking/ssda/main/Undefeatable%20(feat.%20Kellin%20Quinn).mp3",
+	"run.mp3"
+)
+
+local theme = game:GetService("ReplicatedStorage")
+	:FindFirstChild("ClientAssets")
+	and game.ReplicatedStorage.ClientAssets:FindFirstChild("Sounds")
+	and game.ReplicatedStorage.ClientAssets.Sounds:FindFirstChild("mus")
+	and game.ReplicatedStorage.ClientAssets.Sounds.mus:FindFirstChild("Game")
+	and game.ReplicatedStorage.ClientAssets.Sounds.mus.Game:FindFirstChild("Round")
+	and game.ReplicatedStorage.ClientAssets.Sounds.mus.Game.Round:FindFirstChild("SoloTheme")
+	and game.ReplicatedStorage.ClientAssets.Sounds.mus.Game.Round.SoloTheme:FindFirstChild("SonicSolo")
+
+if not theme then
+	warn("DD F SL")
+	return
+end
+
+theme.Looped = true
+theme.Volume = 2
+
+if math.random(1, 15) == 1 then
+	theme.SoundId = RUN_MUSIC
+else
+	theme.SoundId = DEFAULT_MUSIC
+end
