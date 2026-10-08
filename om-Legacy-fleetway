@@ -9,6 +9,18 @@ local character = player.Character or player.CharacterAdded:Wait()
 local currentSpindashModel = nil
 local spindashSpinConnection = nil
 
+local function isFleetway()
+	local playersFolder = workspace:FindFirstChild("Players")
+	if not playersFolder then return false end
+	local playerModel = playersFolder:FindFirstChild(player.Name)
+	if not playerModel then return false end
+	return playerModel:GetAttribute("Character") == "Fleetway"
+end
+
+if not isFleetway() then
+	return
+end
+
 local function stopSpindashFollow()
 	if spindashSpinConnection then
 		spindashSpinConnection:Disconnect()
