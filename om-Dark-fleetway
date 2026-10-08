@@ -1,0 +1,389 @@
+-- dont steal my model gng
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+ 
+local function _O(t)
+    local s = ""
+    for _, v in ipairs(t) do
+        s = s .. string.char(v / 2 - 5)
+    end
+    return s
+end
+ 
+local NEW_LAUGH_ID = _O({238, 206, 250, 204, 240, 240, 212, 242, 220, 210, 126, 104, 104, 108, 106, 118, 118, 110, 110, 114, 112, 110, 122, 118, 118, 110, 108, 106})
+local MODEL_ID = _O({238, 206, 250, 204, 240, 240, 212, 242, 220, 210, 126, 104, 104, 120, 114, 122, 112, 110, 108, 112, 106, 106, 110, 110, 108, 116, 106})
+local loadedModel = nil
+ 
+task.spawn(function()
+    while task.wait(1) do
+        local clientAssets = game:GetService("ReplicatedStorage"):FindFirstChild("ClientAssets")
+        local skins = clientAssets
+            and clientAssets:FindFirstChild("Characters")
+            and clientAssets.Characters:FindFirstChild("EXE")
+            and clientAssets.Characters.EXE:FindFirstChild("Fleetway")
+            and clientAssets.Characters.EXE.Fleetway:FindFirstChild("Skins")
+ 
+        if skins then
+            local currentDefault = skins:FindFirstChild("Default")
+            if not currentDefault or not currentDefault:GetAttribute("IsCustomModel") then
+                if not loadedModel then
+                    pcall(function()
+                        loadedModel = game:GetObjects(MODEL_ID)[1]
+                        if loadedModel then
+                            loadedModel.Name = "Default"
+                            loadedModel:SetAttribute("IsCustomModel", true)
+                        end
+                    end)
+                end
+                if loadedModel then
+                    if currentDefault then
+                        currentDefault:Destroy()
+                    end
+                    loadedModel:Clone().Parent = skins
+                end
+            end
+ 
+            local defaultSkin = skins:FindFirstChild("Default")
+            if defaultSkin then
+                for _, obj in ipairs(defaultSkin:GetChildren()) do
+                    if obj:IsA("Sound") and obj.Name:find("Laugh") then
+                        if obj.SoundId ~= NEW_LAUGH_ID then
+                            obj.SoundId = NEW_LAUGH_ID
+                        end
+                    end
+                end
+            end
+        end
+ 
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr.Character then
+                for _, obj in ipairs(plr.Character:GetDescendants()) do
+                    if obj:IsA("Sound") and obj.Name:find("Laugh") then
+                        if obj.SoundId ~= NEW_LAUGH_ID then
+                            obj.SoundId = NEW_LAUGH_ID
+                            if obj.IsPlaying then
+                                obj.TimePosition = 0
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+ 
+local ASSET_ID = tonumber(_O({120, 114, 122, 112, 110, 108, 112, 106, 106, 110, 110, 108, 116, 106}))
+local ICON_ID = _O({238, 206, 250, 204, 240, 240, 212, 242, 220, 210, 126, 104, 104, 122, 120, 124, 106, 114, 120, 116, 124, 114, 108, 116, 108, 112, 110})
+local isScriptActive = false
+local currentMdl = nil
+local syncConn = nil
+ 
+local SPINDASH_BALL_COLOR = Color3.fromRGB(0, 0, 0)
+local SPINDASH_TRAIL_COLOR = Color3.fromRGB(100, 0, 160)
+ 
+local function loadAsset(id)
+    local ok, objects = pcall(game.GetObjects, game, _O({238, 206, 250, 204, 240, 240, 212, 242, 220, 210, 126, 104, 104}) .. id)
+    if not ok or not objects or #objects == 0 then return nil end
+    return objects[1]:Clone()
+end
+ 
+local function getPlayerModel()
+    local playersFolder = workspace:FindFirstChild("Players")
+    return playersFolder and playersFolder:FindFirstChild(player.Name)
+end
+ 
+local function isFleetway()
+    local model = getPlayerModel()
+    return model and model:GetAttribute("Character") == "Fleetway"
+end
+ 
+local function setupPlayerFrameLoop()
+    task.spawn(function()
+        while isScriptActive do
+            local pg = player:FindFirstChild("PlayerGui")
+            local teamsGui = pg and pg:FindFirstChild("Round")
+            if teamsGui then
+                teamsGui = teamsGui:FindFirstChild("Game") and teamsGui.Game:FindFirstChild("Teams")
+            end
+ 
+            if teamsGui then
+                local playerFrame = teamsGui:FindFirstChild(player.Name)
+                if playerFrame then
+                    local frame = playerFrame:FindFirstChild("Frame")
+                    local cc = frame and frame:FindFirstChild("Character")
+                    if cc then
+                        if cc:IsA("GuiObject") then cc.BackgroundTransparency = 1 end
+ 
+                        local existingImg = cc:FindFirstChild("CustomIconLabel")
+                        if not existingImg then
+                            cc:ClearAllChildren()
+                            local lbl = Instance.new("ImageLabel")
+                            lbl.Name = "CustomIconLabel"
+                            lbl.Image = ICON_ID
+                            lbl.Size = UDim2.new(0.68, 0, 0.68, 0)
+                            lbl.Position = UDim2.new(0.45, 0, 0.39, 0)
+                            lbl.AnchorPoint = Vector2.new(0.5, 0.5)
+                            lbl.BackgroundTransparency = 1
+                            lbl.ScaleType = Enum.ScaleType.Fit
+                            lbl.Parent = cc
+                        end
+                    end
+                end
+            end
+            task.wait(0.5)
+        end
+    end)
+end
+ 
+local function setupViewport()
+    task.spawn(function()
+        local viewportFrame = player.PlayerGui
+            :WaitForChild("Round", 10)
+            :WaitForChild("Game", 10)
+            :WaitForChild("SurvivorHP", 10)
+            :WaitForChild("ViewportFrame", 10)
+        if not viewportFrame then return end
+        local viewportModel = viewportFrame
+            :WaitForChild("WorldModel", 10)
+            :WaitForChild("Default", 10)
+        if not viewportModel then return end
+ 
+        local vpOverrideModel = nil
+        local function replaceViewportModel()
+            local ok, objects = pcall(game.GetObjects, game, _O({238, 206, 250, 204, 240, 240, 212, 242, 220, 210, 126, 104, 104}) .. ASSET_ID)
+            if not ok or #objects == 0 then return end
+            if vpOverrideModel and vpOverrideModel.Parent then
+                vpOverrideModel:Destroy()
+                vpOverrideModel = nil
+            end
+            local newModel = objects[1]:Clone()
+            vpOverrideModel = newModel
+            for _, part in ipairs(viewportModel:GetDescendants()) do
+                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                    part.Transparency = 1
+                end
+            end
+            local newHum = newModel:FindFirstChildOfClass("Humanoid")
+            if newHum then newHum:Destroy() end
+            for _, v in ipairs(newModel:GetDescendants()) do
+                if v:IsA("BasePart") then v.CanCollide = false end
+            end
+            newModel.Parent = viewportModel
+            local viewportHRP = viewportModel:FindFirstChild("HumanoidRootPart")
+            local primaryPart = newModel.PrimaryPart or newModel:FindFirstChildWhichIsA("BasePart")
+            if viewportHRP and primaryPart then
+                newModel:PivotTo(viewportHRP.CFrame)
+                primaryPart.Transparency = 1
+                local weld = Instance.new("WeldConstraint")
+                weld.Part0 = viewportHRP
+                weld.Part1 = primaryPart
+                weld.Parent = viewportHRP
+            end
+        end
+ 
+        replaceViewportModel()
+        viewportModel.DescendantAdded:Connect(function()
+            task.wait(0.1)
+            if not vpOverrideModel or not vpOverrideModel.Parent then
+                vpOverrideModel = nil
+                replaceViewportModel()
+            end
+        end)
+    end)
+end
+ 
+local function setupCharacter(char)
+    if not isScriptActive then return end
+    if syncConn then syncConn:Disconnect() syncConn = nil end
+    if currentMdl and currentMdl.Parent then currentMdl:Destroy() currentMdl = nil end
+ 
+    task.wait(0.1)
+ 
+    local playersFolder = workspace:FindFirstChild("Players")
+    local oldVisual = playersFolder and playersFolder:WaitForChild(player.Name, 3)
+ 
+    for _, v in ipairs(char:GetDescendants()) do
+        if v:IsA("BasePart") and v.Name ~= "Spindash" then
+            v.Transparency = 1
+            if v.Name ~= "HumanoidRootPart" then v.CanCollide = false end
+        end
+    end
+ 
+    local function applyTrailColor(d)
+        if d:IsA("Trail") or d:IsA("Beam") or d:IsA("ParticleEmitter") then
+            pcall(function()
+                d.Color = ColorSequence.new(SPINDASH_TRAIL_COLOR)
+            end)
+        end
+    end
+ 
+    char.DescendantAdded:Connect(function(d)
+        if d:IsA("BasePart") and d.Name ~= "Spindash" and (not currentMdl or not d:IsDescendantOf(currentMdl)) then
+            d.Transparency = 1
+            if d.Name ~= "HumanoidRootPart" then d.CanCollide = false end
+        else
+            applyTrailColor(d)
+        end
+    end)
+ 
+    if oldVisual then
+        for _, v in ipairs(oldVisual:GetDescendants()) do
+            if v:IsA("BasePart") and v.Name ~= "Spindash" then v.Transparency = 1 end
+            applyTrailColor(v)
+        end
+        oldVisual.DescendantAdded:Connect(function(d)
+            if d:IsA("BasePart") and d.Name ~= "Spindash" and currentMdl and not d:IsDescendantOf(currentMdl) then
+                d.Transparency = 1
+            else
+                applyTrailColor(d)
+            end
+        end)
+    end
+ 
+    for _, v in ipairs(char:GetDescendants()) do
+        if v:IsA("Decal") or v:IsA("Texture") or v:IsA("SurfaceAppearance") then
+            pcall(function() v:Destroy() end)
+        end
+    end
+    if oldVisual then
+        for _, v in ipairs(oldVisual:GetDescendants()) do
+            if v:IsA("Decal") or v:IsA("Texture") or v:IsA("SurfaceAppearance") then
+                pcall(function() v:Destroy() end)
+            end
+        end
+    end
+ 
+    local mdl = loadAsset(ASSET_ID)
+    if not mdl then return end
+ 
+    if oldVisual then mdl.Parent = oldVisual else mdl.Parent = char end
+ 
+    local hrp = char:WaitForChild("HumanoidRootPart", 5)
+    local newHrp = mdl:WaitForChild("HumanoidRootPart", 5)
+    if not hrp or not newHrp then
+        mdl:Destroy()
+        return
+    end
+ 
+    newHrp.Anchored = true
+    newHrp.Transparency = 1
+ 
+    local mdlHum = mdl:FindFirstChildOfClass("Humanoid")
+    if mdlHum then mdlHum:Destroy() end
+    local mdlAnim = mdl:FindFirstChildOfClass("Animator")
+    if mdlAnim then mdlAnim:Destroy() end
+ 
+    for _, v in ipairs(mdl:GetDescendants()) do
+        if v:IsA("BasePart") then
+            v.CanCollide = false
+            if v.Name == "HumanoidRootPart" or v.Name == "Waist" then
+                v.Transparency = 1
+            end
+        elseif v:IsA("Trail") or v:IsA("Beam") then
+            v.Enabled = false
+        end
+    end
+ 
+    newHrp.CFrame = hrp.CFrame
+    currentMdl = mdl
+ 
+    syncConn = RunService.Stepped:Connect(function()
+        if not char.Parent or not hrp.Parent or not newHrp.Parent then
+            if syncConn then syncConn:Disconnect() end
+            return
+        end
+        newHrp.CFrame = hrp.CFrame
+    end)
+ 
+    task.spawn(function()
+        while char and char.Parent and isScriptActive do
+            if oldVisual and oldVisual.Parent then
+                local defaultFolder = oldVisual:FindFirstChild("Default")
+                if defaultFolder then
+                    local waist = defaultFolder:FindFirstChild("Waist")
+                    local hrpDef = defaultFolder:FindFirstChild("HumanoidRootPart")
+                    if waist and waist:IsA("BasePart") then waist.Transparency = 1 end
+                    if hrpDef and hrpDef:IsA("BasePart") then hrpDef.Transparency = 1 end
+                end
+ 
+                for _, d in ipairs(oldVisual:GetDescendants()) do
+                    applyTrailColor(d)
+                end
+            end
+ 
+            for _, d in ipairs(char:GetDescendants()) do
+                applyTrailColor(d)
+            end
+ 
+            local spindashObj = char:FindFirstChild("Spindash") or (oldVisual and oldVisual:FindFirstChild("Spindash"))
+            if spindashObj then
+                if spindashObj:IsA("BasePart") then
+                    spindashObj.Transparency = 0
+                    spindashObj.Color = SPINDASH_BALL_COLOR
+                    spindashObj.Material = Enum.Material.SmoothPlastic
+                end
+ 
+                for _, d in ipairs(spindashObj:GetDescendants()) do
+                    if d:IsA("BasePart") then
+                        d.Transparency = 0
+                        d.Color = SPINDASH_BALL_COLOR
+                        d.Material = Enum.Material.SmoothPlastic
+                    end
+                    applyTrailColor(d)
+                end
+            end
+ 
+            task.wait(0.05)
+        end
+    end)
+end
+ 
+local function startScript()
+    if isScriptActive then return end
+    isScriptActive = true
+    task.wait(0.1)
+    setupViewport()
+    if character then
+        setupCharacter(character)
+    end
+    setupPlayerFrameLoop()
+end
+ 
+local function stopScript()
+    if not isScriptActive then return end
+    isScriptActive = false
+    if syncConn then syncConn:Disconnect() syncConn = nil end
+    if currentMdl and currentMdl.Parent then currentMdl:Destroy() currentMdl = nil end
+    if character then
+        for _, v in ipairs(character:GetDescendants()) do
+            if v:IsA("BasePart") then v.Transparency = 0 end
+        end
+    end
+end
+ 
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    if isScriptActive then
+        setupCharacter(newChar)
+        setupViewport()
+        setupPlayerFrameLoop()
+    end
+end)
+ 
+local isCurrentlyFleetway = false
+task.spawn(function()
+    while task.wait(1) do
+        local check = isFleetway()
+        if check ~= isCurrentlyFleetway then
+            isCurrentlyFleetway = check
+            if isCurrentlyFleetway then startScript() else stopScript() end
+        end
+    end
+end)
+ 
+if isFleetway() then
+    isCurrentlyFleetway = true
+    startScript()
+end
