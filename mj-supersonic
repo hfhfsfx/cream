@@ -1,0 +1,202 @@
+local OGModel = game.ReplicatedStorage.ClientAssets.Characters.Survivors.Sonic.Skins.Default
+local MyModel = game:GetObjects("rbxassetid://103295684458128")[1]
+MyModel.Name = OGModel.Name
+MyModel.Parent = OGModel.Parent
+if not OGModel.Parent:FindFirstChild("Original") then OGModel.Name = "Original" else OGModel:Destroy() end
+
+MyModel.Anims.Downed:Destroy()
+game.ReplicatedStorage.ClientAssets.Characters.Survivors.Silver:FindFirstChild("Anims", true).Downed:Clone().Parent = MyModel.Anims
+
+game.ReplicatedStorage.ClientAssets.Icons.Sonic:Destroy()
+game.ReplicatedStorage.ClientAssets.Icons.Shadow:Clone().Parent = 
+game.ReplicatedStorage.ClientAssets.Icons
+game.ReplicatedStorage.ClientAssets.Icons.Shadow.Name = "Sonic"
+
+function a(Character)
+    if Character.Name ~= game.Players.LocalPlayer.Name then return end
+    if Character:GetAttribute("Character") ~= "Sonic" then return end
+    
+    while Character:FindFirstChild("OverlayModel") do Character.OverlayModel:Destroy() end
+    
+    local cam = Character:WaitForChild("cam", 3)
+    task.wait(0.1)
+
+    local tracks = {}
+    local AnimsFolder = game.ReplicatedStorage.ClientAssets.Characters:FindFirstChild(Character:GetAttribute("Character"), true):FindFirstChild("Anims", true)
+    if _G.SonicOverlayAnimationPlayedConnect then _G.SonicOverlayAnimationPlayedConnect:Disconnect() end
+    _G.SonicOverlayAnimationPlayedConnect = Character:WaitForChild("Humanoid", 10):WaitForChild("Animator", 10).AnimationPlayed:Connect(function(track)
+        -- print("PLAYED: "..track.Name.." - "..track.Animation.Name.." - "..track.Animation.AnimationId)
+        local id = track.Animation.AnimationId
+        if track.Name == "Animation" and Character:FindFirstChildOfClass("Animation") then
+            for _, CharacterAnim in ipairs(Character:GetChildren()) do
+                if not CharacterAnim:IsA("Animation") then continue end
+                if id ~= CharacterAnim.AnimationId then continue end
+                track.Name = CharacterAnim.Name
+                if AnimsFolder:FindFirstChild(track.Name) then AnimsFolder[track.Name]:Destroy() end
+                local SaveIT = track.Animation:Clone()
+                SaveIT.Parent = AnimsFolder
+                SaveIT.Name = track.Name
+                warn("THATS SERVER SCRIPT ANIM! (Saving", track.Name.."...)")
+            end
+        end
+        for _, Anim in ipairs(AnimsFolder:GetDescendants()) do
+            if not Anim:IsA("Animation") then continue end
+            if track.Animation.AnimationId ~= Anim.AnimationId then continue end
+            Anim = Anim.Parent:Clone()[Anim.Name]
+            Anim.Name = Anim.Name == "Peelout" and "Peelout" or Anim.Name
+            Anim.Name = Anim.Name == "Hitted" and "Hitted" or Anim.Name
+            Anim.Name = Anim.Name == "Dodge1" and "Dodge1" or Anim.Name
+            Anim.Name = Anim.Name == "Dodge2" and "Dodge2" or Anim.Name
+            Anim.Name = Anim.Name == "Dodge3" and "Dodge3" or Anim.Name
+            Anim.Name = Anim.Name == "dropend" and "dropend" or Anim.Name
+            Anim.Name = Anim.Name == "dropdown" and "dropdown" or Anim.Name
+            print("OG Anim", Anim.Name, "//", Anim:GetFullName())
+            local AnimName = Anim.Name
+            local AnimFullName = Anim:GetFullName()
+            local MyAnim = Character.OverlayModel:FindFirstChild(Anim.Parent.Name, true):FindFirstChild(AnimName)
+            print("MY Anim", MyAnim.Name, "//", MyAnim:GetFullName())
+            -- warn("Play tracks", AnimFullName)
+            tracks[AnimFullName] = tracks[AnimFullName] or Character.OverlayModel.Humanoid.Animator:LoadAnimation(MyAnim)
+            tracks[AnimFullName].Priority = track.Priority
+            tracks[AnimFullName]:Play(0.1)
+            task.spawn(function()
+                while track.IsPlaying do
+                	local m = 1.0
+                    m = AnimName == "Run" and 0.5 or m
+                    m = AnimName == "Walk" and 0.5 or m
+                    m = AnimName == "Dash" and 0.0 or m
+                    -- warn("AdjustSpeed tracks", AnimFullName)
+                    tracks[AnimFullName]:AdjustSpeed(track.Speed * m)
+                    task.wait(0.001)
+                end
+            end)
+            track.Stopped:Once(function()
+                -- warn("STOPED: "..track.Name.." - "..track.Animation.Name.." - "..track.Animation.AnimationId)
+                -- warn("Stop tracks", AnimFullName)
+            	tracks[AnimFullName]:Stop(0.1)
+            end)
+        end
+    end)
+
+    -- trigger AnimationPlayed to handle already played anims before my connection
+    task.spawn(function()
+        for _, track in ipairs(Character.Humanoid.Animator:GetPlayingAnimationTracks()) do
+        	warn("Already played:", track.Name, track.Animation.AnimationId, track:Play(0))
+        end
+    end)
+    
+    -- Setup Char Model
+    local ogHRP = Character.PrimaryPart --:FindFirstChild("HumanoidRootPart")
+    if not ogHRP then return end
+
+    for _, v in ipairs(Character:GetDescendants()) do
+    	-- if v.Parent == Character then print(v) end
+        if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
+            v.LocalTransparencyModifier = 1
+            v:GetPropertyChangedSignal("LocalTransparencyModifier"):Connect(function() v.LocalTransparencyModifier = 1 end)
+			if v.Name == "Head" then v:GetPropertyChangedSignal("Transparency"):Connect(function()
+				for _, ov in ipairs(Character.OverlayModel:GetDescendants()) do 
+					if ov:IsA("BasePart") and (not ov:GetAttribute("IgnoreTransparency")) then
+						pcall(function() ov.Transparency = v.Transparency end)
+					end
+				end
+			end) end
+        end
+        --if v:IsA("SurfaceGui") then v.Enabled = false end
+        --if v:IsA("SurfaceAppearance") then v:Destroy() end
+        if v:IsA("Decal") then v:Destroy() end
+    end
+
+    -- Setup Overlay Model
+    local OverlayModel = game.ReplicatedStorage.ClientAssets.Characters.Survivors.Sonic.Skins.Default:Clone()
+    OverlayModel.Name = "OverlayModel"
+    OverlayModel.Parent = Character
+
+    local myHRP = OverlayModel.PrimaryPart --:FindFirstChild("HumanoidRootPart")
+    if not myHRP then OverlayModel:Destroy() return end
+
+    for _, v in ipairs(OverlayModel:GetDescendants()) do
+        if v:IsA("Humanoid") then v.EvaluateStateMachine = false end
+        if v:IsA("Highlight") then v:Destroy() end
+        if v:IsA("BasePart") then
+            v.CanCollide = false
+            v.Anchored = false
+            v.CanTouch = false
+            v.CanQuery = false
+            v.Massless = true
+            if v.Transparency > 0 then v:SetAttribute("IgnoreTransparency", true) end
+        end
+    end
+    
+    local hrpY = 0.5
+    local weld = Instance.new("Weld")
+    weld.Name = "OverlayModelWeld"
+    weld.Part0 = ogHRP
+    weld.Part1 = myHRP
+    weld.C0 = CFrame.new()
+    weld.C1 = CFrame.new(0, -hrpY, 0) * CFrame.Angles(0, math.rad(0), 0) * CFrame.Angles(math.rad(0), 0, 0)
+    weld.Parent = myHRP
+    myHRP:PivotTo(ogHRP.CFrame * CFrame.new(0, hrpY, 0) * CFrame.Angles(math.rad(0), 0, 0))
+    
+    local weld = Instance.new("Weld")
+    weld.Name = "OverlayModelBodyWeld"
+    weld.Part0 = Character.Body
+    weld.Part1 = Character.OverlayModel.Body
+    weld.Parent = Character.OverlayModel.Body
+    Character.Waist.Body.Part0 = nil
+    Character.Waist.Body.Part1 = nil
+    
+    local weld = Instance.new("Weld")
+    weld.Name = "OverlayModelBodyWeld"
+    weld.Part0 = Character.Body
+    weld.Part1 = Character.OverlayModel.Body
+    weld.Parent = Character.OverlayModel.Body
+
+    cam.Enabled = false
+    cam.Enabled = true
+
+    local ApplyCosmetics = loadstring(game:HttpGet("https://lil2kki.7m.pl/ApplyCosmetics.LUA"))()
+    ApplyCosmetics(Character, Character.OverlayModel)
+
+    if _G.SonicOverlayDescendantAddedConnect then _G.SonicOverlayDescendantAddedConnect:Disconnect() end
+    _G.SonicOverlayDescendantAddedConnect = Character.DescendantAdded:Connect(function(desc)
+        --if desc:GetFullName():find(".FOVMultiplier") then return end
+        --print(desc.ClassName, desc:GetFullName())
+        if desc.Name == "_BLOOD" then
+        	desc.Name = "!bh"
+            local depth1 = {}
+            local depth2 = {}
+            local depth3 = {}
+            local depth4 = {}
+            for _, v in ipairs(OverlayModel:GetDescendants()) do
+            	if not v:IsA("BasePart") then continue end
+            	if v.Transparency ~= 0 then continue end
+                if #v:GetFullName():split(".") - #OverlayModel:GetFullName():split(".") <= 1 then table.insert(depth1, v) end
+                if #v:GetFullName():split(".") - #OverlayModel:GetFullName():split(".") <= 2 then table.insert(depth2, v) end
+                if #v:GetFullName():split(".") - #OverlayModel:GetFullName():split(".") <= 3 then table.insert(depth3, v) end
+                if #v:GetFullName():split(".") - #OverlayModel:GetFullName():split(".") <= 4 then table.insert(depth4, v) end
+            end
+            -- depth 1
+            if #depth1 > 0 then desc.Parent = depth1[math.random(#depth1)] end -- move org and then clone it
+            -- depth 2
+            if #depth2 > 0 then desc:Clone().Parent = depth2[math.random(#depth2)] end
+            if #depth2 > 0 then desc:Clone().Parent = depth2[math.random(#depth2)] end
+            -- depth 3
+            if #depth3 > 0 then desc:Clone().Parent = depth3[math.random(#depth3)] end
+            if #depth3 > 0 then desc:Clone().Parent = depth3[math.random(#depth3)] end
+            if #depth3 > 0 then desc:Clone().Parent = depth3[math.random(#depth3)] end
+            -- depth 4
+            if #depth4 > 0 then desc:Clone().Parent = depth3[math.random(#depth3)] end
+            if #depth4 > 0 then desc:Clone().Parent = depth3[math.random(#depth3)] end
+        end
+        if Character.Animate.Footsteps:FindFirstChild(desc.Name, true) then
+        	desc:Destroy()
+        end
+    end)
+    
+end
+
+if _G.SonicOverlayCharacterAdded then _G.SonicOverlayCharacterAdded:Disconnect() end
+_G.SonicOverlayCharacterAdded = game.Players.LocalPlayer.CharacterAdded:Connect(a)
+
+a(game.Players.LocalPlayer.Character)
