@@ -1,0 +1,600 @@
+local hi = "[REWRITED 2011x]"
+print(hi, "Now loading... Made by lil2kki <3")
+
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+loadstring(game:HttpGet("https://lil2kki.7m.pl/MySubtitles.LUA"))()
+
+local KeyframeAnimator = loadstring(game:HttpGet("https://lil2kki.7m.pl/CeatsKeyframeSequenceAnimator.LUA"))()
+
+local Template = game:GetObjects("rbxassetid://110574943715937")[1]
+
+local Animator = (Template.Humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", hum))
+Animator.Parent = Template.Humanoid
+
+local AnimSaves = Template.AnimSaves
+AnimSaves.Parent = nil
+
+for a, name in ipairs({"Default", "RETRO", "miku"}) do
+	game.ReplicatedStorage.ClientAssets.Characters.EXE["2011x"].Skins[name]:Destroy()
+    local clone = name == "RETRO" and game:GetObjects("rbxassetid://126230073024978")[1] or Template:Clone()
+    clone.Name = name
+    clone.Parent = game.ReplicatedStorage.ClientAssets.Characters.EXE["2011x"].Skins
+	clone:SetAttribute("Character", "2011x") 
+    clone:SetAttribute("Skin", clone.Name)
+    task.wait()
+end
+
+local req = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+local function downloadAsset(url)
+    local clean = url:match("^([^?]+)") or url
+    clean = clean:gsub("/revision/latest$", "")
+    local name = clean:match("([^/]+)$") or "file"
+    local dir  = clean:match("^https?://(.+)/[^/]+$") or "misc"
+    local host = clean:match("^https?://([^/]+)") or ""
+    if not name:match("%.%w+$") then name = name .. ".png" end
+    local path = "cache/" .. dir .. "/__REWRITED_2011x_" .. name
+    if isfile(path) then
+        local ok, a = pcall(getcustomasset, path)
+        if ok then return a end
+    end
+    warn("[Assets] Downloading", name)
+    local res = req and req({Url = clean, Method = "GET", Headers = { 
+        ["User-Agent"] = "Mozilla/5.0", 
+        ["Referer"] = "https://" .. host .. "/",
+    }})
+    local data = res and res.Body
+    if not data or #data == 0 or data:sub(1,1) == "<" then
+        warn("[Assets] fail:", url, res and res.StatusCode)
+        return nil
+    end
+    local acc = ""
+    for p in dir:gmatch("[^/]+") do
+        acc = acc == "" and ("cache/" .. p) or (acc .. "/" .. p)
+        if not isfolder(acc) then makefolder(acc) end
+    end
+    writefile(path, data)
+    print("[Assets]  Downloaded", name)
+    return getcustomasset(path)
+end
+
+_G.RewSonicAssets = {}
+
+-- basic text replaces
+while game.LocalizationService:FindFirstChild("Chara2011xMainReplaces") do game.LocalizationService.Chara2011xMainReplaces:Destroy() end
+local Chara2011xMainReplaces = Instance.new("LocalizationTable")
+Chara2011xMainReplaces.Name = "Chara2011xMainReplaces"
+Chara2011xMainReplaces.Parent = game.LocalizationService
+local function updateTranslations()
+    local id = game.Players.LocalPlayer.LocaleId
+    Chara2011xMainReplaces:SetEntries({
+        { Key = "", Source = "Name: 2011x / X", Values = { [id] = "Name: Sonic" } },
+        { Key = "", Source = "2011x / X", Values = { [id] = "Sonic" } },
+        { Key = "", Source = "2011x", Values = { [id] = "Sonic" } },
+        { Key = "", Source = "Miku X", Values = { [id] = "Sonic" } },
+        { Key = "", Source = "Classic", Values = { [id] = "Sonic" } },
+        { Key = "", Source = "sonic but .... bloody eyes .. fear", Values = { [id] =  "-----              \nanomaly.\n     -----" } },
+        { Key = "", Source = "\nClass: UNKNOWN \nWalkSpeed: 8\nRun Speed:  50 \nJump Power: 85\n", Values = { [id] = "\nClass: ANOMALY \nWalkSpeed: 8\nRun Speed:  50 \nJump Power: 85\n" } },
+        { Key = "", Source 
+        = "2011X or just X is a sadistic and cruel monster that possesses an instinctive lust for destruction and pain. "
+        .."He has immense interest in the human race and the very obvious video games you'd expect, stealing the souls of people and putting "
+        .."them into the bodies of the survivors. X sees people as disposable puppets he can manipulate and torture for as long as he likes "
+        .."simply because he wields the power to do so.", Values = { [id] = "\nInfoDesc1\n" } },
+        { Key = "", Source = "Chase theme by: 0_Dyno_0 \n"
+        .."Last Life theme by: 0_Dyno_0\n"
+        .."Original Character made by: JoeDoughBoi\n"
+        .."Model by: ow_dud", 
+        Values = { [id] 
+        = "\n"
+        .."Rage theme by Depresso - Rewrite Chase Theme\n"
+        .."Chase theme by I_AmKwispy - Round and Round\n"
+        .."Last life chase theme by Luomixer - Digital Paradise\n"
+        .."Terror radius theme by Luomixer - Digital Paradise\n"
+        .."Model by JadeandPals (turbosquidtom's reupload)\n"
+        .."Original Character made by Springless\n"
+        .."Original script by The_haker3000\n"
+        .."2011x version script by lil2kki\n"
+        .."\n"
+        } },
+    })
+end
+updateTranslations()
+if _G.RewSonic2011xLocaleIdConn then _G.RewSonic2011xLocaleIdConn:Disconnect() end
+_G.RewSonic2011xLocaleIdConn = game.Players.LocalPlayer:GetPropertyChangedSignal("LocaleId"):Connect(updateTranslations)
+
+-- iconss
+_G.RewSonic2011xCharIcon = "rbxassetid://117968884403557"
+_G.RewSonic2011xCharImage = "rbxassetid://89958080081971"
+task.spawn(function()
+    _G.RewSonic2011xKeepTask1 = false
+    task.wait(0.3)
+	_G.RewSonic2011xKeepTask1 = true
+	while _G.RewSonic2011xKeepTask1 do
+		pcall(function() -- om 0.2 anni
+			game:GetService("Players").LocalPlayer.PlayerGui.GameUI.shop.display.fram2.CharSelection["2011x"].Icon.Border.Icon2.Visible = false
+			game:GetService("Players").LocalPlayer.PlayerGui.GameUI.shop.display.fram2.CharSelection["2011x"].Icon.Border.Icon.Image = _G.RewSonic2011xCharIcon
+            game:GetService("Players").LocalPlayer.PlayerGui.GameUI.shop.display.fram2.CharSelection["2011x"].Icon.Border.Icon.Position = UDim2.fromScale(0.5, 0.425)
+            game:GetService("Players").LocalPlayer.PlayerGui.GameUI.shop.display.fram2.CharSelection["2011x"].Icon.Border.Icon.Size = UDim2.fromScale(1.8, 1.8)
+        end)
+		pcall(function() -- for 0.1a by sobii
+			game:GetService("Players").LocalPlayer.PlayerGui.GameUI.shop.display.fram2.CharSelection["2011x"].Border.ImageLabel.Image = _G.RewSonic2011xCharIcon
+            game:GetService("Players").LocalPlayer.PlayerGui.GameUI.shop.display.fram2.CharSelection["2011x"].Border.ImageLabel.Image.Position = UDim2.fromScale(0.5, 0.425)
+            game:GetService("Players").LocalPlayer.PlayerGui.GameUI.shop.display.fram2.CharSelection["2011x"].Border.ImageLabel.Image.Size = UDim2.fromScale(1.8, 1.8)
+        end)
+		pcall(function()
+			local CharDisplay = game:GetService("Players").LocalPlayer.PlayerGui.GameUI.shop.display.fram2.CharDisplay
+            if not CharDisplay.Visible then return end
+            CharDisplay.CharImage.Image = CharDisplay.CharName.Text == "2011x / X" and _G.RewSonic2011xCharImage or CharDisplay.CharImage.Image
+            local CharInfoIcon = game:GetService("Players").LocalPlayer.PlayerGui.GameUI.shop.display.fram2.Info.CharInfo.CharIcon.Border.ImageLabel
+            CharInfoIcon.Image = CharDisplay.CharName.Text == "2011x / X" and _G.RewSonic2011xCharIcon or CharInfoIcon.Image
+		end)
+        task.wait()
+    end
+    warn(hi, "GUI Update Task Restarted")
+end)
+
+-- tryUpdateCharacter
+function tryUpdateCharacter(Character)
+    if not Character:IsA("Model") then return end
+    if Character:GetAttribute("Character") ~= "2011x" then return end
+
+    local IsPlayer = (game.Players:FindFirstChild(Character.Name) ~= nil) or (workspace.Players:FindFirstChild(Character.Name) ~= nil) or (workspace:FindFirstChild(Character.Name) ~= nil)
+    
+    print(hi, "Waiting for " .. Character:GetFullName() .. "...")
+
+    if (Character:FindFirstChild(Character.Name.."_ov1") or Character:FindFirstChild(Character.Name.."_ov2")) then
+        warn(hi, "Player already have OverlayModel, update cancelled")
+        return
+    end
+
+    Character.DescendantRemoving:Connect(function(desc)
+        -- if desc:GetFullName():find(".FOVMultiplier") then return end
+        -- print("DescendantRemoving", desc.ClassName, desc:GetFullName())
+    end)
+
+    local ringParts, ringIdx = {}, 1
+    local function addRing()
+        if #ringParts == 0 then
+            local raw = {}
+            for _, v in ipairs(Character:FindFirstChild(Character.Name.."_ov1"):GetDescendants()) do
+                if v.Name == "Object_8" and v:IsA("BasePart") then
+                    local dup = false
+                    for _, p in ipairs(raw) do if (p.Position - v.Position).Magnitude < 0.1 then dup = true; break end end
+                    if not dup then table.insert(raw, v) end
+                end
+            end
+            table.sort(raw, function(a, b) return a.Position.Y > b.Position.Y end)
+            ringParts = raw
+        end
+
+        local part = ringParts[ringIdx]
+        if not part then return end
+
+        local ring = game:GetObjects("rbxassetid://126464609641022")[1]
+        local primary = ring.PrimaryPart or ring:FindFirstChildWhichIsA("BasePart")
+        
+        for _, v in ipairs(ring:GetDescendants()) do 
+            if v:IsA("BasePart") then v.Anchored = true; v.CanCollide = false end 
+        end
+
+        local hrp = Character:FindFirstChild("HumanoidRootPart") or Character:FindFirstChildWhichIsA("BasePart")
+        local startCF = hrp.CFrame * CFrame.new(0, -1, -5)
+        
+        ring:PivotTo(startCF)
+        ring.Parent = workspace
+
+        local startTime = tick()
+        local duration = 0.6
+        local conn
+        conn = game:GetService("RunService").RenderStepped:Connect(function()
+            if not part.Parent or not ring.Parent then 
+                if conn then conn:Disconnect() end 
+                if ring.Parent then ring:Destroy() end
+                return 
+            end
+            local alpha = math.min((tick() - startTime) / duration, 1)
+            local eased = 1 - (1 - alpha)^5 
+            local targetCF = part.CFrame * CFrame.Angles(0, math.rad(90), 0)
+            ring:PivotTo(startCF:Lerp(targetCF, eased))
+            if alpha >= 1 then
+                conn:Disconnect()
+                for _, v in ipairs(ring:GetDescendants()) do 
+                    if v:IsA("BasePart") then v.Anchored = false end 
+                end
+                ring.Parent = part
+                local w = Instance.new("Weld", part)
+                w.Part0, w.Part1, w.C0 = part, primary, CFrame.Angles(0, math.rad(90), 0)
+            end
+        end)
+        
+        ringIdx += 1
+    end
+
+    Character.DescendantAdded:Connect(function(desc)
+        -- if desc:GetFullName():find(".FOVMultiplier") then return end print("DescendantAdded", desc.ClassName, desc:GetFullName())
+
+        if desc.Parent.Name == "RootPart" and desc.Name == "Beam" then desc:Destroy() end
+        if desc.Parent.Name == "RootPart" and desc.Name == "ParticleEmitter" then desc:Destroy() end
+
+        if desc.Name == "_BLOOD" then
+        	desc.Name = "_BLOOD_HANDLED"
+            local depth1 = {}
+            local depth2 = {}
+            local depth3 = {}
+            for _, v in ipairs(Character.OverlayModel:GetDescendants()) do
+            	if not v:IsA("MeshPart") then continue end
+                if #v:GetFullName():split(".") - #Character.OverlayModel:GetFullName():split(".") <= 1 then table.insert(depth1, v) end
+                if #v:GetFullName():split(".") - #Character.OverlayModel:GetFullName():split(".") <= 2 then table.insert(depth2, v) end
+                if #v:GetFullName():split(".") - #Character.OverlayModel:GetFullName():split(".") <= 3 then table.insert(depth3, v) end
+            end
+            -- depth 1
+            if #depth1 > 0 then desc.Parent = depth1[math.random(#depth1)] end -- move org and then clone it
+            if #depth1 > 0 then desc:Clone().Parent = depth1[math.random(#depth1)] end
+            -- depth 2
+            if #depth2 > 0 then desc:Clone().Parent = depth2[math.random(#depth2)] end
+            if #depth2 > 0 then desc:Clone().Parent = depth2[math.random(#depth2)] end
+            if #depth2 > 0 then desc:Clone().Parent = depth2[math.random(#depth2)] end
+            if #depth2 > 0 then desc:Clone().Parent = depth2[math.random(#depth2)] end
+            -- depth 3
+            if #depth3 > 0 then desc:Clone().Parent = depth3[math.random(#depth3)] end
+            if #depth3 > 0 then desc:Clone().Parent = depth3[math.random(#depth3)] end
+            if #depth3 > 0 then desc:Clone().Parent = depth3[math.random(#depth3)] end
+            if #depth3 > 0 then desc:Clone().Parent = depth3[math.random(#depth3)] end
+            if #depth3 > 0 then desc:Clone().Parent = depth3[math.random(#depth3)] end
+            if #depth3 > 0 then desc:Clone().Parent = depth3[math.random(#depth3)] end
+        end
+
+        if desc.ClassName ~= "Sound" then return end
+
+        if tostring(desc.SoundId):find("mp3") then
+            local a = tostring(desc.SoundId)
+            local aa = nil
+            if a:find("Burst3.mp3") then aa = "You can't run from me!" end
+            if a:find("Burst4.mp3") then aa = "When I seek, I always find." end
+            if a:find("Down1.mp3") then aa = "You can run." end
+            if a:find("Down2.mp3") then aa = "Choose to worship." end
+            if a:find("Down3.mp3") then aa = "Be not afraid. It's all okay." end
+            if a:find("KillAmy.mp3") then aa = "Hey, you look exactly like a friend of mine, or rather you used to." end
+            if a:find("KillBlaze.mp3") then aa = "Repent, princess, and commend your soul to God. I mean, to me..." end
+            if a:find("KillCream.mp3") then aa = "I spy with my little eye something dead." end
+            if a:find("KillEgg.mp3") then aa = "I guess that whole master plan thing was a sham." end
+            if a:find("KillKnuckles.mp3") then aa = "I remembered you being tougher. Who makes these vessels?" end
+            if a:find("KillMetal.mp3") then aa = "You're like a bad joke. You've got no soul. And that just makes me want to kill you even more." end
+            if a:find("KillShadow.mp3") then aa = "I've never seen such a good copy of myself. So when I say never, that includes you." end
+            if a:find("KillSilver.mp3") then aa = "Wait! You seriously didn't see that coming?" end
+            if a:find("KillSonic.mp3") then aa = "Still running without looking back. Typical of you Sonic." end
+            if a:find("KillTails.mp3") then aa = "Don't worry my friend. You're deep down the lake." end
+            if a:find("Laser1.mp3") then aa = "Let me know if this hurts." end
+            if a:find("Laser2.mp3") then aa = "Can you feel it?" end
+            if a:find("Laugh1.mp3") then aa = "Laugh1.mp3" end
+            if a:find("Laugh2v2.mp3") then aa = "Laugh2.mp3" end
+            desc:SetAttribute("Subtitle", nil)
+            if aa then desc:SetAttribute("MySubtitle", aa) end
+        end
+
+        local orgID = desc.SoundId
+        local orgName = desc.Name
+
+        if desc.Name:find("Caught") then
+            while desc.Parent:FindFirstChild("CreamSpeechLine") do desc.Parent:FindFirstChild("CreamSpeechLine"):Destroy() end
+            local dn = _G.RewSonicAssets["Down"]
+            local stuff = { dn[7], dn[5], dn[4], dn[3] }
+            desc.SoundId = stuff[math.random(1, #stuff)]
+            desc.Name = "NoStack"
+        end
+
+        if desc.Name:find("InvisLine") or desc.SoundId == "rbxassetid://79834195945787" then
+            local dn = _G.RewSonicAssets["Down"]
+            local stuff = { dn[9], dn[7], dn[6], dn[6] }
+            desc.SoundId = stuff[math.random(1, #stuff)]
+            desc.Name = "NoStack"
+        end
+
+        if orgID == "rbxassetid://133207357151860" or desc.Name:find("Stun") then 
+        	desc.SoundId = _G.RewSonicAssets["Stunned"][math.random(1, #_G.RewSonicAssets["Stunned"])] or desc.SoundId
+            desc.Volume = 1 + desc.Volume
+            desc.Name = "NoStack"
+        end
+
+        if desc.Name:find("Down") then desc.SoundId = _G.RewSonicAssets["Down"][math.random(1, #_G.RewSonicAssets["Down"])] end
+        
+        if _G.RewSonicAssets[orgName] then 
+        	desc.SoundId = _G.RewSonicAssets[orgName] 
+            desc.Name = "OverlaySnd"
+            if not orgName:find("etal") then addRing() end
+        end
+
+        if desc.Name:find("Rage") then desc:Destroy() return end
+        if desc.Name:find("Attack") then desc:Destroy() end
+        if desc.Name:find("Line") and (not desc.Name:find("OverlaySnd")) then desc:Destroy() return end
+        if desc.SoundId ~= orgID then
+            pcall(function() while desc.Parent:FindFirstChild("NoStack") do desc.Parent:FindFirstChild("NoStack"):Destroy() end end)
+            local Clone = desc:Clone()
+            Clone.Volume = desc.Volume
+            Clone.TimePosition = 0
+            Clone.PlaybackRegion = NumberRange.new(0, 0)
+            Clone.Name = desc.Name == "NoStack" and "NoStack" or "OverlaySnd"
+            Clone.Parent = Character.PrimaryPart
+            Clone:Play()
+            Clone.Ended:Once(function() task.wait(1) Clone:Destroy() end)
+            game.Debris:AddItem(Clone, 12)
+            desc:Destroy()
+        end
+    end)
+
+    -- wait for camera first setup
+    local HasRootPart = Character:FindFirstChild("RootPart") or Character:FindFirstChild("Waist")
+    local AKOVDMKDSOV = HasRootPart or Character:WaitForChild("RootPart", 3)
+    if not HasRootPart then task.wait(0.5) end
+    
+    print(hi, "Updating " .. Character:GetFullName() .. "!")
+
+    if IsPlayer then
+        -- Setup Char Model
+        local ogHRP = Character:FindFirstChild("HumanoidRootPart")
+        if not ogHRP then return end
+
+        for _, v in ipairs(Character:GetDescendants()) do
+            -- if v.Parent == Character then print(v) end
+            if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
+                v.LocalTransparencyModifier = 1
+                v.Changed:Connect(function(property)
+                    if property == "LocalTransparencyModifier" then
+                        v.LocalTransparencyModifier = 1
+                    end
+                    if property == "Transparency" and v.Name == "Head" then
+                        for _, ov in ipairs((Character:FindFirstChild(Character.Name.."_ov1") or Character:FindFirstChild(Character.Name.."_ov2")):GetDescendants()) do
+                            if not ov:GetAttribute("IgnoreTransparency") or ov:GetAttribute("Transparency") then
+                                pcall(function()
+                                    local attr = ov:GetAttribute("Transparency")
+                                    if attr ~= nil then ov.Transparency = attr + (1 - attr) * v.Transparency
+                                    else ov.Transparency = v.Transparency end
+                                end)
+                                pcall(function() ov.FillTransparency = v.Transparency end)
+                                if ov:IsA("ParticleEmitter") then ov.Enabled = (v.Transparency < 0.2) end
+                            end
+                        end
+                    end
+                    task.wait(0.1)
+                end)
+            end
+            --if v:IsA("SurfaceGui") then v.Enabled = false end
+            --if v:IsA("SurfaceAppearance") then v:Destroy() end
+            if v:IsA("Decal") then v:Destroy() end
+            if v:IsA("Beam") then v:Destroy() end -- for 0.1a by sobii
+            if v:IsA("ParticleEmitter") then v:Destroy() end -- for 0.1a by sobii
+        end
+
+        pcall(function() Character.RootPart.waist.Lowerbody.Upperbody.Parent = Character.RootPart end)
+        pcall(function() Character.RootPart.Root.Body.Parent = Character.RootPart end)
+
+        -- Setup Overlay Model
+        function SetupOverlayModel(Obj)
+            local OverlayModel = Obj
+            OverlayModel.Name = Obj.Name.."OverlayModel"
+
+            local myHRP = OverlayModel:FindFirstChild("HumanoidRootPart")
+            if not myHRP then OverlayModel:Destroy() return end
+
+            for _, v in ipairs(OverlayModel:GetDescendants()) do
+                if v:IsA("Humanoid") then v.EvaluateStateMachine = false end
+                if v:IsA("Highlight") then v:Destroy() end
+                if v:IsA("BasePart") then
+                    v.CanCollide = false
+                    v.Anchored = false
+                    v.CanTouch = false
+                    v.CanQuery = false
+                    v.Massless = true
+                    if v.Transparency > 0 then v:SetAttribute("IgnoreTransparency", true) end
+                end
+                if v:IsA("ParticleEmitter") and v.Parent.Name == "effect" then v:Destroy() end -- sonic one
+            end
+            
+            local hrpY = -0.6
+            local weld = Instance.new("Weld")
+            weld.Name = Obj.Name.."OverlayModelWeld"
+            weld.Part0 = ogHRP
+            weld.Part1 = myHRP
+            weld.C0 = CFrame.new()
+            weld.C1 = CFrame.new(0, -hrpY, 0) * CFrame.Angles(0, math.rad(0), 0) * CFrame.Angles(math.rad(0), 0, 0)
+            weld.Parent = myHRP
+            myHRP:PivotTo(ogHRP.CFrame * CFrame.new(0, hrpY, 0) * CFrame.Angles(math.rad(0), 0, 0))
+
+            -- cam script is horror
+            task.spawn(function() 
+                local cbone = Character.RootPart:FindFirstChild("Upperbody", true) -- Upperbody
+                cbone = cbone and cbone or Character.RootPart:FindFirstChild("Body", true)
+                cbone:GetPropertyChangedSignal("CFrame"):Connect(function()
+                	if OverlayModel.Parent ~= Character then return end
+                    Character.cam.lock.Value = OverlayModel.Head--MainTorso
+                    local x, y, z = cbone.CFrame.Rotation:ToOrientation()
+                    local orientfix = cbone.Name == "Upperbody" and CFrame.Angles(x, -y, z) or CFrame.Angles(-x, -y, -z)
+                    OverlayModel.Body.Head.C1 = CFrame.new(OverlayModel.Body.Head.C1.Position) * orientfix
+                end)
+            end)
+
+            return OverlayModel
+        end
+        local Default = SetupOverlayModel(game.ReplicatedStorage.ClientAssets.Characters:FindFirstChild(Character:GetAttribute("Character"), true).Skins[Character:GetAttribute("Skin")]:Clone())
+        pcall(function() game.ReplicatedStorage[Character.Name.."_ov1"]:Destroy() end)
+        Default.Name = Character.Name.."_ov1"
+        Default.Parent = Character
+        local Rage = SetupOverlayModel(game:GetObjects("rbxassetid://103309391320503")[1])
+        pcall(function() game.ReplicatedStorage[Character.Name.."_ov2"]:Destroy() end)
+        Rage.Name = Character.Name.."_ov2"
+        Rage.Parent = Character
+        task.spawn(function() task.wait(0.1) Rage.Parent = game.ReplicatedStorage end)
+        Character.AttributeChanged:Connect(function(Attribute)
+            if Attribute ~= "State" then return end
+            local State = Character:GetAttribute(Attribute)
+            if State == "rage" then
+            	Default.Parent = game.ReplicatedStorage
+            	Rage.Parent = Character 
+            end
+            if State == "default" or State == "invis" then
+            	Default.Parent = Character
+            	Rage.Parent = game.ReplicatedStorage
+            end
+        end)
+    end
+
+    function SetupMyAnimator(OvName)
+        local tracks = {}
+        local swing = "swing1"
+
+        local AnimsFolderName = Character:GetAttribute("Skin") == "Default" and "Anims" or "CustomAnimation"
+        local OrgAnimsFolder = game.ReplicatedStorage.ClientAssets.Characters:FindFirstChild(Character:GetAttribute("Character"), true):FindFirstChild(AnimsFolderName, true)
+        OrgAnimsFolder = AnimsFolderName == "Anims" and OrgAnimsFolder or OrgAnimsFolder[Character:GetAttribute("Skin")]
+        --warn(hi, "OrgAnimsFolder:", OrgAnimsFolder:GetFullName())
+
+        local Rig = Character:FindFirstChild(OvName) or Character
+        --warn(hi, "Rig:", Rig:GetFullName())
+
+        local MyAnimator = KeyframeAnimator.new(Rig.Humanoid)
+        MyAnimator.AnimationMode = KeyframeAnimator.AnimationMode.C0 -- KeyframeAnimator.AnimationMode.Transform
+
+        if Character:FindFirstChild("Animator", true) then
+            Character:FindFirstChild("Animator", true).AnimationPlayed:Connect(function(track)
+                print("PLAYED: "..track.Name.." - "..track.Animation.Name.." - "..track.Animation.AnimationId)
+                local id = track.Animation.AnimationId
+                -- catch server anims
+                if track.Name == "Animation" and Character:FindFirstChildOfClass("Animation") then
+                    for _, CharacterAnim in ipairs(Character:GetChildren()) do
+                        if not CharacterAnim:IsA("Animation") then continue end
+                        if id ~= CharacterAnim.AnimationId then continue end
+                        track.Name = CharacterAnim.Name
+                        if OrgAnimsFolder:FindFirstChild(track.Name) then OrgAnimsFolder[track.Name]:Destroy() end
+                        local SaveIT = track.Animation:Clone()
+                        SaveIT.Parent = OrgAnimsFolder
+                        SaveIT.Name = track.Name
+                        --warn("THATS SERVER SCRIPT ANIM! (Saving", track.Name.."...)")
+                    end
+                end
+                -- sync anim sets
+                for _, Anim in ipairs(OrgAnimsFolder:GetDescendants()) do
+                    if not Anim:IsA("Animation") then continue end
+                    if track.Animation.AnimationId ~= Anim.AnimationId then continue end
+                    Anim = Anim.Parent:Clone()[Anim.Name]
+                    local AnimName = Anim.Name
+                    local AnimType = Anim.Parent.Name
+                    local AnimFullName = Anim:GetFullName()
+                    AnimName = AnimName:find("SelectPose") and "DefaultWalk" or AnimName
+                    AnimName = AnimName:find("Stunloop") and "RageIdle" or AnimName
+                    AnimName = AnimName:find("ttack") and swing or AnimName
+                    AnimName = AnimName:find("harge") and "rushout" or AnimName
+                    AnimName = AnimName:find("rapple") and "rushout" or AnimName
+                    AnimName = AnimName:find("Kill") and "slamkill" or AnimName
+                    --print("OG Anim", Anim.Name, "//", Anim:GetFullName())
+                    local MyAnim = AnimSaves:FindFirstChild(AnimName) or AnimSaves:FindFirstChild(AnimType .. "" .. AnimName)
+                    --print("MY Anim", MyAnim and MyAnim.Name or "na", "//", MyAnim and MyAnim:GetFullName() or "na")
+                    if MyAnim then
+                        if AnimName:find("swing") then swing = swing == "swing2" and "swing1" or "swing2" end -- order h1-h2
+                        tracks[AnimFullName] = tracks[AnimFullName] or MyAnimator:LoadAnimation(MyAnim)
+                        if tracks[AnimFullName].IsPlaying then tracks[AnimFullName]:Stop(0.0) task.wait() end
+                        tracks[AnimFullName].Priority = track.Priority
+                        tracks[AnimFullName].Looped = track.Looped
+                        tracks[AnimFullName]:Play(0.2)
+                        task.spawn(function()
+                            while track.IsPlaying do
+                                task.wait(0.001)
+                                local m = 1.0
+                                m = AnimName == "Run" and 0.75 or m
+                                m = AnimName == "slamkill" and 3 or m
+                                tracks[AnimFullName]:AdjustSpeed(track.Speed * m)
+                            end
+                            if track.Looped then tracks[AnimFullName]:Stop(0.2) end
+                        end)
+                    end
+                    break
+                end
+            end)
+        end
+    end
+    SetupMyAnimator(Character.Name.."_ov1")
+    if IsPlayer then SetupMyAnimator(Character.Name.."_ov2") end
+    
+    -- trigger AnimationPlayed to handle already played anims before my connection
+    task.spawn(function()
+        for _, track in ipairs(Character.Humanoid.Animator:GetPlayingAnimationTracks()) do
+        	warn(hi, "Already played (restarting):", track.Name, track.Animation.AnimationId, track:Play(0))
+        end
+    end)
+
+    print(hi, "Updating finished for", Character.Name .. "!")
+end
+
+if _G.RewSonic2011xSkinTESTINGDUMMYConn then _G.RewSonic2011xSkinTESTINGDUMMYConn:Disconnect() end
+_G.RewSonic2011xSkinTESTINGDUMMYConn = game.CollectionService:GetInstanceAddedSignal("TESTINGDUMMY"):Connect(tryUpdateCharacter)
+
+if _G.RewSonic2011xInventoryAssetsCharConn then _G.RewSonic2011xInventoryAssetsCharConn:Disconnect() end
+_G.RewSonic2011xInventoryAssetsCharConn = workspace.InventoryAssets.char.ChildAdded:Connect(tryUpdateCharacter)
+
+if _G.RewSonic2011xSelectMapDescendantAddedConn then _G.RewSonic2011xSelectMapDescendantAddedConn:Disconnect() end
+_G.RewSonic2011xSelectMapDescendantAddedConn = workspace.SelectMap.DescendantAdded:Connect(tryUpdateCharacter)
+
+local function onPlayerAdded(Player)
+    if Player.Character then tryUpdateCharacter(Player.Character) end
+    _G.RewSonicOn2011xCharacterAddedConn = _G.RewSonicOn2011xCharacterAddedConn or {}
+    if _G.RewSonicOn2011xCharacterAddedConn[Player.Name] then _G.RewSonicOn2011xCharacterAddedConn[Player.Name]:Disconnect() end
+    _G.RewSonicOn2011xCharacterAddedConn[Player.Name] = Player.CharacterAdded:Connect(tryUpdateCharacter) 
+end
+
+for _, Player in game.Players:GetPlayers() do onPlayerAdded(Player) end
+
+if _G.RewSonicOn2011xPlayerAddedConn then _G.RewSonicOn2011xPlayerAddedConn:Disconnect() print(hi, "Previous CharaOn2011xPlayerAddedConn disconnected") end
+_G.RewSonicOn2011xPlayerAddedConn = game.Players.PlayerAdded:Connect(onPlayerAdded)
+
+task.spawn(function()
+    local BASE_URL = "https://github.com/monicagalindo-wq/RECUP/raw/refs/heads/monicagalindo-wq-Lines-1/"
+    _G.RewSonicAssets["SonicLine"] = downloadAsset(BASE_URL .. "KillSonic.mp3")
+    _G.RewSonicAssets["TailsLine"] = downloadAsset(BASE_URL .. "KillTails.mp3")
+    _G.RewSonicAssets["SilverLine"] = downloadAsset(BASE_URL .. "KillSilver.mp3")
+    _G.RewSonicAssets["ShadowLine"] = downloadAsset(BASE_URL .. "KillShadow.mp3")
+    _G.RewSonicAssets["MetalSonicLine"] = downloadAsset(BASE_URL .. "KillMetal.mp3")
+    _G.RewSonicAssets["KnucklesLine"] = downloadAsset(BASE_URL .. "KillKnuckles.mp3")
+    _G.RewSonicAssets["EggmanLine"] = downloadAsset(BASE_URL .. "KillEgg.mp3")
+    _G.RewSonicAssets["CreamLine"] = downloadAsset(BASE_URL .. "KillCream.mp3")
+    _G.RewSonicAssets["BlazeLine"] = downloadAsset(BASE_URL .. "KillBlaze.mp3")
+    _G.RewSonicAssets["AmyLine"] = downloadAsset(BASE_URL .. "KillAmy.mp3")
+    _G.RewSonicAssets["Down"] = {
+        downloadAsset(BASE_URL .. "Laugh1.mp3"), --1 
+        downloadAsset(BASE_URL .. "Laugh2v2.mp3"), --2 
+        downloadAsset(BASE_URL .. "Laser1.mp3"), --3 Let me know if this hurts."
+        downloadAsset(BASE_URL .. "Laser2.mp3"), --4 Can you feel it?
+        downloadAsset(BASE_URL .. "Burst3.mp3"), --5 You can't run from me!"
+        downloadAsset(BASE_URL .. "Burst4.mp3"), --6 When I seek, I always find
+        downloadAsset(BASE_URL .. "Down1.mp3"), --7 You can run."
+        downloadAsset(BASE_URL .. "Down2.mp3"), --8 idk some Choose to worship
+        downloadAsset(BASE_URL .. "Down3.mp3"), --9 be not afraid. It's all okay."
+    }
+    _G.RewSonicAssets["Kill"] = _G.RewSonicAssets["Down"]
+    _G.RewSonicAssets["Stunned"] = {} for i = 1, 4 do table.insert(_G.RewSonicAssets["Stunned"], downloadAsset(BASE_URL .. "Stun" .. i .. ".mp3")) end
+end)
+
+task.spawn(function()
+    local themes = game.ReplicatedStorage:FindFirstChild("ChaseThemes", true):FindFirstChild("2011x", true)
+
+    themes.Default.Rage.SoundId = downloadAsset("https://lil2kki.7m.pl/REWRITED_2011x/REWRITED_2011x_RAGE.mp3")
+
+    themes.Default.TerrorRadius.SoundId = downloadAsset("https://lil2kki.7m.pl/REWRITED_2011x/Digital_Paradise____Last_Life_Chase_Theme__OUTCOME_MEMORIES_UST_segment1.mp3")
+    themes.Default.NormalChase.PlaybackRegion = NumberRange.new(0, 0)
+    themes.Default.NormalChase.LoopRegion = NumberRange.new(0, 0)
+
+    themes.Default.NormalChase.SoundId = downloadAsset("https://lil2kki.7m.pl/REWRITED_2011x/Round_and_Round_-_Outcome_Memories_REWRITE_Chase_Theme__Scrapped_.mp3")
+    themes.Default.NormalChase.PlaybackRegion = NumberRange.new(0, 0)
+    themes.Default.NormalChase.LoopRegion = NumberRange.new(0, 0)
+
+    themes.Default.LastLifeChase.SoundId = downloadAsset("https://lil2kki.7m.pl/REWRITED_2011x/Digital_Paradise____Last_Life_Chase_Theme__OUTCOME_MEMORIES_UST_segment2.mp3")
+    themes.Default.LastLifeChase.PlaybackRegion = NumberRange.new(0, 0)
+    themes.Default.LastLifeChase.LoopRegion = NumberRange.new(0, 0)
+    themes.Default.LastLifeChase.PlaybackSpeed = 1 -- OM 0.1a special
+    themes.Default.LastLifeChase:SetAttribute("Eliminated", nil) -- no time pos jump on kill pls
+
+    themes.miku:Destroy()
+    themes.Default:Clone().Parent = themes
+    themes.Default.Name = "miku"
+
+    themes.RETRO:Destroy()
+    themes.Default:Clone().Parent = themes
+    themes.Default.Name = "RETRO"
+end)
